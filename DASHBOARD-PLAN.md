@@ -1,0 +1,1022 @@
+# Cyberspace Dashboard — Technical Plan
+
+> Local browser interface for the Cyberspace Intelligence System.
+> Aesthetic: Matrix x Mr. Robot x Watch Dogs. Functional hacker workstation.
+
+---
+
+## 1. Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    BROWSER (localhost:3000)          │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐    │
+│  │           Single-page dashboard              │    │
+│  │  HTML/CSS/JS + Leaflet map + Web Audio API   │    │
+│  └──────────────────┬──────────────────────────┘    │
+│                     │ fetch() calls                  │
+└─────────────────────┼───────────────────────────────┘
+                      │
+┌─────────────────────┼───────────────────────────────┐
+│              Node.js server (Express)                │
+│                     │                                │
+│  ┌─────────┐  ┌──────────┐  ┌───────────┐          │
+│  │ File API│  │ RSS Feed │  │ GCal API  │          │
+│  │ (r/w md)│  │ Fetcher  │  │ (optional)│          │
+│  └────┬────┘  └────┬─────┘  └─────┬─────┘          │
+│       │            │               │                 │
+└───────┼────────────┼───────────────┼─────────────────┘
+        │            │               │
+   cyberspace/    RSS feeds     Google Calendar API
+   (local files)  (public web)
+```
+
+### Tech stack
+- **Server**: Node.js + Express
+- **Frontend**: Vanilla JS (no heavy framework — ES modules in the browser)
+- **Map**: Leaflet.js with CartoDB Dark Matter tile layer
+- **Markdown parsing**: marked.js (render reports + config files in the browser)
+- **RSS parsing**: rss-parser (Node — fetches and normalises RSS/Atom feeds)
+- **File watching**: chokidar (Node — watches cyberspace/ folder for changes)
+- **WebSocket**: `ws` npm package (native WebSocket — no socket.io overhead for localhost)
+- **Audio**: Web Audio API + Howler.js for ambient music (Phase 4)
+- **Calendar**: Google Calendar API (OAuth2) with .ics fallback (Phase 2)
+
+### CSS foundation — custom properties from day one
+All colors, spacing, and theme values use CSS custom properties so theming
+(green/amber/cyan) is trivial to add later without refactoring.
+```css
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-panel: #111111;
+  --border: #1a1a1a;
+  --accent: #00ff41;
+  --accent-glow: rgba(0, 255, 65, 0.3);
+  --text: #c0c0c0;
+  --text-bright: #e0e0e0;
+  --threat-critical: #ff3333;
+  --threat-high: #ff8c00;
+  --threat-medium: #ffd700;
+  --threat-low: #00ff41;
+  --event-color: #00d4aa;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+```
+
+### File structure
+```
+cyberspace/
+├── dashboard/
+│   ├── server.js              <- Express server + generic file API + RSS fetcher + WebSocket
+│   ├── package.json
+│   ├── .env                   <- Google Calendar credentials (optional, gitignored)
+│   ├── public/
+│   │   ├── index.html         <- Single-page app shell
+│   │   ├── css/
+│   │   │   ├── main.css       <- Core layout + CSS custom properties
+│   │   │   ├── matrix.css     <- Matrix rain, glitch effects (Phase 4)
+│   │   │   └── panels.css     <- Retractable panel styles
+│   │   ├── js/
+│   │   │   ├── app.js         <- Main controller, panel management
+│   │   │   ├── map.js         <- World map (Leaflet) + markers
+│   │   │   ├── briefing.js    <- Briefing renderer (markdown -> HTML)
+│   │   │   ├── events.js      <- Event list, hover/click detail view
+│   │   │   ├── feeds.js       <- RSS feed display + sorting
+│   │   │   ├── terminal.js    <- Command terminal (Phase 3)
+│   │   │   ├── settings.js    <- Config viewer (rendered markdown)
+│   │   │   ├── music.js       <- Audio player controller (Phase 4)
+│   │   │   ├── effects.js     <- Matrix rain, glitch text, visual FX (Phase 4)
+│   │   │   └── websocket.js   <- Live data push handler
+│   │   └── assets/
+│   │       ├── markers/       <- Custom map marker icons (event, news, threat)
+│   │       ├── geocode.json   <- Bundled city/country -> lat/lng lookup (~500 entries)
+│   │       └── fonts/         <- Monospace fonts (JetBrains Mono, Fira Code)
+│   └── lib/
+│       ├── fileManager.js     <- Generic read/write for .md files (path-restricted)
+│       ├── rssFetcher.js      <- Parse rss.md, fetch all feeds, return sorted items
+│       └── calendarClient.js  <- Google Calendar API client (Phase 2)
+├── rss.md                     <- NEW: RSS feed sources configuration
+├── claude.md                  <- Master playbook (system instructions)
+├── interests.md
+├── events.md
+├── news.md
+├── feedback.md
+├── seen-events.md
+└── reports/
+    └── YYYY-MM-DD/
+        ├── briefing.md
+        ├── events.md
+        └── markers.json       <- NEW: generated by Claude alongside each report
+```
+
+---
+
+## 2. Layout — Single Dashboard with Retractable Panels
+
+The main view is the **world map**. Everything else is a **retractable panel** that
+slides in/out from the edges. Think Watch Dogs profiler overlay on top of a dark map.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ ┌─HEADER BAR──────────────────────────────────────────────────┐ │
+│ │ CYBERSPACE    🔴 THREAT: ORANGE    Briefing #42    ⚙ 📡 🎵 │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│  ┌─LEFT PANEL (retractable)──┐  ┌──────────────────────────┐   │
+│  │                           │  │                          │   │
+│  │  LIVE FEEDS / BRIEFING    │  │     WORLD MAP            │   │
+│  │  [tab: Feeds | Briefing]  │  │                          │   │
+│  │                           │  │  [📍 Brussels event]     │   │
+│  │  Feeds: sorted RSS items  │  │       [🔴 US breach]     │   │
+│  │  Briefing: rendered .md   │  │  [🟠 CVE - global]      │   │
+│  │                           │  │       [📍 Paris conf]    │   │
+│  │  Action items with        │  │                          │   │
+│  │  checkboxes               │  │  Click any marker →      │   │
+│  │                           │  │  detail card pops up     │   │
+│  │  Sections collapsible     │  │                          │   │
+│  │                           │  │                          │   │
+│  └───────────────────────────┘  │                          │   │
+│                                  │                          │   │
+│  ┌─RIGHT PANEL (retractable)─┐  │                          │   │
+│  │                           │  │                          │   │
+│  │  EVENTS RADAR             │  └──────────────────────────┘   │
+│  │                           │                                  │
+│  │  [Event Name]  ★★★☆  →   │  ┌─BOTTOM PANEL (retractable)─┐ │
+│  │  [Event Name]  ★★★★  →   │  │                             │ │
+│  │  [Event Name]  ★★☆☆  →   │  │  COMMAND TERMINAL           │ │
+│  │                           │  │  cyberspace> _              │ │
+│  │  hover/click → detail     │  │                             │ │
+│  │  card with full info,     │  │                             │ │
+│  │  accept/skip inside       │  │                             │ │
+│  │                           │  │                             │ │
+│  └───────────────────────────┘  └─────────────────────────────┘ │
+│                                                                  │
+│ ┌─FOOTER BAR─────────────────────────────────────────────────┐  │
+│ │ 🎵 ▶ Ambient Track 01   ───●────── 2:34 / 5:12    🔊 ▆▇  │  │
+│ └─────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Panel behavior
+- Each panel has a toggle button (in the header bar or edge of screen)
+- Panels slide in with a smooth animation + subtle glitch effect (Phase 4)
+- Panels can be resized by dragging their edge
+- Keyboard shortcuts: `B` = briefing, `E` = events, `F` = feeds, `T` = terminal, `S` = settings
+- Default state on load: left panel (feeds) open, others closed, map fills space
+- Settings panel: slides in as an overlay/modal
+
+### Map interaction
+- Clicking a marker opens a **detail card** (popup or floating panel) with:
+  - For news: headline, priority, summary, source link, "mark as read" button
+  - For events: full event details (same info as hover in events panel)
+  - For RSS items: title, source, summary, link to original
+- Unread items pulse/glow. Read items dim. (Phase 1 — localStorage tracking)
+- Markers use different icons/colors:
+  - 🔴 Red pulsing: critical threat / active exploit
+  - 🟠 Orange: high priority news
+  - 🟡 Yellow: medium priority
+  - 🟢 Green: RSS feed items
+  - 📍 Blue/cyan: events
+  - Dimmed/grey: already read
+
+### Watch Dogs inspiration (Phase 4)
+- When hovering over a map marker, a "profiler" style info card animates in
+  with a brief scan/decode animation before showing content
+- Data appears to "load" character by character (typewriter effect) for headings
+- Connection lines between related items (e.g. a threat actor → the breach they caused)
+
+---
+
+## 3. Component Details
+
+### 3.1 World Map (CENTER — main view)
+
+**Library:** Leaflet.js
+**Tile layer:** CartoDB Dark Matter (free, dark themed, perfect for hacker aesthetic)
+**URL:** `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png`
+
+**Default view:** Centered on Brussels (50.85, 4.35), zoom level showing Europe.
+
+**Markers come from `markers.json`** (generated by the intelligence system):
+
+The Claude intelligence pipeline generates `reports/YYYY-MM-DD/markers.json`
+alongside each briefing. This eliminates fragile server-side markdown parsing.
+The dashboard simply fetches this file and plots the markers.
+
+```json
+[
+  {
+    "id": "news-cve-2026-1234",
+    "type": "news",
+    "priority": "critical",
+    "category": "active-threats",
+    "title": "CVE-2026-1234 actively exploited in Microsoft Exchange",
+    "summary": "Remote code execution. Patch immediately.",
+    "source_url": "https://...",
+    "lat": 37.77,
+    "lng": -122.42,
+    "location_label": "United States",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "event-brusec-march",
+    "type": "event",
+    "priority": "high",
+    "title": "BruSec March Meetup",
+    "summary": "Monthly Brussels security community meetup.",
+    "source_url": "https://...",
+    "lat": 50.85,
+    "lng": 4.35,
+    "location_label": "Brussels, Belgium",
+    "date": "2026-03-15"
+  }
+]
+```
+
+RSS feed items are also plotted on the map where a location can be inferred
+from the feed source (e.g. CERT-EU → Brussels, CISA → Washington DC).
+Items with no location go to a "Global" cluster or sidebar list.
+
+**Read/unread tracking (Phase 1):**
+- Stored in `localStorage` keyed by item ID.
+- Clicking a marker → viewing the detail → marks it as read.
+- Read items: marker becomes dimmed, stops pulsing.
+- Unread count shown in the header bar badge.
+
+**"No location" fallback:**
+- Items without a clear geographic location go into a "Global" marker cluster
+  or appear only in the left panel feed list.
+
+**Bundled geocode table:**
+- `assets/geocode.json` — ~500 city/country → lat/lng mappings.
+- No external geocoding API needed. Keeps everything local and private.
+- Used by the RSS fetcher to place feed items on the map where possible.
+
+---
+
+### 3.2 RSS Feeds — Live Intelligence (LEFT PANEL — tab 1)
+
+**This is the live layer.** RSS feeds provide a continuous stream of current intelligence.
+Reports (briefing.md) are the curated, processed layer for historical reference.
+
+#### Configuration: `rss.md`
+
+A new config file at the project root listing all RSS/Atom feed URLs to monitor.
+Organized by category with optional priority hints.
+
+```markdown
+# RSS Feed Sources
+
+## Breaking News
+- https://feeds.feedburner.com/TheHackersNews [HIGH]
+- https://www.bleepingcomputer.com/feed/ [HIGH]
+- https://krebsonsecurity.com/feed/ [HIGH]
+- https://www.darkreading.com/rss.xml [MEDIUM]
+
+## Official Advisories
+- https://www.cisa.gov/cybersecurity-advisories/all.xml [HIGH]
+- https://cert.europa.eu/publications/security-advisories/rss [HIGH]
+- https://www.ccb.belgium.be/en/rss.xml [MEDIUM]
+
+## Analysis & Research
+- https://www.schneier.com/feed/ [MEDIUM]
+- https://googleprojectzero.blogspot.com/feeds/posts/default [MEDIUM]
+- https://blog.talosintelligence.com/rss/ [MEDIUM]
+
+## AI & Security
+- https://simonwillison.net/atom/everything/ [MEDIUM]
+- https://lilianweng.github.io/index.xml [LOW]
+
+## Threat Intelligence
+- https://www.mandiant.com/resources/blog/rss.xml [HIGH]
+- https://unit42.paloaltonetworks.com/feed/ [MEDIUM]
+```
+
+**Format rules:**
+- One URL per line, inside a markdown list item
+- Optional `[HIGH]`, `[MEDIUM]`, `[LOW]` tag at end of line (default: MEDIUM)
+- Markdown headings group feeds into categories
+- Lines starting with `<!-- ` are ignored (disabled feeds)
+
+#### Server: `lib/rssFetcher.js`
+
+1. Parses `rss.md` to extract feed URLs and their priority/category.
+2. Fetches all feeds in parallel using `rss-parser`.
+3. Normalizes items into a common format:
+   ```json
+   {
+     "id": "rss-thehackernews-abc123",
+     "source": "The Hacker News",
+     "category": "Breaking News",
+     "priority": "HIGH",
+     "title": "New Zero-Day in Chrome Exploited in the Wild",
+     "summary": "Google has released an emergency patch...",
+     "url": "https://thehackernews.com/2026/03/...",
+     "published": "2026-03-01T14:30:00Z",
+     "read": false
+   }
+   ```
+4. Sorts items: by priority (HIGH first), then by recency (newest first).
+5. Deduplicates: same story from multiple feeds = one entry (match by title similarity).
+6. Caches results for 15 minutes to avoid hammering feeds on every page load.
+
+#### Frontend: `js/feeds.js`
+
+- Left panel has two tabs: **Feeds** (live RSS) and **Briefing** (daily report).
+- Feeds tab shows a scrollable list of items grouped by time:
+  - "Last hour" / "Today" / "Yesterday" / "Older"
+- Each item shows: source icon/name, title, time ago, priority dot (colored).
+- Clicking an item marks it as read and opens the source URL or expands a summary.
+- Filter bar at top: filter by category, priority, or search text.
+- Auto-refreshes via WebSocket when server fetches new feed data.
+- Unread count badge on the Feeds tab.
+
+#### Refresh behavior
+- Server fetches all feeds on startup, then every 15 minutes.
+- WebSocket pushes `{ type: "feeds_updated" }` to connected clients.
+- Frontend refreshes the feed list without full page reload.
+- Manual refresh button in the panel header.
+
+---
+
+### 3.3 Briefing Panel (LEFT PANEL — tab 2)
+
+The curated daily report. More depth and analysis than raw feeds.
+
+- Renders `reports/YYYY-MM-DD/briefing.md` as HTML using marked.js
+- Sections are **collapsible accordions** (click heading to expand/collapse)
+- Threat level bar at the top with color-coded background
+- Action items render as interactive checkboxes (state saved in localStorage)
+- "Previous" / "Next" arrows to navigate between days
+- Date picker to jump to any past briefing
+- Read/unread: opening the briefing marks it as read. Unread briefings
+  show a notification dot in the header.
+
+---
+
+### 3.4 Events Panel (RIGHT — retractable)
+
+Renders events from `reports/YYYY-MM-DD/events.md` as a **compact list**.
+Details appear on interaction, not cluttering the list view.
+
+#### List view (default)
+Each event shows one line:
+- Event name (truncated if long)
+- Date (compact: "Mar 15" or "Tomorrow")
+- Relevance stars (★★★☆☆)
+- Arrow indicator (→) hinting at expandable detail
+
+#### Detail view (hover or click)
+Hovering over an event (desktop) or clicking it expands an **inline detail card**
+below the list item, showing full event information:
+
+```
+┌──────────────────────────────────┐
+│ BruSec March Meetup         ★★★★│
+│ ─────────────────────────────────│
+│ When: March 15, 18:30            │
+│ Where: The Commons Hub, Brussels │
+│ Cost: Free                       │
+│ Relevance: 8/10 — monthly       │
+│   Brussels security community    │
+│   meetup, networking + talks     │
+│                                  │
+│ Why this matters:                │
+│ Directly relevant to building    │
+│ your pentesting practice. Past   │
+│ meetups featured hands-on demos. │
+│                                  │
+│ Calendar: ✅ Available           │
+│ Deadline: Register by Mar 12 ⏰  │
+│                                  │
+│   [✅ Accept]  [❌ Skip]         │
+│                                  │
+└──────────────────────────────────┘
+```
+
+- Accept/Skip buttons are **only visible inside the detail view**, not on the list.
+- Hovering out (or clicking elsewhere) collapses the detail back to the list row.
+- On narrow screens or if preferred: click to expand, click again to collapse (toggle).
+
+#### Accept flow
+1. User expands event detail, clicks ✅ Accept
+2. Frontend sends POST to `/api/feedback` with:
+   `[2026-03-01] EVENT ACCEPTED: "BruSec March Meetup" (March 15, Brussels)`
+3. If Google Calendar is configured (Phase 2): creates calendar event
+4. If not configured: generates .ics file download
+5. Card shows confirmation state (green border, checkmark icon)
+
+#### Skip flow
+1. User expands event detail, clicks ❌ Skip
+2. Frontend sends POST to `/api/feedback` with:
+   `[2026-03-01] EVENT SKIPPED: "BruSec March Meetup" — not interested`
+3. Card dims and moves to bottom of list (or fades out)
+4. Over time, skip signals teach the system to lower scores for similar events
+
+---
+
+### 3.5 Command Terminal (BOTTOM — retractable, Phase 3)
+
+**Visual:** Dark terminal panel. Monospace font. Green text on near-black. Blinking cursor.
+
+**Not an AI chat.** This is a local command interface for navigating the dashboard
+and managing the intelligence system quickly via keyboard.
+
+**Prompt:** `cyberspace> _`
+
+#### Built-in commands
+
+```
+NAVIGATION
+  events                     Show events panel
+  events --priority          Sort events by relevance score (highest first)
+  events --date              Sort events by date (soonest first)
+  events --cost              Sort events by cost (free first)
+  feeds                      Show feeds panel
+  feeds --critical           Filter feeds to HIGH priority only
+  feeds --category <name>    Filter feeds by category
+  briefing                   Show today's briefing
+  briefing <date>            Show briefing for specific date (YYYY-MM-DD)
+  map                        Focus map view, close panels
+
+CONFIGURATION
+  config                     List all config files
+  config interests           Open interests.md in settings panel
+  config news                Open news.md in settings panel
+  config events              Open events.md in settings panel
+  config rss                 Open rss.md in settings panel
+  config feedback            Open feedback.md in settings panel
+
+INFORMATION
+  status                     Show system status (last briefing, feed count, unread count)
+  threat                     Show current threat level with summary
+  unread                     List all unread items
+  search <query>             Search across feeds, briefings, and events
+
+ACTIONS
+  feedback <text>            Quick-append text to feedback.md
+  mark-read                  Mark all visible items as read
+  refresh feeds              Force re-fetch all RSS feeds
+  clear                      Clear terminal output
+
+UTILITY
+  help                       Show this command list
+  help <command>             Show detailed help for a command
+  shortcuts                  Show keyboard shortcuts
+  theme <green|amber|cyan>   Switch accent color
+```
+
+**Tab completion:** Commands auto-complete on Tab.
+**History:** Up/down arrows cycle through command history (stored in localStorage).
+**Output:** Command results display inline in the terminal as formatted text.
+
+---
+
+### 3.6 Settings Panel (OVERLAY — triggered from ⚙ icon)
+
+Renders config files as **read-only formatted markdown** using marked.js.
+No forms, no structured editing, no markdown round-trip complexity.
+
+**Tabs:**
+- Interests (`interests.md`)
+- News Sources (`news.md`)
+- Event Rules (`events.md`)
+- RSS Feeds (`rss.md`)
+- System (dashboard-specific settings)
+
+Each tab renders the corresponding .md file as styled HTML with the same
+marked.js pipeline used for briefings. The content is scrollable and readable.
+
+**Editing:** A pencil icon (✏️) in the tab header opens the raw markdown in a
+simple textarea for direct editing. Save button writes back via the file API.
+This is intentionally low-friction — the feedback box handles most config changes
+through natural language anyway.
+
+**System tab** (not a .md file):
+- Google Calendar: OAuth connect button / status indicator (Phase 2)
+- Theme: accent color selector (green/amber/cyan)
+- Feed refresh interval (default: 15 minutes)
+- Dashboard layout preferences (which panels open on load)
+
+---
+
+### 3.7 Music Player (FOOTER BAR — Phase 4)
+
+**Player:** Howler.js (handles Web Audio API nicely)
+**Tracks:** 3 built-in ambient tracks shipped as MP3 in `public/audio/`
+
+Track ideas (royalty-free / CC-licensed dark ambient):
+1. Dark synthwave ambient (Blade Runner inspired)
+2. Cyberpunk lo-fi beats
+3. Minimal dark drone ambient (Mr. Robot style)
+
+**Controls:**
+- Play/pause button
+- Track name display
+- Progress bar (seekable)
+- Volume slider
+- Next/previous track
+- Shuffle toggle
+
+**Visual:** Thin bar at the very bottom. Matches the terminal aesthetic.
+Audio waveform visualization as a subtle accent behind the controls.
+
+> Note: The footer bar is hidden entirely until Phase 4. The space is used
+> by the bottom panel (terminal) until then.
+
+---
+
+### 3.8 Feedback Box (accessible from any panel)
+
+A floating button (bottom-right corner, always visible) labeled "💬 Feedback"
+that opens a small text area overlay.
+
+- User types anything (free-form, just like feedback.md)
+- Submit → server appends to feedback.md with timestamp
+- Confirmation animation: text "dissolves" into the background (Phase 4: into matrix rain)
+- This is the quick-access version of editing feedback.md directly
+
+---
+
+## 4. Visual Effects (Phase 4)
+
+### Matrix Rain
+- Canvas element behind the map (z-index below map tiles, above background)
+- Green katakana characters falling at varying speeds
+- Opacity: ~15% — subtle, not overwhelming
+- Intensifies briefly when threat level is 🔴 CRITICAL
+
+### Glitch Text
+- Applied to: threat level indicator, section headings on hover, loading states
+- CSS-based: `clip-path` animation + color channel offset (red/cyan split)
+- Triggers: on panel open, on new data arriving, on threat level change
+
+### Watch Dogs Profiler Effect
+- When hovering a map marker, a floating card animates in:
+  1. Brief "scanning" animation (progress bar fills)
+  2. Data appears line by line with typewriter effect
+  3. Hexagonal or angular frame around the card
+- Connection lines: SVG overlay showing relationships between markers
+
+### Terminal Text
+- All text in monospace (JetBrains Mono or Fira Code)
+- Blinking block cursor in the terminal input
+- Green-on-black for terminal, amber option in settings
+- Subtle text shadow / glow on active elements
+
+### Panel Transitions
+- Panels slide in from their respective edge with easing
+- Brief glitch/scramble effect on the panel border during animation
+- Sound effect option: subtle "digital" sound on panel open (toggleable)
+
+---
+
+## 5. Server API
+
+### Generic file API
+
+Instead of one endpoint per config file, a single generic file API handles
+all reads and writes. Path is restricted to the `cyberspace/` directory to
+prevent directory traversal.
+
+```
+GET  /api/file?path=<relative_path>         Read any file under cyberspace/
+PUT  /api/file?path=<relative_path>         Write/overwrite a file
+POST /api/file/append?path=<relative_path>  Append text to a file (for feedback)
+```
+
+**Path validation:**
+- Resolve to absolute path, verify it's within the cyberspace root.
+- Block access to `dashboard/`, `.env`, and any dotfiles.
+- Allow: `*.md`, `reports/**/*.md`, `reports/**/*.json`.
+
+### Specialized endpoints (only where generic file API doesn't fit)
+
+```
+GET  /api/reports              List all report dates (scans reports/ directory)
+GET  /api/reports/latest       Redirect to most recent report date
+
+GET  /api/feeds                Fetch and return sorted RSS feed items (cached)
+POST /api/feeds/refresh        Force re-fetch all RSS feeds now
+
+POST /api/feedback             Append timestamped text to feedback.md
+                               (convenience wrapper around file/append)
+
+GET  /api/calendar/status      GCal auth status (Phase 2)
+GET  /api/calendar/auth        Initiate OAuth flow (Phase 2)
+POST /api/calendar/add         Add event to GCal (Phase 2)
+GET  /api/calendar/ics         Generate .ics file for an event (Phase 2)
+
+WS   /ws                       WebSocket for live notifications
+```
+
+### WebSocket messages
+
+Server → Client:
+```json
+{ "type": "file_changed", "file": "reports/2026-03-01/briefing.md", "action": "created" }
+{ "type": "feeds_updated", "count": 42, "new": 5 }
+```
+
+Client receives these and:
+- `file_changed` on a report → refreshes map markers + briefing panel + notification
+- `file_changed` on feedback.md → updates the feedback indicator
+- `file_changed` on a config file → refreshes settings panel if open
+- `feeds_updated` → refreshes the feeds list, updates unread badge
+
+---
+
+## 6. Live Data (WebSocket)
+
+Server uses **chokidar** to watch the `cyberspace/` directory.
+Server uses a **timer** (every 15 minutes) to re-fetch RSS feeds.
+
+**Morning experience:** You open the dashboard. At 8:00 AM, the scheduled task runs.
+A few minutes later, the new briefing drops. The dashboard detects it via WebSocket —
+map lights up with new markers pulsing, a subtle notification appears:
+"New briefing available." The threat level updates. RSS feeds have been refreshing
+in the background all morning, so the feeds panel already has the latest items.
+All without touching refresh.
+
+---
+
+## 7. Geocoding Strategy
+
+Map markers need coordinates. Three sources of location data:
+
+1. **Reports (briefing + events):** The Claude intelligence pipeline generates
+   `markers.json` alongside each report. Claude already knows locations when writing
+   the report — no fragile server-side markdown parsing needed.
+
+2. **RSS feed items:** Harder. The server uses heuristics:
+   - Feed source location (CISA → Washington DC, CERT-EU → Brussels, CCB → Brussels)
+   - Known company/org → HQ mapping (bundled lookup table)
+   - If no location found → "Global" cluster or feed-list-only (no map marker)
+
+3. **Bundled geocode table:** `assets/geocode.json` — ~500 city/country → lat/lng
+   mappings. No external geocoding API needed. Keeps everything local and private.
+
+---
+
+## 8. Error States & Graceful Degradation
+
+Every component must handle failure gracefully. For a local tool,
+clear messages are sufficient — no need for retry logic.
+
+| Scenario | Behavior |
+|----------|----------|
+| No reports exist yet | Map is empty. Left panel shows "No briefings yet. Run the intelligence system to generate your first report." |
+| Report is malformed | Render what's parseable. Show warning banner: "Briefing may be incomplete." |
+| markers.json missing | Map has no markers for that day. Left panel still renders the briefing markdown. |
+| RSS feeds unreachable | Show cached items (if any). Badge: "Feeds stale — last updated X ago." Retry on next cycle. |
+| rss.md is empty | Feeds tab shows: "No feeds configured. Add RSS URLs to rss.md." |
+| WebSocket disconnects | Small "disconnected" indicator in header. Auto-reconnect every 5 seconds. |
+| Google Calendar not configured | Calendar status shows "Not connected" in event details. Accept → .ics download fallback. |
+| Server not running | Browser shows connection error. No special handling needed — user knows to start it. |
+
+---
+
+## 9. Running the Dashboard
+
+```bash
+cd cyberspace/dashboard
+cp .env.example .env     # optional: add GCal credentials
+npm install
+npm start                # starts server on localhost:3000
+```
+
+Opens automatically in default browser. Single command to launch.
+
+Optional: add a script to start on boot, or a desktop shortcut.
+
+---
+
+## 10. Implementation Phases
+
+Each phase is self-contained. At the end of each phase, the dashboard is
+usable and complete at that level. No phase depends on "finishing it later."
+
+---
+
+### Phase 1 — Functional MVP (get it on screen)
+
+> Goal: Open `localhost:3000` and see a working dark dashboard with a map,
+> today's briefing, events list, and live RSS feeds. Read/unread tracking works.
+
+#### Server
+- [ ] Express server serving static files from `public/`
+- [ ] Generic file API (`GET /api/file`, `PUT /api/file`, `POST /api/file/append`)
+  - Path validation: restrict to cyberspace/ root, block dashboard/ and dotfiles
+- [ ] `GET /api/reports` — list report dates (scan `reports/` directory)
+- [ ] `GET /api/reports/latest` — return most recent date
+- [ ] `GET /api/feeds` — parse `rss.md`, fetch feeds, return sorted JSON (cached 15 min)
+- [ ] `POST /api/feeds/refresh` — force re-fetch
+- [ ] `POST /api/feedback` — append timestamped text to feedback.md
+- [ ] WebSocket (`ws` package): chokidar file watcher + feed update notifications
+- [ ] RSS fetcher (`lib/rssFetcher.js`): parse rss.md, fetch via rss-parser, normalize, sort, dedupe, cache
+
+#### Frontend — HTML shell
+- [ ] `index.html` — single-page layout with panel containers
+- [ ] Header bar: "CYBERSPACE" title, threat level indicator, unread badge, panel toggle icons
+- [ ] Panel framework: left, right, bottom panels with show/hide toggle buttons
+- [ ] CSS custom properties defined in `:root` (full color palette, fonts, spacing)
+- [ ] Dark theme applied globally (no light mode)
+- [ ] Responsive panel sizing (panels take % width, map fills remainder)
+
+#### Frontend — World Map
+- [ ] `js/map.js` — Leaflet initialization with CartoDB Dark Matter tiles
+- [ ] Centered on Brussels (50.85, 4.35), zoom level showing Europe
+- [ ] Load `markers.json` from latest report, plot markers with color-coded icons
+- [ ] Marker click → popup with title, summary, source link, "mark as read" button
+- [ ] Marker colors: red (critical), orange (high), yellow (medium), cyan (events), green (RSS)
+- [ ] Dimmed/grey markers for read items
+
+#### Frontend — Left Panel (Feeds + Briefing tabs)
+- [ ] `js/feeds.js` — fetch `/api/feeds`, render as scrollable list
+  - Group by time: "Last hour" / "Today" / "Yesterday" / "Older"
+  - Each item: source name, title, time ago, priority color dot
+  - Click item → mark as read + open source URL in new tab
+  - Filter bar: by category dropdown, priority dropdown, text search
+  - Unread count badge on Feeds tab
+- [ ] `js/briefing.js` — fetch latest briefing.md via file API, render with marked.js
+  - Collapsible accordion sections (click heading to toggle)
+  - Threat level bar at top (colored background based on level)
+  - Action items as interactive checkboxes (localStorage persistence)
+  - Previous/Next arrows to navigate between report dates
+
+#### Frontend — Right Panel (Events)
+- [ ] `js/events.js` — fetch latest events.md via file API, parse and render
+  - Compact list view: event name, date, relevance stars
+  - Hover/click expands inline detail card with full info
+  - Detail card shows: when, where, cost, relevance, "why this matters", deadline
+  - Accept button → POST to /api/feedback + confirmation state
+  - Skip button → POST to /api/feedback + dim/fade card
+  - Accept/Skip only visible inside expanded detail view
+
+#### Frontend — Read/Unread Tracking
+- [ ] `localStorage` keyed by item ID (markers, feed items, briefings)
+- [ ] Clicking/viewing an item marks it as read
+- [ ] Unread count in header bar badge (total across all sources)
+- [ ] Map markers dim when read, pulse when unread
+- [ ] Feed items dim when read
+- [ ] "Mark all as read" button in each panel header
+
+#### Frontend — WebSocket
+- [ ] `js/websocket.js` — connect to `ws://localhost:3000/ws`
+- [ ] Handle `file_changed` → refresh affected panel
+- [ ] Handle `feeds_updated` → refresh feeds list + badge
+- [ ] Auto-reconnect on disconnect (5-second interval)
+- [ ] "Disconnected" indicator in header bar
+
+#### Frontend — Feedback Box
+- [ ] Floating 💬 button (bottom-right, always visible)
+- [ ] Click → small text area overlay
+- [ ] Submit → POST to /api/feedback → clear textarea → brief confirmation
+
+#### Error States (Phase 1)
+- [ ] Empty state for each panel (no reports, no feeds, no events)
+- [ ] "Feeds stale" indicator when cache is old and fetch failed
+- [ ] Warning banner for malformed/incomplete reports
+
+#### Config files to create
+- [ ] `rss.md` — initial list of RSS feeds (cybersecurity + AI sources)
+- [ ] `assets/geocode.json` — bundled city/country → lat/lng lookup table
+
+#### Update to Claude pipeline
+- [ ] Update `CLAUDE.md` to instruct the intelligence system to generate
+      `markers.json` alongside each report (Step 4 in Execution Order)
+
+**Phase 1 deliverable:** A fully functional dark dashboard. Map with markers,
+live RSS feeds updating every 15 minutes, daily briefing rendered beautifully,
+events with expandable details, read/unread tracking across everything, and
+live WebSocket updates when new reports drop.
+
+---
+
+### Phase 2 — Interactive Intelligence (make it useful)
+
+> Goal: Calendar integration, report history navigation, and deeper
+> event management. The dashboard becomes your daily command center.
+
+#### Google Calendar Integration
+- [ ] `lib/calendarClient.js` — Google Calendar API client (OAuth2)
+- [ ] `GET /api/calendar/status` — check if OAuth is configured and valid
+- [ ] `GET /api/calendar/auth` — initiate OAuth flow (redirect-based)
+- [ ] `POST /api/calendar/add` — create calendar event from event data
+- [ ] `GET /api/calendar/ics` — generate .ics file download as fallback
+- [ ] Event detail card shows calendar status: ✅ Available / ⚠️ Conflict
+- [ ] Accept button: if GCal connected → create event + confirm; if not → .ics download
+- [ ] `.env.example` with Google Calendar OAuth fields
+
+#### Report Navigation
+- [ ] Date picker in briefing panel to jump to any past report
+- [ ] Previous/Next arrows cycle through available report dates
+- [ ] Map markers update when viewing a different date's report
+- [ ] URL hash updates with date (`#date=2026-03-01`) for bookmarking
+- [ ] "Today" button to jump back to latest report
+
+#### Settings Panel (read-only markdown view)
+- [ ] `js/settings.js` — overlay panel triggered by ⚙ icon
+- [ ] Tabs: Interests | News Sources | Event Rules | RSS Feeds | System
+- [ ] Each config tab: fetch .md file via file API → render with marked.js
+- [ ] ✏️ pencil icon → toggles textarea for raw markdown editing
+- [ ] Save button → PUT via file API → WebSocket notifies of change → re-render
+- [ ] System tab: GCal status, theme selector, feed interval, default panels
+
+#### Feed Enhancements
+- [ ] Persistent feed item read state across sessions (localStorage)
+- [ ] "Star" / bookmark individual feed items for later reference
+- [ ] Feed item count per source in the filter dropdown
+- [ ] Keyboard navigation within feed list (j/k to move, Enter to open)
+
+**Phase 2 deliverable:** Full calendar integration for events, browse any
+past briefing, settings panel for viewing/editing all config files,
+and quality-of-life feed improvements.
+
+---
+
+### Phase 3 — Command Terminal (make it fast)
+
+> Goal: A command-line interface for power users. Navigate the dashboard,
+> filter data, manage config, and get quick answers — all from the keyboard.
+
+#### Terminal UI
+- [ ] `js/terminal.js` — bottom panel with command prompt
+- [ ] Prompt: `cyberspace> _` with blinking block cursor
+- [ ] Dark background (#0a0a0a), green monospace text
+- [ ] Scrollable output area above the input line
+- [ ] Input line with cursor at bottom
+
+#### Command Parser
+- [ ] Parse input into command + arguments + flags
+- [ ] Tab completion for commands and arguments
+- [ ] Up/down arrow for command history (localStorage)
+- [ ] Command output rendered as formatted text (supports basic markdown)
+
+#### Navigation Commands
+- [ ] `events` — open events panel
+- [ ] `events --priority` / `events --date` / `events --cost` — sort events
+- [ ] `feeds` — open feeds panel
+- [ ] `feeds --critical` — filter to HIGH priority only
+- [ ] `feeds --category <name>` — filter by category
+- [ ] `briefing` — open briefing panel with today's report
+- [ ] `briefing <date>` — open briefing for specific date
+- [ ] `map` — close all panels, focus map
+
+#### Config Commands
+- [ ] `config` — list all config files with descriptions
+- [ ] `config interests` / `config news` / `config events` / `config rss` / `config feedback`
+      — open the corresponding tab in settings panel
+
+#### Info Commands
+- [ ] `status` — system status (last briefing date, feed count, unread count, streak)
+- [ ] `threat` — current threat level with one-line summary
+- [ ] `unread` — list all unread items across all sources
+- [ ] `search <query>` — search across feeds, briefings, and events by keyword
+
+#### Action Commands
+- [ ] `feedback <text>` — quick-append to feedback.md without opening the box
+- [ ] `mark-read` — mark all visible items as read
+- [ ] `refresh feeds` — force re-fetch all RSS feeds
+- [ ] `clear` — clear terminal output
+- [ ] `help` / `help <command>` — show command reference
+- [ ] `shortcuts` — display keyboard shortcuts
+- [ ] `theme <green|amber|cyan>` — switch accent color live
+
+#### Keyboard Shortcuts
+- [ ] `B` = toggle briefing panel
+- [ ] `E` = toggle events panel
+- [ ] `F` = toggle feeds panel
+- [ ] `T` = toggle terminal (focus input)
+- [ ] `S` = toggle settings panel
+- [ ] `Esc` = close active panel / overlay
+- [ ] `/` = focus terminal input (like Vim search)
+- [ ] `?` = show keyboard shortcut overlay
+
+**Phase 3 deliverable:** A fully functional command terminal that makes the
+dashboard navigable entirely from the keyboard. Every panel, filter, and
+action is accessible via typed commands.
+
+---
+
+### Phase 4 — Polish (make it beautiful)
+
+> Goal: Visual effects, animations, ambient audio, and the final
+> "hacker workstation" aesthetic. Eye candy that doesn't slow things down.
+
+#### Matrix Rain
+- [ ] `js/effects.js` — canvas element behind the map
+- [ ] Green katakana characters falling at varying speeds
+- [ ] Opacity: ~15% — subtle, not overwhelming
+- [ ] Intensifies briefly when threat level is 🔴 CRITICAL
+- [ ] Performance: requestAnimationFrame, skip frames on low-end hardware
+
+#### Glitch Text
+- [ ] CSS `clip-path` animation + color channel offset (red/cyan split)
+- [ ] Applied to: threat level indicator, section headings on hover, loading states
+- [ ] Triggers: panel open, new data arriving, threat level change
+
+#### Watch Dogs Profiler Effect
+- [ ] Map marker hover → "scanning" animation (progress bar fills)
+- [ ] Data appears line by line with typewriter effect
+- [ ] Hexagonal/angular frame around detail cards
+- [ ] Connection lines (SVG overlay) between related markers
+
+#### Panel Animations
+- [ ] Smooth slide-in from edges with CSS easing
+- [ ] Brief glitch/scramble effect on panel borders during animation
+- [ ] Optional: subtle "digital" sound effect on panel open (toggleable)
+
+#### Map Marker Animations
+- [ ] Unread markers pulse with a soft glow animation
+- [ ] Critical markers have a more intense, faster pulse
+- [ ] New markers appear with a "drop-in" animation
+- [ ] Read markers fade to dimmed state with transition
+
+#### Music Player
+- [ ] `js/music.js` — Howler.js integration
+- [ ] Footer bar: play/pause, track name, progress bar, volume, next/prev
+- [ ] 3 ambient tracks (dark synthwave, cyberpunk lo-fi, dark drone)
+- [ ] `public/audio/` directory with tracks
+- [ ] Audio waveform visualization behind controls
+- [ ] Auto-play setting (off by default)
+- [ ] Volume saved in localStorage
+
+#### Theme System
+- [ ] CSS custom property swaps for green/amber/cyan accent
+- [ ] Theme selection saved in localStorage
+- [ ] Smooth transition between themes
+- [ ] Terminal command: `theme <name>` for quick switching
+
+#### Loading States & Transitions
+- [ ] Skeleton loading for panels while data fetches
+- [ ] Typewriter effect for briefing heading on first render
+- [ ] Fade-in for map markers as they load
+- [ ] Spinner/progress indicator during feed refresh
+
+**Phase 4 deliverable:** The full hacker workstation aesthetic. Matrix rain,
+glitch effects, profiler animations, ambient music, and smooth transitions
+everywhere. The dashboard looks and feels like a scene from Mr. Robot.
+
+---
+
+### Phase 5 — Extras (nice-to-haves)
+
+> Future ideas. No timeline. Build if inspired.
+
+- [ ] Connection lines between related map markers (threat actor → breach)
+- [ ] Threat level history sparkline graph in header bar
+- [ ] Weekly trend visualization (compare threat levels across the week)
+- [ ] Mobile responsive layout (panels become full-screen tabs)
+- [ ] Desktop notifications for critical threats (browser Notification API)
+- [ ] RSS feed health monitoring (detect dead feeds, suggest replacements)
+- [ ] Export dashboard state as shareable snapshot
+- [ ] Custom marker icons per category (SVG)
+- [ ] Dark/light map tile toggle (always dark by default)
+
+---
+
+## 11. Design Reference
+
+Key elements for the visual design:
+
+1. **Dark background** — near-black (#0a0a0a) with subtle green/cyan accents
+2. **World map** as the centerpiece — dark tile layer, glowing markers
+3. **Left panel** — tabbed: RSS feeds (live) + briefing (curated)
+4. **Right panel** — event list with hover/click detail expansion
+5. **Bottom panel** — command terminal with prompt
+6. **Header bar** — threat level, streak counter, unread badge, panel toggle icons
+7. **Footer** — music player (Phase 4, hidden until then)
+8. **Floating feedback button** — bottom right corner
+9. **Map markers** — different colors for threats, events, CVEs, RSS items
+10. **Watch Dogs profiler popup** — angular frame on marker hover (Phase 4)
+11. **Typography** — monospace everywhere (JetBrains Mono / Fira Code)
+12. **Color palette (CSS custom properties):**
+    - Primary: #00ff41 (matrix green) or #00d4aa (cyan)
+    - Alert: #ff3333 (red), #ff8c00 (orange), #ffd700 (yellow)
+    - Text: #c0c0c0 (light grey on dark)
+    - Background: #0a0a0a, panels: #111111 with #1a1a1a borders
+    - Accent glow: subtle green/cyan box-shadow on active elements
+
+---
+
+## Changelog
+
+- **v1.0** — Initial plan: map, panels, Gemini chat, 18 endpoints, socket.io
+- **v2.0** — Major revision:
+  - Replaced Gemini AI chat with local command terminal (Phase 3)
+  - Added RSS feed system (`rss.md` + server fetcher + feeds panel)
+  - Left panel now tabbed: Feeds (live) | Briefing (curated)
+  - Events panel: compact list with hover/click detail expansion
+    (accept/skip only visible inside detail view)
+  - Generic file API replaces 18 individual endpoints
+  - `markers.json` generated by Claude pipeline (no server-side markdown parsing)
+  - Native WebSocket (`ws`) replaces socket.io
+  - CSS custom properties from day one for easy theming
+  - Settings panel renders config files as markdown (no form complexity)
+  - Read/unread tracking moved to Phase 1
+  - Music player moved to Phase 4
+  - Added error states and graceful degradation section
+  - Clear per-phase deliverables with specific task lists
+  - Added Phase 5 for future extras

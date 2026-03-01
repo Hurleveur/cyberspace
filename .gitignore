@@ -1,0 +1,31 @@
+# Dependencies
+dashboard/node_modules/
+
+# Personal / sensitive config (contains profile data, preferences, personal feedback)
+interests.md
+feedback.md
+seen-events.md
+
+# Reports (contain personal briefings and location data)
+reports/
+
+# Environment / secrets
+dashboard/.env
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Claude Code internals
+.claude/
+
+# Audio assets (large binary files — add individually if needed)
+dashboard/public/audio/

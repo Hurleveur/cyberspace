@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBERSPACE</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/panels.css">
+</head>
+<body>
+
+  <!-- Header Bar -->
+  <header id="header">
+    <div class="header-left">
+      <span class="logo">CYBERSPACE</span>
+      <span id="threat-badge" class="threat-badge threat-unknown">
+        <span class="threat-dot"></span>
+        <span id="threat-label">LOADING</span>
+      </span>
+      <span id="streak-badge" class="streak-badge"></span>
+    </div>
+    <div class="header-right">
+      <span id="unread-badge" class="unread-badge" title="Unread items">0</span>
+      <button class="header-btn" id="btn-feeds" title="Feeds (F)">
+        <span class="btn-icon">📡</span>
+      </button>
+      <button class="header-btn" id="btn-briefing" title="Briefing (B)">
+        <span class="btn-icon">📋</span>
+      </button>
+      <button class="header-btn" id="btn-events" title="Events (E)">
+        <span class="btn-icon">📅</span>
+      </button>
+      <button class="header-btn" id="btn-settings" title="Settings (S)">
+        <span class="btn-icon">⚙</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- World Map -->
+  <div id="map"></div>
+
+  <!-- Left Panel (Feeds + Briefing tabs) -->
+  <aside id="left-panel" class="panel panel-left">
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-tab="feeds">
+        Feeds <span id="feeds-unread-badge" class="tab-badge">0</span>
+      </button>
+      <button class="panel-tab" data-tab="briefing">Briefing</button>
+    </div>
+    <div class="panel-content">
+      <!-- Feeds Tab -->
+      <div id="tab-feeds" class="tab-content active">
+        <div class="feeds-toolbar">
+          <select id="feeds-filter-category" title="Filter by category">
+            <option value="">All Categories</option>
+          </select>
+          <select id="feeds-filter-priority" title="Filter by priority">
+            <option value="">All Priorities</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+          </select>
+          <input type="text" id="feeds-search" placeholder="Search feeds..." />
+          <button id="feeds-refresh-btn" title="Refresh feeds">↻</button>
+        </div>
+        <div id="feeds-list" class="feeds-list">
+          <div class="empty-state">Loading feeds...</div>
+        </div>
+      </div>
+      <!-- Briefing Tab -->
+      <div id="tab-briefing" class="tab-content">
+        <div class="briefing-nav">
+          <button id="briefing-prev" title="Previous day">◄</button>
+          <span id="briefing-date">Loading...</span>
+          <button id="briefing-next" title="Next day">►</button>
+        </div>
+        <div id="briefing-content" class="briefing-content">
+          <div class="empty-state">Loading briefing...</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Panel (Events) -->
+  <aside id="right-panel" class="panel panel-right hidden">
+    <div class="panel-header">
+      <h2>Event Radar</h2>
+      <button class="panel-close" data-panel="right-panel">&times;</button>
+    </div>
+    <div id="events-list" class="events-list">
+      <div class="empty-state">Loading events...</div>
+    </div>
+  </aside>
+
+  <!-- Settings Overlay -->
+  <div id="settings-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <div class="overlay-header">
+        <h2>Settings</h2>
+        <button class="panel-close" id="settings-close">&times;</button>
+      </div>
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-config="interests.md">Interests</button>
+        <button class="settings-tab" data-config="news.md">News</button>
+        <button class="settings-tab" data-config="events.md">Events</button>
+        <button class="settings-tab" data-config="rss.md">RSS Feeds</button>
+      </div>
+      <div id="settings-view" class="settings-view">
+        <div class="empty-state">Select a tab</div>
+      </div>
+      <div id="settings-edit" class="settings-edit hidden">
+        <textarea id="settings-editor"></textarea>
+        <div class="settings-edit-actions">
+          <button id="settings-save">Save</button>
+          <button id="settings-cancel">Cancel</button>
+        </div>
+      </div>
+      <button id="settings-edit-btn" class="edit-toggle" title="Edit raw markdown">✏️</button>
+    </div>
+  </div>
+
+  <!-- Feedback Box -->
+  <button id="feedback-toggle" class="feedback-toggle" title="Send feedback">💬</button>
+  <div id="feedback-box" class="feedback-box hidden">
+    <textarea id="feedback-text" placeholder="Type feedback... (processed on next intelligence run)"></textarea>
+    <div class="feedback-actions">
+      <button id="feedback-submit">Send</button>
+      <button id="feedback-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Connection status -->
+  <div id="connection-status" class="connection-status hidden">Disconnected</div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="/js/websocket.js"></script>
+  <script src="/js/map.js"></script>
+  <script src="/js/feeds.js"></script>
+  <script src="/js/briefing.js"></script>
+  <script src="/js/events.js"></script>
+  <script src="/js/settings.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

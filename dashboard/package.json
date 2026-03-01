@@ -1,0 +1,16 @@
+{
+  "name": "cyberspace-dashboard",
+  "version": "1.0.0",
+  "description": "Local browser dashboard for the Cyberspace Intelligence System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "chokidar": "^4.0.0",
+    "rss-parser": "^3.13.0"
+  }
+}
