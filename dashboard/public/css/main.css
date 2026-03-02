@@ -481,67 +481,6 @@ html, body {
   font-weight: bold;
 }
 
-/* === Threat Trend Chart Modal === */
-.chart-modal-content {
-  width: 660px;
-  max-width: 95vw;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-bright);
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.chart-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.chart-header h2 {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-bright);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  flex: 1;
-  margin: 0;
-}
-.chart-streak {
-  font-size: 11px;
-  color: var(--accent);
-}
-#chart-body {
-  padding: 16px;
-  overflow-x: auto;
-}
-#chart-body svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.chart-legend {
-  display: flex;
-  gap: 16px;
-  padding: 8px 16px 14px;
-  flex-wrap: wrap;
-  border-top: 1px solid var(--border);
-  font-size: 10px;
-  color: var(--text-dim);
-}
-.chart-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.chart-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
 /* === Command Palette === */
 .palette-overlay {
   position: fixed;

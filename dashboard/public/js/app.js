@@ -48,7 +48,6 @@ const App = {
     { key: 'F', action: 'Open Feeds panel' },
     { key: 'B', action: 'Open Briefing panel' },
     { key: 'E', action: 'Toggle Events panel' },
-    { key: 'T', action: 'Threat trend chart' },
     { key: 'S', action: 'Open Settings' },
     { key: 'Ctrl+K', action: 'Command palette' },
     { key: '/', action: 'Search in Briefing' },
@@ -67,7 +66,6 @@ const App = {
     WS.init();
     MapView.init();
     Settings.init();
-    ThreatChart.init();
     Palette.init();
     Reader.init();
 
@@ -266,10 +264,6 @@ const App = {
             this.togglePanel('right');
           }
           break;
-        case 't':
-          e.preventDefault();
-          ThreatChart.open();
-          break;
         case 's':
           e.preventDefault();
           Settings.open();
@@ -288,7 +282,6 @@ const App = {
           document.getElementById('settings-overlay').classList.add('hidden');
           document.getElementById('shortcuts-overlay').classList.add('hidden');
           document.getElementById('feedback-box').classList.add('hidden');
-          document.getElementById('chart-modal')?.classList.add('hidden');
           if (typeof Palette !== 'undefined' && Palette.visible) Palette.close();
           Briefing.toggleSearch(false);
           break;
