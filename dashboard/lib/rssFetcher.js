@@ -144,22 +144,25 @@ function sortItems(items) {
 /**
  * Merge freshly fetched items with existing persisted items.
  * - New items overwrite old ones with the same ID (keeps metadata fresh).
- * - Old items not in the new fetch are kept if < ITEM_MAX_AGE_MS old.
+ * - Old items not in the new fetch are kept if < ITEM_MAX_AGE_MS old,
+ *   BUT only if their source feed is still in the active feed list.
+ *   Items from removed feeds are dropped immediately on next refresh.
  * - Items older than ITEM_MAX_AGE_MS are dropped.
  */
-function mergeWithPersisted(newItems, existingItems) {
+function mergeWithPersisted(newItems, existingItems, activeFeedUrls) {
   const now = Date.now();
   const cutoff = now - ITEM_MAX_AGE_MS;
 
   // Build a map of new items by ID for fast lookup
   const newById = new Map(newItems.map(i => [i.id, i]));
 
-  // Keep existing items that are still within TTL and weren't re-fetched
-  // (if they were re-fetched they'll come from newItems instead)
+  // Keep existing items that are still within TTL and weren't re-fetched,
+  // and whose source feed is still configured.
   const retained = existingItems.filter(item => {
-    if (newById.has(item.id)) return false;              // will be covered by newItems
+    if (newById.has(item.id)) return false;                          // covered by newItems
+    if (activeFeedUrls && !activeFeedUrls.has(item.sourceUrl)) return false;  // feed removed
     const age = new Date(item.published).getTime();
-    return age >= cutoff;                                // drop if too old
+    return age >= cutoff;                                            // drop if too old
   });
 
   return [...newItems, ...retained];
@@ -194,9 +197,11 @@ async function fetchAllFeeds(forceRefresh = false) {
     }
   }
 
-  // Deduplicate fresh items, then merge with previously persisted items
+  // Deduplicate fresh items, then merge with previously persisted items.
+  // Pass the active feed URL set so items from removed feeds are dropped immediately.
+  const activeFeedUrls = new Set(feedConfigs.map(fc => fc.url));
   freshItems = deduplicateById(freshItems);
-  const merged = mergeWithPersisted(freshItems, cache.items);
+  const merged = mergeWithPersisted(freshItems, cache.items, activeFeedUrls);
   const sorted = sortItems(merged);
 
   // Persist to disk so items survive server restarts
