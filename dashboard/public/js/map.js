@@ -227,7 +227,7 @@ const MapView = {
         <div class="marker-popup-summary">${this.escapeHtml(item.summary || '')}</div>
         <div class="marker-popup-actions">
           ${item.source_url ? `<a href="${this.escapeHtml(item.source_url)}" target="_blank">Open source ↗</a>` : ''}
-          <button class="marker-btn-show" onclick="App.showInPanel('${item.id}')">Show in panel ↓</button>
+          <button class="marker-btn-show" onclick="App.showInPanel('${item.id}','${item.type}')">Show in panel ↓</button>
         </div>
       </div>
     `;

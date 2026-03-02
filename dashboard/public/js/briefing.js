@@ -356,6 +356,15 @@ const Briefing = {
       this.extractThreatLevel(markdown);
       this.extractStreak(markdown);
 
+      // Show a one-time toast if this briefing processed feedback
+      if (/^##\s+.*Feedback Applied/im.test(markdown)) {
+        const toastKey = `feedback-toast-${date}`;
+        if (!localStorage.getItem(toastKey)) {
+          localStorage.setItem(toastKey, '1');
+          App.toast('📝 Feedback was applied in this briefing', 'briefing');
+        }
+      }
+
       ReadTracker.markRead(`briefing-${date}`);
       App.updateUnreadCount();
     } catch (err) {

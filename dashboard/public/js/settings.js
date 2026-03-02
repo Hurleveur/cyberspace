@@ -157,14 +157,30 @@ const Settings = {
       for (const [cat, items] of byCategory) {
         html += `<div class="rss-category-header">${this._esc(cat)} (${items.length})</div>`;
         for (const feed of items) {
-          const encodedUrl = this._esc(feed.url);
-          html += `<div class="rss-feed-card">
-            <div class="rss-feed-url">${encodedUrl}</div>
-            <div class="rss-feed-actions">
-              <span class="rss-priority-badge ${feed.priority}">${feed.priority}</span>
-              <button class="rss-test-btn" data-url="${encodedUrl}">Test</button>
-              <button class="rss-remove-btn" data-url="${encodedUrl}">Remove</button>
-              <span class="rss-test-result" id="result-${this._urlId(feed.url)}"></span>
+          const eu = this._esc(feed.url);
+          const uid = this._urlId(feed.url);
+          html += `<div class="rss-feed-card" data-url="${eu}">
+            <div class="rss-feed-main">
+              <div class="rss-feed-url" title="${eu}">${eu}</div>
+              <div class="rss-feed-actions">
+                <span class="rss-priority-badge ${feed.priority}">${feed.priority}</span>
+                <button class="rss-test-btn" data-url="${eu}">Test</button>
+                <button class="rss-edit-btn" data-url="${eu}">Edit</button>
+                <button class="rss-remove-btn" data-url="${eu}" title="Remove feed">✕</button>
+                <span class="rss-test-result" id="result-${uid}"></span>
+              </div>
+            </div>
+            <div class="rss-feed-edit hidden">
+              <input class="rss-edit-url" type="url" value="${eu}" autocomplete="off"/>
+              <div class="rss-edit-row">
+                <select class="rss-edit-priority">
+                  <option value="HIGH" ${feed.priority === 'HIGH' ? 'selected' : ''}>HIGH</option>
+                  <option value="MEDIUM" ${feed.priority === 'MEDIUM' ? 'selected' : ''}>MEDIUM</option>
+                  <option value="LOW" ${feed.priority === 'LOW' ? 'selected' : ''}>LOW</option>
+                </select>
+                <button class="rss-edit-save" data-url="${eu}">Save</button>
+                <button class="rss-edit-cancel">Cancel</button>
+              </div>
             </div>
           </div>`;
         }
@@ -206,6 +222,63 @@ const Settings = {
     view.querySelectorAll('.rss-remove-btn').forEach(btn => {
       btn.addEventListener('click', () => this.removeFeed(btn.dataset.url));
     });
+
+    view.querySelectorAll('.rss-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.rss-feed-card');
+        card.querySelector('.rss-feed-main').classList.add('hidden');
+        card.querySelector('.rss-feed-edit').classList.remove('hidden');
+        card.querySelector('.rss-edit-url').focus();
+      });
+    });
+
+    view.querySelectorAll('.rss-edit-cancel').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.rss-feed-card');
+        card.querySelector('.rss-feed-edit').classList.add('hidden');
+        card.querySelector('.rss-feed-main').classList.remove('hidden');
+      });
+    });
+
+    view.querySelectorAll('.rss-edit-save').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.rss-feed-card');
+        const oldUrl = btn.dataset.url;
+        const newUrl = card.querySelector('.rss-edit-url').value.trim();
+        const newPriority = card.querySelector('.rss-edit-priority').value;
+        if (!newUrl || !/^https?:\/\//i.test(newUrl)) return;
+        this.editFeed(oldUrl, newUrl, newPriority);
+      });
+    });
+  },
+
+  async editFeed(oldUrl, newUrl, newPriority) {
+    try {
+      const res = await fetch('/api/file?path=rss.md');
+      if (!res.ok) throw new Error('Could not read rss.md');
+      const content = await res.text();
+
+      let replaced = false;
+      const updated = content.split('\n').map(line => {
+        if (!replaced && line.includes(oldUrl) && /^\s*-\s+https?:\/\//.test(line)) {
+          replaced = true;
+          return `- ${newUrl} [${newPriority}]`;
+        }
+        return line;
+      });
+
+      if (!replaced) throw new Error('Feed not found');
+
+      await fetch('/api/file?path=rss.md', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: updated.join('\n'),
+      });
+
+      await this.loadRssVisual();
+    } catch (err) {
+      console.error('[settings] editFeed error:', err);
+    }
   },
 
   async testFeed(url, statusEl) {
@@ -316,7 +389,9 @@ const Settings = {
   showView() {
     document.getElementById('settings-view').classList.remove('hidden');
     document.getElementById('settings-edit').classList.add('hidden');
-    document.getElementById('settings-edit-btn').style.display = '';
+    // seen-events.md is auto-maintained — hide raw editor button
+    document.getElementById('settings-edit-btn').style.display =
+      this.currentFile === 'seen-events.md' ? 'none' : '';
   },
 
   showEditor() {

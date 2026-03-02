@@ -1280,6 +1280,70 @@
 .rss-test-btn:hover   { color: var(--accent); border-color: var(--accent); }
 .rss-remove-btn:hover { color: var(--threat-critical); border-color: var(--threat-critical); }
 
+/* RSS inline edit button */
+.rss-edit-btn {
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 7px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.rss-edit-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Normal view vs edit view within each feed card.
+   Visibility toggled with .hidden class (global: display:none !important) */
+.rss-feed-main { display: flex; flex-direction: column; gap: 4px; }
+.rss-feed-edit { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+
+/* Edit form inputs */
+.rss-edit-url {
+  width: 100%;
+  background: var(--bg-input, var(--bg-panel));
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.rss-edit-url:focus { outline: none; border-color: var(--accent); }
+
+.rss-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rss-edit-priority {
+  background: var(--bg-input, var(--bg-panel));
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 5px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.rss-edit-priority:focus { outline: none; border-color: var(--accent); }
+
+.rss-edit-save,
+.rss-edit-cancel {
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.rss-edit-save:hover   { color: var(--accent); border-color: var(--accent); }
+.rss-edit-cancel:hover { color: var(--text); border-color: var(--text); }
+
 .rss-test-result {
   font-size: 10px;
   color: var(--text-dim);

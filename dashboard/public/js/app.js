@@ -177,6 +177,9 @@ const App = {
     document.getElementById('btn-settings').addEventListener('click', () => {
       Settings.open();
     });
+    document.getElementById('btn-help').addEventListener('click', () => {
+      this.toggleShortcutsOverlay();
+    });
 
     // Close buttons
     document.querySelectorAll('.panel-close').forEach(btn => {
@@ -402,16 +405,14 @@ const App = {
 
   // --- Map-to-panel linking ---
 
-  showInPanel(markerId) {
-    const marker = MapView.markers?.find(m => m.data.id === markerId);
-    if (!marker) return;
-
-    if (marker.data.type === 'event') {
+  showInPanel(markerId, type) {
+    // type is passed directly from the popup onclick to avoid a markers-array lookup
+    // that could fail if the map is still loading or has been refreshed.
+    if (type === 'event') {
       this.showPanel('right');
       this.switchRightTab('events');
       Events.scrollToEvent(markerId);
     } else {
-      // Try briefing first
       this.showPanel('left');
       this.switchLeftTab('briefing');
       Briefing.scrollToMarker(markerId);
