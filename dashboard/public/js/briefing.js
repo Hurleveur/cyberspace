@@ -405,7 +405,10 @@ const Briefing = {
 
     const checkboxes = container.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach((cb, i) => {
-      if (this.checkboxStates[i]) cb.checked = true;
+      cb.removeAttribute('disabled'); // marked renders task lists with disabled; make them interactive
+      if (this.checkboxStates[i] !== undefined) {
+        cb.checked = !!this.checkboxStates[i];
+      }
       cb.addEventListener('change', () => {
         this.checkboxStates[i] = cb.checked;
         localStorage.setItem(key, JSON.stringify(this.checkboxStates));
@@ -441,8 +444,9 @@ const Briefing = {
   },
 
   getUnreadCount() {
-    if (this.dates.length === 0) return 0;
-    return ReadTracker.isRead(`briefing-${this.dates[0]}`) ? 0 : 1;
+    // Count unread map markers from the latest report (events have their own badge)
+    if (typeof MapView === 'undefined' || !MapView.markers || MapView.markers.length === 0) return 0;
+    return MapView.markers.filter(m => m.data.type !== 'event' && !ReadTracker.isRead(m.data.id)).length;
   },
 
   navigate(direction) {

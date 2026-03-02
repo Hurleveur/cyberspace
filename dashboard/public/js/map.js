@@ -25,9 +25,6 @@ const MapView = {
       maxZoom: 19,
     }).addTo(this.map);
 
-    // Zoom control on the right
-    L.control.zoom({ position: 'topright' }).addTo(this.map);
-
     // Marker layer group
     this.markerLayer = L.layerGroup().addTo(this.map);
 
@@ -110,16 +107,27 @@ const MapView = {
 
   createPopup(item) {
     const priorityClass = item.priority || 'medium';
+    const isEvent = item.type === 'event';
+
+    let dateLine = '';
+    if (item.date) {
+      const d = new Date(item.date + 'T00:00:00');
+      const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+      dateLine = `<div class="marker-popup-date">${isEvent ? '📅 ' : ''}${formatted}</div>`;
+    }
+
     return `
       <div>
-        <span class="marker-popup-priority ${priorityClass}">${item.priority || 'medium'}</span>
-        <span style="font-size:10px;color:#666;margin-left:6px;">${item.location_label || ''}</span>
+        <div class="marker-popup-meta">
+          <span class="marker-popup-priority ${priorityClass}">${isEvent ? 'EVENT' : (item.priority || 'medium')}</span>
+          <span class="marker-popup-location">${this.escapeHtml(item.location_label || '')}</span>
+        </div>
+        ${dateLine}
         <div class="marker-popup-title">${this.escapeHtml(item.title)}</div>
         <div class="marker-popup-summary">${this.escapeHtml(item.summary || '')}</div>
         <div class="marker-popup-actions">
           ${item.source_url ? `<a href="${this.escapeHtml(item.source_url)}" target="_blank">Open source ↗</a>` : ''}
           <button class="marker-btn-show" onclick="App.showInPanel('${item.id}')">Show in panel ↓</button>
-          <button class="marker-btn-read" onclick="ReadTracker.markRead('${item.id}'); App.updateUnreadCount();">Mark read</button>
         </div>
       </div>
     `;

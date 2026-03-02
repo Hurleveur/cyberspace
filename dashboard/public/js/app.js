@@ -1,4 +1,34 @@
 /**
+ * Bookmark tracker — persisted in localStorage.
+ */
+const BookmarkTracker = {
+  KEY: 'cyberspace-bookmarks',
+
+  _getAll() {
+    try {
+      return JSON.parse(localStorage.getItem(this.KEY) || '{}');
+    } catch {
+      return {};
+    }
+  },
+
+  isBookmarked(id) {
+    return !!this._getAll()[id];
+  },
+
+  toggle(id) {
+    const all = this._getAll();
+    if (all[id]) {
+      delete all[id];
+    } else {
+      all[id] = Date.now();
+    }
+    localStorage.setItem(this.KEY, JSON.stringify(all));
+    return !!all[id];
+  },
+};
+
+/**
  * Read/Unread tracker — persisted in localStorage.
  */
 const ReadTracker = {
@@ -44,10 +74,14 @@ const App = {
     right: { el: null, visible: false },
   },
 
+  // Which tab is active in the right panel ('events' or 'todo')
+  currentRightTab: 'events',
+
   shortcuts: [
     { key: 'F', action: 'Open Feeds panel' },
     { key: 'B', action: 'Open Briefing panel' },
     { key: 'E', action: 'Toggle Events panel' },
+    { key: 'T', action: 'Toggle Tasks panel' },
     { key: 'S', action: 'Open Settings' },
     { key: 'Ctrl+K', action: 'Command palette' },
     { key: '/', action: 'Search in Briefing' },
@@ -67,7 +101,6 @@ const App = {
     MapView.init();
     Settings.init();
     Palette.init();
-    Reader.init();
 
     // Load data
     await Promise.all([
@@ -75,6 +108,9 @@ const App = {
       Briefing.init(),
       Events.init(),
     ]);
+
+    // Init todo after briefing (needs Briefing.dates[0])
+    await TodoList.init();
 
     // Share markers with briefing for cross-linking
     if (MapView.markers) {
@@ -84,6 +120,7 @@ const App = {
     // Bind UI events
     this.bindPanelButtons();
     this.bindTabSwitching();
+    this.bindRightPanelTabs();
     this.bindFeedback();
     this.bindKeyboard();
     this.bindWebSocketEvents();
@@ -122,10 +159,19 @@ const App = {
       }
     });
     document.getElementById('btn-events').addEventListener('click', () => {
-      if (typeof Reader !== 'undefined' && Reader.mode === 'reader') {
-        Reader.closeReader();
-      } else {
+      if (this.panels.right.visible && this.currentRightTab === 'events') {
         this.togglePanel('right');
+      } else {
+        this.showPanel('right');
+        this.switchRightTab('events');
+      }
+    });
+    document.getElementById('btn-todo').addEventListener('click', () => {
+      if (this.panels.right.visible && this.currentRightTab === 'todo') {
+        this.togglePanel('right');
+      } else {
+        this.showPanel('right');
+        this.switchRightTab('todo');
       }
     });
     document.getElementById('btn-settings').addEventListener('click', () => {
@@ -166,7 +212,10 @@ const App = {
       this.panels.left.visible && leftTab === 'feeds');
     document.getElementById('btn-briefing').classList.toggle('active',
       this.panels.left.visible && leftTab === 'briefing');
-    document.getElementById('btn-events').classList.toggle('active', this.panels.right.visible);
+    document.getElementById('btn-events').classList.toggle('active',
+      this.panels.right.visible && this.currentRightTab === 'events');
+    document.getElementById('btn-todo').classList.toggle('active',
+      this.panels.right.visible && this.currentRightTab === 'todo');
   },
 
   // --- Left panel tab switching ---
@@ -183,6 +232,30 @@ const App = {
     document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tabName}`));
     this.updateButtonStates();
+  },
+
+  // --- Right panel tab switching ---
+
+  bindRightPanelTabs() {
+    document.querySelectorAll('.right-panel-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        this.switchRightTab(tab.dataset.rtab);
+      });
+    });
+  },
+
+  switchRightTab(tabName) {
+    this.currentRightTab = tabName;
+    document.querySelectorAll('.right-panel-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.rtab === tabName));
+    document.querySelectorAll('.rtab-content').forEach(c =>
+      c.classList.toggle('active', c.id === `rtab-${tabName}`));
+    this.updateButtonStates();
+
+    // Refresh todo when switching to it (in case briefing updated)
+    if (tabName === 'todo' && typeof TodoList !== 'undefined') {
+      TodoList.refresh();
+    }
   },
 
   // --- Feedback box ---
@@ -258,10 +331,20 @@ const App = {
           break;
         case 'e':
           e.preventDefault();
-          if (typeof Reader !== 'undefined' && Reader.mode === 'reader') {
-            Reader.closeReader();
-          } else {
+          if (this.panels.right.visible && this.currentRightTab === 'events') {
             this.togglePanel('right');
+          } else {
+            this.showPanel('right');
+            this.switchRightTab('events');
+          }
+          break;
+        case 't':
+          e.preventDefault();
+          if (this.panels.right.visible && this.currentRightTab === 'todo') {
+            this.togglePanel('right');
+          } else {
+            this.showPanel('right');
+            this.switchRightTab('todo');
           }
           break;
         case 's':
@@ -325,6 +408,7 @@ const App = {
 
     if (marker.data.type === 'event') {
       this.showPanel('right');
+      this.switchRightTab('events');
       Events.scrollToEvent(markerId);
     } else {
       // Try briefing first
@@ -393,6 +477,8 @@ const App = {
         Briefing.refresh();
         MapView.refresh();
         this.toast('Briefing updated', 'briefing');
+        // Refresh todo briefing actions too
+        if (typeof TodoList !== 'undefined') TodoList.loadBriefingActions();
       }
       if (data.file.includes('events.md')) {
         Events.refresh();
@@ -439,12 +525,17 @@ const App = {
       briefingBadge.classList.toggle('zero', briefingUnread === 0);
     }
 
-    // Events header badge
+    // Events tab badges (header + right panel tab)
     const eventsUnread = Events.getUnreadCount ? Events.getUnreadCount() : 0;
     const eventsBadge = document.getElementById('events-unread-badge');
     if (eventsBadge) {
       eventsBadge.textContent = eventsUnread;
       eventsBadge.classList.toggle('zero', eventsUnread === 0);
+    }
+    const eventsTabBadge = document.getElementById('events-tab-badge');
+    if (eventsTabBadge) {
+      eventsTabBadge.textContent = eventsUnread;
+      eventsTabBadge.classList.toggle('zero', eventsUnread === 0);
     }
   },
 };

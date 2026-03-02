@@ -40,6 +40,9 @@
       <button class="header-btn" id="btn-events" title="Events (E)">
         <span class="btn-icon">📅</span><span id="events-unread-badge" class="header-badge zero">0</span>
       </button>
+      <button class="header-btn" id="btn-todo" title="Tasks (T)">
+        <span class="btn-icon">☑</span>
+      </button>
       <button class="header-btn" id="btn-settings" title="Settings (S)">
         <span class="btn-icon">⚙</span>
       </button>
@@ -56,6 +59,7 @@
         Feeds <span id="feeds-unread-badge" class="tab-badge">0</span>
       </button>
       <button class="panel-tab" data-tab="briefing">Briefing <span id="briefing-unread-badge" class="tab-badge zero">0</span></button>
+      <button class="panel-close" data-panel="left-panel">&times;</button>
     </div>
     <div class="panel-content">
       <!-- Feeds Tab -->
@@ -71,6 +75,12 @@
             <option value="LOW">LOW</option>
           </select>
           <input type="text" id="feeds-search" placeholder="Search feeds..." />
+          <label class="feeds-unread-toggle" title="Show only unread items">
+            <input type="checkbox" id="feeds-filter-unread"> Unseen
+          </label>
+          <label class="feeds-unread-toggle" title="Show only bookmarked items">
+            <input type="checkbox" id="feeds-filter-bookmarked"> ★ Saved
+          </label>
           <button id="feeds-refresh-btn" title="Refresh feeds">↻</button>
         </div>
         <div id="feeds-list" class="feeds-list">
@@ -99,32 +109,90 @@
     </div>
   </aside>
 
-  <!-- Right Panel (Events) -->
+  <!-- Right Panel (Events + Tasks tabs) -->
   <aside id="right-panel" class="panel panel-right hidden">
-    <div class="panel-header">
-      <h2>Event Radar</h2>
+    <!-- Shared tab bar with close button -->
+    <div class="right-panel-tabs">
+      <button class="right-panel-tab active" data-rtab="events">
+        Events <span id="events-tab-badge" class="tab-badge zero">0</span>
+      </button>
+      <button class="right-panel-tab" data-rtab="todo">Tasks</button>
       <button class="panel-close" data-panel="right-panel">&times;</button>
     </div>
-    <div class="events-toolbar">
-      <select id="events-filter-urgency" title="Filter by deadline">
-        <option value="">All Deadlines</option>
-        <option value="48h">Within 48h</option>
-        <option value="week">This Week</option>
-      </select>
-      <select id="events-filter-cost" title="Filter by cost">
-        <option value="">All Costs</option>
-        <option value="free">Free</option>
-        <option value="paid">Paid</option>
-      </select>
-      <select id="events-filter-score" title="Minimum score">
-        <option value="0">All Scores</option>
-        <option value="7">7+</option>
-        <option value="8">8+</option>
-        <option value="9">9+</option>
-      </select>
+
+    <!-- Events tab -->
+    <div id="rtab-events" class="rtab-content active">
+      <div class="events-toolbar">
+        <select id="events-filter-urgency" title="Filter by deadline">
+          <option value="">All Deadlines</option>
+          <option value="48h">Within 48h</option>
+          <option value="week">This Week</option>
+        </select>
+        <select id="events-filter-cost" title="Filter by cost">
+          <option value="">All Costs</option>
+          <option value="free">Free</option>
+          <option value="paid">Paid</option>
+        </select>
+        <select id="events-filter-score" title="Minimum score">
+          <option value="0">All Scores</option>
+          <option value="7">7+</option>
+          <option value="8">8+</option>
+          <option value="9">9+</option>
+        </select>
+      </div>
+      <div id="events-list" class="events-list">
+        <div class="empty-state">Loading events...</div>
+      </div>
     </div>
-    <div id="events-list" class="events-list">
-      <div class="empty-state">Loading events...</div>
+
+    <!-- Tasks tab -->
+    <div id="rtab-todo" class="rtab-content">
+      <div class="todo-panel">
+
+        <!-- Briefing Actions section -->
+        <div class="todo-section">
+          <div class="todo-section-header">
+            <span>📋 Briefing Actions</span>
+            <span id="todo-briefing-date" class="todo-section-date"></span>
+          </div>
+          <div id="todo-briefing-list" class="todo-list">
+            <div class="todo-empty">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Further Reading section -->
+        <div class="todo-section">
+          <div class="todo-section-header">📖 Further Reading</div>
+          <div id="todo-further-reading-list" class="todo-list">
+            <div class="todo-empty">No further reading in today's briefing</div>
+          </div>
+        </div>
+
+        <!-- My Tasks section -->
+        <div class="todo-section">
+          <div class="todo-section-header">My Tasks</div>
+          <div class="todo-add-row">
+            <input type="text" id="todo-new-input" placeholder="Add a task and press Enter..." />
+            <button id="todo-add-btn" title="Add task">+</button>
+          </div>
+          <div id="todo-my-list" class="todo-list">
+            <div class="todo-empty">No tasks yet</div>
+          </div>
+        </div>
+
+        <!-- My Links section -->
+        <div class="todo-section todo-section-last">
+          <div class="todo-section-header">My Links</div>
+          <div class="todo-add-row">
+            <input type="text" id="todo-link-input" placeholder="Add a URL and press Enter..." />
+            <button id="todo-link-add-btn" title="Add link">+</button>
+          </div>
+          <div id="todo-my-links-list" class="todo-list">
+            <div class="todo-empty">No saved links yet</div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </aside>
 
@@ -133,7 +201,10 @@
     <div class="overlay-content">
       <div class="overlay-header">
         <h2>Settings</h2>
-        <button class="panel-close" id="settings-close">&times;</button>
+        <div class="overlay-header-actions">
+          <button id="settings-edit-btn" class="edit-toggle" title="Edit raw markdown">✏️</button>
+          <button class="panel-close" id="settings-close">&times;</button>
+        </div>
       </div>
       <div class="settings-tabs">
         <button class="settings-tab active" data-config="interests.md">Interests</button>
@@ -151,7 +222,6 @@
           <button id="settings-cancel">Cancel</button>
         </div>
       </div>
-      <button id="settings-edit-btn" class="edit-toggle" title="Edit raw markdown">✏️</button>
     </div>
   </div>
 
@@ -189,8 +259,8 @@
   <script src="/js/briefing.js"></script>
   <script src="/js/events.js"></script>
   <script src="/js/settings.js"></script>
+  <script src="/js/todo.js"></script>
   <script src="/js/palette.js"></script>
-  <script src="/js/reader.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
