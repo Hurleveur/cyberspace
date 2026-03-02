@@ -233,13 +233,21 @@ const App = {
       switch (e.key.toLowerCase()) {
         case 'f':
           e.preventDefault();
-          this.showPanel('left');
-          this.switchLeftTab('feeds');
+          if (this.panels.left.visible && document.querySelector('.panel-tab.active')?.dataset.tab === 'feeds') {
+            this.togglePanel('left');
+          } else {
+            this.showPanel('left');
+            this.switchLeftTab('feeds');
+          }
           break;
         case 'b':
           e.preventDefault();
-          this.showPanel('left');
-          this.switchLeftTab('briefing');
+          if (this.panels.left.visible && document.querySelector('.panel-tab.active')?.dataset.tab === 'briefing') {
+            this.togglePanel('left');
+          } else {
+            this.showPanel('left');
+            this.switchLeftTab('briefing');
+          }
           break;
         case 'e':
           e.preventDefault();
