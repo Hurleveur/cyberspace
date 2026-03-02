@@ -365,10 +365,31 @@ const Briefing = {
 
   renderMarkdown(container, markdown, date) {
     marked.setOptions({ breaks: true, gfm: true });
-    let html = marked.parse(markdown);
+    let html = marked.parse(this.stripTodoSections(markdown));
     container.innerHTML = `<div class="markdown-body">${html}</div>`;
     this.makeCollapsible(container);
     this.bindCheckboxes(container, date);
+  },
+
+  /**
+   * Remove sections that are surfaced in the Tasks panel instead,
+   * so they don't appear twice. Skips lines from a matching ## heading
+   * until the next ## heading (which resets the skip flag).
+   */
+  stripTodoSections(markdown) {
+    const OMIT = ['action items', 'further reading'];
+    const lines = markdown.split('\n');
+    const out = [];
+    let skip = false;
+
+    for (const line of lines) {
+      if (/^## /i.test(line)) {
+        const title = line.replace(/^##\s+/, '').replace(/[^\w\s]/g, '').trim().toLowerCase();
+        skip = OMIT.some(o => title.includes(o));
+      }
+      if (!skip) out.push(line);
+    }
+    return out.join('\n');
   },
 
   makeCollapsible(container) {
