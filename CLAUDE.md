@@ -127,8 +127,15 @@ If feedback.md is empty or only contains its template headers, skip this step en
    - `priority`: "critical", "high", "medium", or "low"
    - `category`: matches the briefing section (e.g. "active-threats", "breaches", "vulnerability-intel", "threat-actors", "ai-security")
    - For events: use `"type": "event"`, `"priority": "high"`, `"category": "event"`
-   - Geocode using common knowledge: company HQ, country mentioned, or city for events.
-     If no location can be determined, omit `lat`/`lng` and set `"location_label": "Global"`.
+   - **Always set `location_label`** — even if just a country name. The dashboard will
+     geocode it automatically. Only use `"Global"` when the story is truly worldwide
+     with no dominant geography.
+   - For `lat`/`lng`: use exact coordinates when you know them (city, company HQ).
+     If you only know the country or region, **omit `lat`/`lng` and let the dashboard
+     geocode the `location_label`** — do NOT guess coordinates.
+   - Prefer the *victim* or *target* location over the vendor's HQ. A breach of a
+     German bank should be geocoded to Germany, not to the security vendor who
+     reported it. For APT campaigns, use the threat actor's attributed origin country.
    - Every story/event in the briefing should have a corresponding marker.
 6. All files must be self-contained and readable on their own.
 
