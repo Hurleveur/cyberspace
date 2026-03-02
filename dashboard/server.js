@@ -171,6 +171,12 @@ watcher.on('all', (event, filePath) => {
   const rel = path.relative(fm.PROJECT_ROOT, filePath).replace(/\\/g, '/');
   if (['add', 'change'].includes(event)) {
     broadcast({ type: 'file_changed', file: rel, action: event === 'add' ? 'created' : 'modified' });
+
+    // rss.md changed → force-refresh feeds immediately
+    if (rel === 'rss.md') {
+      console.log('[feeds] rss.md changed — triggering feed refresh');
+      refreshFeedsQuietly();
+    }
   }
 });
 
