@@ -17,6 +17,8 @@ const Feeds = {
   bindEvents() {
     document.getElementById('feeds-filter-category').addEventListener('change', () => this.applyFilters());
     document.getElementById('feeds-filter-priority').addEventListener('change', () => this.applyFilters());
+    document.getElementById('feeds-filter-unread').addEventListener('change', () => this.applyFilters());
+    document.getElementById('feeds-filter-bookmarked').addEventListener('change', () => this.applyFilters());
     document.getElementById('feeds-search').addEventListener('input', () => this.applyFilters());
     document.getElementById('feeds-refresh-btn').addEventListener('click', () => this.refresh());
   },
@@ -74,11 +76,15 @@ const Feeds = {
   applyFilters() {
     const category = document.getElementById('feeds-filter-category').value;
     const priority = document.getElementById('feeds-filter-priority').value;
+    const unreadOnly = document.getElementById('feeds-filter-unread').checked;
+    const bookmarkedOnly = document.getElementById('feeds-filter-bookmarked').checked;
     const search = document.getElementById('feeds-search').value.toLowerCase().trim();
 
     this.filteredItems = this.items.filter(item => {
       if (category && item.category !== category) return false;
       if (priority && item.priority !== priority) return false;
+      if (unreadOnly && ReadTracker.isRead(item.id)) return false;
+      if (bookmarkedOnly && !BookmarkTracker.isBookmarked(item.id)) return false;
       if (search && !item.title.toLowerCase().includes(search) &&
           !item.source.toLowerCase().includes(search)) return false;
       return true;
@@ -130,6 +136,17 @@ const Feeds = {
       });
     });
 
+    // Bind bookmark buttons
+    container.querySelectorAll('.feed-bookmark-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const nowBookmarked = BookmarkTracker.toggle(id);
+        btn.classList.toggle('bookmarked', nowBookmarked);
+        btn.title = nowBookmarked ? 'Remove bookmark' : 'Bookmark for later';
+      });
+    });
+
     // Bind "Open source" links
     container.querySelectorAll('.feed-open-btn').forEach(a => {
       a.addEventListener('click', (e) => {
@@ -142,26 +159,15 @@ const Feeds = {
       });
     });
 
-    // Bind "Read" buttons → open inline article reader
-    container.querySelectorAll('.feed-read-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const item = this.items.find(i => i.id === id);
-        if (item?.url && typeof Reader !== 'undefined') {
-          Reader.openReader(item.url, item.title);
-        }
-      });
-    });
-
     this.updateBadge();
   },
 
   renderItem(item, isRead, isExpanded, idx) {
     const timeAgo = this.timeAgo(item.published);
     const summary = item.summary || item.description || 'No preview available.';
-    // Truncate summary to ~200 chars
-    const truncated = summary.length > 200 ? summary.slice(0, 200) + '...' : summary;
+    // Truncate summary to ~500 chars
+    const truncated = summary.length > 500 ? summary.slice(0, 500) + '...' : summary;
+    const isBookmarked = BookmarkTracker.isBookmarked(item.id);
 
     return `
       <div class="feed-item ${isRead ? 'read' : ''} ${isExpanded ? 'feed-item-expanded' : ''}" data-id="${item.id}" data-idx="${idx}">
@@ -173,12 +179,12 @@ const Feeds = {
             <span>${timeAgo}</span>
           </div>
         </div>
+        <button class="feed-bookmark-btn ${isBookmarked ? 'bookmarked' : ''}" data-id="${item.id}" title="${isBookmarked ? 'Remove bookmark' : 'Bookmark for later'}">★</button>
       </div>
       <div class="feed-preview ${isExpanded ? 'active' : ''}" id="preview-${item.id}">
         <div class="feed-preview-text">${this.escapeHtml(truncated)}</div>
         <div class="feed-preview-actions">
           <a href="${this.escapeHtml(item.url)}" target="_blank" class="feed-open-btn" data-id="${item.id}">Open source ↗</a>
-          <button class="feed-read-btn" data-id="${item.id}" title="Read article inline">Read ↓</button>
         </div>
       </div>
     `;

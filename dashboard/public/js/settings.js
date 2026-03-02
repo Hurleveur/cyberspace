@@ -316,6 +316,7 @@ const Settings = {
   showView() {
     document.getElementById('settings-view').classList.remove('hidden');
     document.getElementById('settings-edit').classList.add('hidden');
+    document.getElementById('settings-edit-btn').style.display = '';
   },
 
   showEditor() {
@@ -323,6 +324,7 @@ const Settings = {
     document.getElementById('settings-editor').value = raw;
     document.getElementById('settings-view').classList.add('hidden');
     document.getElementById('settings-edit').classList.remove('hidden');
+    document.getElementById('settings-edit-btn').style.display = 'none';
     document.getElementById('settings-editor').focus();
   },
 

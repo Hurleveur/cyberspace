@@ -11,6 +11,7 @@ reports/
 
 # Environment / secrets
 dashboard/.env
+dashboard/data/
 
 # OS files
 .DS_Store

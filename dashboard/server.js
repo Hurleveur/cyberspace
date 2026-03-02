@@ -1,6 +1,5 @@
 const express = require('express');
 const http = require('http');
-const https = require('https');
 const { WebSocketServer } = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
@@ -103,89 +102,6 @@ app.get('/api/search', (req, res) => {
     }
   }
   res.json(results);
-});
-
-// --- Proxy API ---
-
-// SSRF check — block private/loopback IPs
-function isPrivateHost(hostname) {
-  return /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(hostname);
-}
-
-// Fetch a URL using Node built-ins (no new packages); follows one redirect
-function fetchUrl(url, redirectsLeft = 2) {
-  return new Promise((resolve, reject) => {
-    let u;
-    try { u = new URL(url); } catch { return reject(new Error('Invalid URL')); }
-    if (!['http:', 'https:'].includes(u.protocol)) return reject(new Error('Only http/https allowed'));
-    if (isPrivateHost(u.hostname)) return reject(Object.assign(new Error('Blocked'), { code: 'BLOCKED' }));
-
-    const lib = u.protocol === 'https:' ? https : http;
-    const req = lib.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Cyberspace/1.0)' } }, (res) => {
-      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirectsLeft > 0) {
-        const next = res.headers.location.startsWith('http') ? res.headers.location : `${u.origin}${res.headers.location}`;
-        return fetchUrl(next, redirectsLeft - 1).then(resolve).catch(reject);
-      }
-      let data = '';
-      res.setEncoding('utf8');
-      res.on('data', chunk => { data += chunk; if (data.length > 500000) req.destroy(); });
-      res.on('end', () => resolve(data));
-    });
-    req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
-  });
-}
-
-// Extract readable article text from raw HTML
-function extractArticle(html) {
-  // Title
-  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-  const title = titleMatch ? titleMatch[1].trim() : '';
-
-  // Try semantic containers in priority order
-  let block = '';
-  const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-  if (articleMatch) { block = articleMatch[1]; }
-  else {
-    const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
-    if (mainMatch) { block = mainMatch[1]; }
-    else {
-      // Find longest <div> block
-      let best = '';
-      const divRe = /<div[^>]*>([\s\S]{500,}?)<\/div>/gi;
-      let m;
-      while ((m = divRe.exec(html)) !== null) { if (m[1].length > best.length) best = m[1]; }
-      block = best || html;
-    }
-  }
-
-  // Strip tags, decode entities, normalise whitespace
-  let text = block
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  if (text.length > 8000) text = text.slice(0, 8000) + '…';
-  return { title: title.replace(/&amp;/g, '&').replace(/&#39;/g, "'"), text };
-}
-
-// GET /api/proxy?url= — fetch external article and return extracted text
-app.get('/api/proxy', async (req, res) => {
-  const url = req.query.url;
-  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Missing or invalid url parameter' });
-
-  try {
-    const html = await fetchUrl(url);
-    const { title, text } = extractArticle(html);
-    res.json({ title, text, url });
-  } catch (err) {
-    if (err.code === 'BLOCKED') return res.status(403).json({ error: 'Blocked: private network address' });
-    if (err.message === 'Timeout') return res.status(504).json({ error: 'Request timed out' });
-    res.status(502).json({ error: err.message });
-  }
 });
 
 // GET /api/feeds/test?url= — test a single RSS feed URL

@@ -5,25 +5,58 @@ const RssParser = require('rss-parser');
 const { PROJECT_ROOT } = require('./fileManager');
 
 const RSS_CONFIG_PATH = path.join(PROJECT_ROOT, 'rss.md');
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL_MS = 15 * 60 * 1000;       // 15 minutes — in-memory freshness
+const ITEM_MAX_AGE_MS = 7 * 24 * 3600000;  // 7 days — disk persistence TTL
+const DISK_CACHE_PATH = path.join(__dirname, '..', 'data', 'feed-cache.json');
 
 const parser = new RssParser({
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
   },
-  timeout: 10000, // 10 second timeout per feed
+  timeout: 10000,
 });
 
-// In-memory cache
+// ── Disk persistence ─────────────────────────────────────────────────────────
+
+function loadDiskCache() {
+  try {
+    const raw = fs.readFileSync(DISK_CACHE_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDiskCache(items) {
+  try {
+    fs.mkdirSync(path.dirname(DISK_CACHE_PATH), { recursive: true });
+    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(items, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[rssFetcher] Could not save disk cache:', err.message);
+  }
+}
+
+// ── In-memory cache ───────────────────────────────────────────────────────────
+
 let cache = {
-  items: [],
+  items: loadDiskCache(),  // seed from disk on startup
   fetchedAt: 0,
   errors: [],
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Stable ID based on the item's canonical URL + title.
+ * No index suffix — survives reordering and server restarts.
+ */
+function stableId(url, title) {
+  return `rss-${hashString((url || '') + '|' + (title || ''))}`;
+}
+
 /**
  * Parse rss.md to extract feed URLs with their category and priority.
- * Returns [{ url, category, priority }]
  */
 function parseRssConfig() {
   let content;
@@ -38,15 +71,8 @@ function parseRssConfig() {
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
-
-    // Section headings
     const headingMatch = trimmed.match(/^##\s+(.+)/);
-    if (headingMatch) {
-      currentCategory = headingMatch[1].trim();
-      continue;
-    }
-
-    // Feed URLs: lines starting with - containing an http URL
+    if (headingMatch) { currentCategory = headingMatch[1].trim(); continue; }
     const feedMatch = trimmed.match(/^-\s+(https?:\/\/\S+)(?:\s+\[(\w+)\])?/);
     if (feedMatch) {
       feeds.push({
@@ -69,8 +95,8 @@ async function fetchSingleFeed(feedConfig) {
     const sourceName = feed.title || new URL(feedConfig.url).hostname;
 
     return {
-      items: (feed.items || []).map((item, i) => ({
-        id: `rss-${Buffer.from(feedConfig.url).toString('base64').slice(0, 12)}-${i}-${Date.now()}`,
+      items: (feed.items || []).map(item => ({
+        id: stableId(item.link, item.title),
         source: sourceName,
         sourceUrl: feedConfig.url,
         category: feedConfig.category,
@@ -81,34 +107,26 @@ async function fetchSingleFeed(feedConfig) {
           : '',
         url: item.link || '',
         published: item.isoDate || item.pubDate || new Date().toISOString(),
+        firstSeen: Date.now(),
       })),
       error: null,
     };
   } catch (err) {
-    return {
-      items: [],
-      error: { url: feedConfig.url, message: err.message },
-    };
+    return { items: [], error: { url: feedConfig.url, message: err.message } };
   }
 }
 
 /**
- * Deduplicate items by title similarity (exact lowercase match).
- * Keeps the item with higher priority.
+ * Deduplicate items by ID. Keeps the first occurrence (highest priority wins
+ * because feeds are fetched in priority order via sort before dedup).
  */
-function deduplicateItems(items) {
-  const seen = new Map();
-  const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-
-  for (const item of items) {
-    const key = item.title.toLowerCase().trim();
-    const existing = seen.get(key);
-    if (!existing || priorityOrder[item.priority] < priorityOrder[existing.priority]) {
-      seen.set(key, item);
-    }
-  }
-
-  return Array.from(seen.values());
+function deduplicateById(items) {
+  const seen = new Set();
+  return items.filter(item => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 /**
@@ -124,18 +142,36 @@ function sortItems(items) {
 }
 
 /**
- * Fetch all feeds, normalize, deduplicate, sort, and cache.
- * Returns { items, errors, fetchedAt, fromCache }.
+ * Merge freshly fetched items with existing persisted items.
+ * - New items overwrite old ones with the same ID (keeps metadata fresh).
+ * - Old items not in the new fetch are kept if < ITEM_MAX_AGE_MS old.
+ * - Items older than ITEM_MAX_AGE_MS are dropped.
+ */
+function mergeWithPersisted(newItems, existingItems) {
+  const now = Date.now();
+  const cutoff = now - ITEM_MAX_AGE_MS;
+
+  // Build a map of new items by ID for fast lookup
+  const newById = new Map(newItems.map(i => [i.id, i]));
+
+  // Keep existing items that are still within TTL and weren't re-fetched
+  // (if they were re-fetched they'll come from newItems instead)
+  const retained = existingItems.filter(item => {
+    if (newById.has(item.id)) return false;              // will be covered by newItems
+    const age = new Date(item.published).getTime();
+    return age >= cutoff;                                // drop if too old
+  });
+
+  return [...newItems, ...retained];
+}
+
+/**
+ * Fetch all feeds, normalize, deduplicate, sort, merge with disk cache, persist.
  */
 async function fetchAllFeeds(forceRefresh = false) {
-  // Return cache if still fresh
+  // Return in-memory cache if still fresh
   if (!forceRefresh && cache.fetchedAt > 0 && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
-    return {
-      items: cache.items,
-      errors: cache.errors,
-      fetchedAt: cache.fetchedAt,
-      fromCache: true,
-    };
+    return { items: cache.items, errors: cache.errors, fetchedAt: cache.fetchedAt, fromCache: true };
   }
 
   const feedConfigs = parseRssConfig();
@@ -144,45 +180,32 @@ async function fetchAllFeeds(forceRefresh = false) {
   }
 
   // Fetch all feeds in parallel
-  const results = await Promise.allSettled(
-    feedConfigs.map(fc => fetchSingleFeed(fc))
-  );
+  const results = await Promise.allSettled(feedConfigs.map(fc => fetchSingleFeed(fc)));
 
-  let allItems = [];
+  let freshItems = [];
   const errors = [];
 
   for (const result of results) {
     if (result.status === 'fulfilled') {
-      allItems.push(...result.value.items);
+      freshItems.push(...result.value.items);
       if (result.value.error) errors.push(result.value.error);
     } else {
       errors.push({ url: 'unknown', message: result.reason?.message || 'Unknown error' });
     }
   }
 
-  // Deduplicate and sort
-  allItems = deduplicateItems(allItems);
-  allItems = sortItems(allItems);
+  // Deduplicate fresh items, then merge with previously persisted items
+  freshItems = deduplicateById(freshItems);
+  const merged = mergeWithPersisted(freshItems, cache.items);
+  const sorted = sortItems(merged);
 
-  // Assign stable IDs based on URL hash
-  allItems = allItems.map((item, i) => ({
-    ...item,
-    id: `rss-${hashString(item.url || item.title)}-${i}`,
-  }));
+  // Persist to disk so items survive server restarts
+  saveDiskCache(sorted);
 
-  // Update cache
-  cache = {
-    items: allItems,
-    fetchedAt: Date.now(),
-    errors,
-  };
+  // Update in-memory cache
+  cache = { items: sorted, fetchedAt: Date.now(), errors };
 
-  return {
-    items: allItems,
-    errors,
-    fetchedAt: cache.fetchedAt,
-    fromCache: false,
-  };
+  return { items: sorted, errors, fetchedAt: cache.fetchedAt, fromCache: false };
 }
 
 /**
