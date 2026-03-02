@@ -13,6 +13,10 @@ const Briefing = {
   searchMatches: [],
   searchIndex: -1,
 
+  // Cross-report search state
+  crossSearchActive: false,
+  crossSearchTimer: null,
+
   async init() {
     this.bindEvents();
     await this.loadDates();
@@ -43,6 +47,9 @@ const Briefing = {
     document.getElementById('briefing-search-prev').addEventListener('click', () => this.navigateMatch(-1));
     document.getElementById('briefing-search-next').addEventListener('click', () => this.navigateMatch(1));
     document.getElementById('briefing-search-close').addEventListener('click', () => this.toggleSearch(false));
+
+    const crossBtn = document.getElementById('briefing-search-cross-btn');
+    if (crossBtn) crossBtn.addEventListener('click', () => this.toggleCrossSearch());
   },
 
   toggleSearch(forceState) {
@@ -53,10 +60,38 @@ const Briefing = {
       document.getElementById('briefing-search-input').focus();
     } else {
       this.clearSearch();
+      // Reset cross-search if it was active
+      if (this.crossSearchActive) {
+        this.crossSearchActive = false;
+        const crossBtn = document.getElementById('briefing-search-cross-btn');
+        if (crossBtn) crossBtn.classList.remove('active');
+        this.loadBriefing(this.dates[this.currentIndex]);
+      }
+    }
+  },
+
+  toggleCrossSearch() {
+    this.crossSearchActive = !this.crossSearchActive;
+    const crossBtn = document.getElementById('briefing-search-cross-btn');
+    if (crossBtn) crossBtn.classList.toggle('active', this.crossSearchActive);
+
+    if (!this.crossSearchActive) {
+      // Deactivating — reload current briefing and clear cross results
+      this.loadBriefing(this.dates[this.currentIndex]);
+      document.getElementById('briefing-search-count').textContent = '';
+    } else {
+      // Activating — run search with current query if any
+      const query = document.getElementById('briefing-search-input').value.trim();
+      if (query.length >= 2) this.performCrossSearch(query);
     }
   },
 
   performSearch(query) {
+    // If cross-search mode is active, delegate
+    if (this.crossSearchActive) {
+      this.performCrossSearch(query);
+      return;
+    }
     this.clearSearchHighlights();
     this.searchMatches = [];
     this.searchIndex = -1;
@@ -117,6 +152,89 @@ const Briefing = {
     document.getElementById('briefing-search-count').textContent = count > 0 ? `${count} found` : 'no results';
 
     if (count > 0) this.navigateMatch(1);
+  },
+
+  performCrossSearch(query) {
+    clearTimeout(this.crossSearchTimer);
+    if (!query || query.length < 2) {
+      document.getElementById('briefing-search-count').textContent = '';
+      return;
+    }
+    this.crossSearchTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error('Search failed');
+        const results = await res.json();
+        this.renderCrossResults(results, query);
+      } catch (err) {
+        console.error('[briefing] Cross-search error:', err);
+      }
+    }, 300);
+  },
+
+  renderCrossResults(results, query) {
+    const container = document.getElementById('briefing-content');
+    const totalDates = this.dates.length;
+
+    if (results.length === 0) {
+      container.innerHTML = `<div class="empty-state">No matches found across ${totalDates} report${totalDates !== 1 ? 's' : ''}.</div>`;
+      document.getElementById('briefing-search-count').textContent = '0 found';
+      return;
+    }
+
+    document.getElementById('briefing-search-count').textContent = `${results.length} found`;
+
+    // Group by date
+    const byDate = new Map();
+    for (const r of results) {
+      if (!byDate.has(r.date)) byDate.set(r.date, []);
+      byDate.get(r.date).push(r);
+    }
+
+    const lq = query.toLowerCase();
+    const escHtml = (s) => {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    };
+    const highlight = (text) => {
+      const esc = escHtml(text);
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return esc.replace(regex, '<mark>$1</mark>');
+    };
+
+    let html = '';
+    for (const [date, items] of byDate) {
+      html += `<div class="cross-results-date-header" data-date="${date}">${date} (${items.length} match${items.length !== 1 ? 'es' : ''})</div>`;
+      for (const item of items) {
+        html += `<div class="cross-result-item" data-date="${date}" data-line="${item.lineNum}">
+          ${item.section ? `<div class="cross-result-section">${escHtml(item.section)}</div>` : ''}
+          <div class="cross-result-context">${highlight(item.context)}</div>
+        </div>`;
+      }
+    }
+
+    container.innerHTML = html;
+
+    // Bind click: load that date's briefing and highlight the query
+    container.querySelectorAll('.cross-result-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const date = el.dataset.date;
+        const dateIdx = this.dates.indexOf(date);
+        if (dateIdx !== -1) this.currentIndex = dateIdx;
+        this.updateNav();
+
+        // Exit cross-search mode, load briefing, then search locally
+        this.crossSearchActive = false;
+        const crossBtn = document.getElementById('briefing-search-cross-btn');
+        if (crossBtn) crossBtn.classList.remove('active');
+
+        this.loadBriefing(date).then(() => {
+          const q = document.getElementById('briefing-search-input').value.trim();
+          if (q.length >= 2) this.performSearch(q);
+        });
+      });
+    });
   },
 
   navigateMatch(direction) {

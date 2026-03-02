@@ -201,4 +201,5 @@ function hashString(str) {
 module.exports = {
   fetchAllFeeds,
   parseRssConfig,
+  fetchSingleFeed,
 };

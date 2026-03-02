@@ -142,6 +142,18 @@ const Feeds = {
       });
     });
 
+    // Bind "Read" buttons → open inline article reader
+    container.querySelectorAll('.feed-read-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const item = this.items.find(i => i.id === id);
+        if (item?.url && typeof Reader !== 'undefined') {
+          Reader.openReader(item.url, item.title);
+        }
+      });
+    });
+
     this.updateBadge();
   },
 
@@ -166,6 +178,7 @@ const Feeds = {
         <div class="feed-preview-text">${this.escapeHtml(truncated)}</div>
         <div class="feed-preview-actions">
           <a href="${this.escapeHtml(item.url)}" target="_blank" class="feed-open-btn" data-id="${item.id}">Open source ↗</a>
+          <button class="feed-read-btn" data-id="${item.id}" title="Read article inline">Read ↓</button>
         </div>
       </div>
     `;

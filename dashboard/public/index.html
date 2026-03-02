@@ -31,6 +31,9 @@
     </div>
     <div class="header-right">
       <span id="unread-badge" class="unread-badge" title="Unread items">0</span>
+      <button class="header-btn" id="btn-chart" title="Threat Trend (T)">
+        <span class="btn-icon">📊</span>
+      </button>
       <button class="header-btn" id="btn-feeds" title="Feeds (F)">
         <span class="btn-icon">📡</span>
       </button>
@@ -89,6 +92,7 @@
           <span id="briefing-search-count" class="briefing-search-count"></span>
           <button id="briefing-search-prev" title="Previous match">▲</button>
           <button id="briefing-search-next" title="Next match">▼</button>
+          <button id="briefing-search-cross-btn" class="briefing-cross-btn" title="Search across all reports">All</button>
           <button id="briefing-search-close" title="Close search">✕</button>
         </div>
         <div id="briefing-content" class="briefing-content">
@@ -188,6 +192,9 @@
   <script src="/js/briefing.js"></script>
   <script src="/js/events.js"></script>
   <script src="/js/settings.js"></script>
+  <script src="/js/chart.js"></script>
+  <script src="/js/palette.js"></script>
+  <script src="/js/reader.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

@@ -48,7 +48,9 @@ const App = {
     { key: 'F', action: 'Open Feeds panel' },
     { key: 'B', action: 'Open Briefing panel' },
     { key: 'E', action: 'Toggle Events panel' },
+    { key: 'T', action: 'Threat trend chart' },
     { key: 'S', action: 'Open Settings' },
+    { key: 'Ctrl+K', action: 'Command palette' },
     { key: '/', action: 'Search in Briefing' },
     { key: '↑ ↓', action: 'Navigate feed items' },
     { key: 'Enter', action: 'Expand selected item' },
@@ -65,6 +67,9 @@ const App = {
     WS.init();
     MapView.init();
     Settings.init();
+    ThreatChart.init();
+    Palette.init();
+    Reader.init();
 
     // Load data
     await Promise.all([
@@ -119,7 +124,11 @@ const App = {
       }
     });
     document.getElementById('btn-events').addEventListener('click', () => {
-      this.togglePanel('right');
+      if (typeof Reader !== 'undefined' && Reader.mode === 'reader') {
+        Reader.closeReader();
+      } else {
+        this.togglePanel('right');
+      }
     });
     document.getElementById('btn-settings').addEventListener('click', () => {
       Settings.open();
@@ -251,7 +260,15 @@ const App = {
           break;
         case 'e':
           e.preventDefault();
-          this.togglePanel('right');
+          if (typeof Reader !== 'undefined' && Reader.mode === 'reader') {
+            Reader.closeReader();
+          } else {
+            this.togglePanel('right');
+          }
+          break;
+        case 't':
+          e.preventDefault();
+          ThreatChart.open();
           break;
         case 's':
           e.preventDefault();
@@ -271,6 +288,8 @@ const App = {
           document.getElementById('settings-overlay').classList.add('hidden');
           document.getElementById('shortcuts-overlay').classList.add('hidden');
           document.getElementById('feedback-box').classList.add('hidden');
+          document.getElementById('chart-modal')?.classList.add('hidden');
+          if (typeof Palette !== 'undefined' && Palette.visible) Palette.close();
           Briefing.toggleSearch(false);
           break;
       }
