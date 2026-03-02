@@ -304,6 +304,17 @@ const App = {
       // Don't trigger shortcuts when typing in inputs
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
+      // If Escape is pressed while any overlay is open, close it first
+      if (e.key === 'Escape') {
+        const shortcuts = document.getElementById('shortcuts-overlay');
+        const settings  = document.getElementById('settings-overlay');
+        const feedback  = document.getElementById('feedback-box');
+        if (!shortcuts.classList.contains('hidden')) { shortcuts.classList.add('hidden'); return; }
+        if (!settings.classList.contains('hidden'))  { settings.classList.add('hidden');  return; }
+        if (feedback && !feedback.classList.contains('hidden')) { feedback.classList.add('hidden'); return; }
+        if (typeof Palette !== 'undefined' && Palette.visible) { Palette.close(); return; }
+      }
+
       // Feed keyboard navigation (arrow keys, enter, escape)
       const leftTab = document.querySelector('.panel-tab.active')?.dataset.tab;
       if (this.panels.left.visible && leftTab === 'feeds') {
