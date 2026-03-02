@@ -38,7 +38,7 @@
         <span class="btn-icon">📋</span>
       </button>
       <button class="header-btn" id="btn-events" title="Events (E)">
-        <span class="btn-icon">📅</span>
+        <span class="btn-icon">📅</span><span id="events-unread-badge" class="header-badge zero">0</span>
       </button>
       <button class="header-btn" id="btn-settings" title="Settings (S)">
         <span class="btn-icon">⚙</span>
@@ -55,7 +55,7 @@
       <button class="panel-tab active" data-tab="feeds">
         Feeds <span id="feeds-unread-badge" class="tab-badge">0</span>
       </button>
-      <button class="panel-tab" data-tab="briefing">Briefing</button>
+      <button class="panel-tab" data-tab="briefing">Briefing <span id="briefing-unread-badge" class="tab-badge zero">0</span></button>
     </div>
     <div class="panel-content">
       <!-- Feeds Tab -->
@@ -84,6 +84,13 @@
           <span id="briefing-date">Loading...</span>
           <button id="briefing-next" title="Next day">►</button>
         </div>
+        <div id="briefing-search-bar" class="briefing-search-bar hidden">
+          <input type="text" id="briefing-search-input" placeholder="Search briefing..." />
+          <span id="briefing-search-count" class="briefing-search-count"></span>
+          <button id="briefing-search-prev" title="Previous match">▲</button>
+          <button id="briefing-search-next" title="Next match">▼</button>
+          <button id="briefing-search-close" title="Close search">✕</button>
+        </div>
         <div id="briefing-content" class="briefing-content">
           <div class="empty-state">Loading briefing...</div>
         </div>
@@ -96,6 +103,24 @@
     <div class="panel-header">
       <h2>Event Radar</h2>
       <button class="panel-close" data-panel="right-panel">&times;</button>
+    </div>
+    <div class="events-toolbar">
+      <select id="events-filter-urgency" title="Filter by deadline">
+        <option value="">All Deadlines</option>
+        <option value="48h">Within 48h</option>
+        <option value="week">This Week</option>
+      </select>
+      <select id="events-filter-cost" title="Filter by cost">
+        <option value="">All Costs</option>
+        <option value="free">Free</option>
+        <option value="paid">Paid</option>
+      </select>
+      <select id="events-filter-score" title="Minimum score">
+        <option value="0">All Scores</option>
+        <option value="7">7+</option>
+        <option value="8">8+</option>
+        <option value="9">9+</option>
+      </select>
     </div>
     <div id="events-list" class="events-list">
       <div class="empty-state">Loading events...</div>
@@ -136,6 +161,18 @@
     <div class="feedback-actions">
       <button id="feedback-submit">Send</button>
       <button id="feedback-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Keyboard shortcut hints -->
+  <div id="shortcuts-overlay" class="overlay hidden">
+    <div class="shortcuts-content">
+      <h3>Keyboard Shortcuts</h3>
+      <div id="shortcuts-grid" class="shortcut-grid"></div>
+      <div class="shortcuts-dismiss">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
     </div>
   </div>
 

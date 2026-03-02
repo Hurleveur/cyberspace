@@ -243,6 +243,48 @@
   color: var(--rss-color);
 }
 
+/* Feed inline preview */
+.feed-preview {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease;
+  background: var(--bg-panel-alt);
+  border-bottom: 1px solid transparent;
+  font-size: 11px;
+  padding: 0 14px;
+}
+.feed-preview.active {
+  max-height: 200px;
+  padding: 10px 14px;
+  border-bottom-color: var(--border);
+}
+.feed-preview-text {
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.feed-preview-actions {
+  display: flex;
+  gap: 10px;
+}
+.feed-preview-actions a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 11px;
+}
+.feed-preview-actions a:hover {
+  text-decoration: underline;
+}
+.feed-item-expanded {
+  background: var(--bg-hover);
+  border-left: 2px solid var(--accent);
+}
+.feed-item-focused {
+  background: var(--bg-hover);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 /* === Briefing === */
 .briefing-nav {
   display: flex;
@@ -275,6 +317,62 @@
   font-size: 12px;
   color: var(--text);
   font-weight: 500;
+}
+
+/* Briefing search */
+.briefing-search-bar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  align-items: center;
+}
+.briefing-search-bar.hidden { display: none; }
+.briefing-search-bar input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.briefing-search-bar input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.briefing-search-count {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: center;
+}
+.briefing-search-bar button {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.briefing-search-bar button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.briefing-highlight {
+  background: var(--threat-medium);
+  color: var(--bg-primary);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.briefing-highlight-active {
+  background: var(--accent);
+  color: var(--bg-primary);
+  box-shadow: 0 0 6px var(--accent-glow);
 }
 
 .briefing-content {
@@ -314,6 +412,45 @@
 }
 
 /* === Events === */
+.events-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.events-toolbar select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  flex: 1;
+}
+.events-toolbar select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.deadline-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.deadline-urgent { background: var(--threat-critical); color: white; }
+.deadline-soon { background: var(--threat-high); color: white; }
+.deadline-close { background: var(--threat-medium); color: var(--bg-primary); }
+.deadline-week { background: var(--border-bright); color: var(--text); }
+.deadline-past { background: var(--text-dim); color: var(--bg-primary); opacity: 0.6; }
+
 .events-list {
   flex: 1;
   overflow-y: auto;
@@ -366,15 +503,19 @@
 
 /* Event detail (expanded on hover/click) */
 .event-detail {
-  display: none;
-  padding: 12px 14px;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 14px;
   background: var(--bg-panel-alt);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
   font-size: 12px;
   line-height: 1.6;
+  transition: max-height 0.3s ease, padding 0.3s ease, border-color 0.3s ease;
 }
 .event-detail.active {
-  display: block;
+  max-height: 400px;
+  padding: 12px 14px;
+  border-bottom-color: var(--border);
 }
 .event-detail-field {
   margin: 3px 0;
@@ -602,12 +743,36 @@
   color: var(--accent);
   text-decoration: none;
 }
+.marker-btn-show,
 .marker-btn-read {
   background: none;
   border: 1px solid var(--text-dim);
   color: var(--text-dim);
 }
+.marker-btn-show:hover,
 .marker-btn-read:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Highlight flash animation for cross-linking */
+@keyframes highlight-flash {
+  0% { background: var(--accent-glow-strong); }
+  100% { background: transparent; }
+}
+.highlight-flash { animation: highlight-flash 2s ease-out; }
+
+/* Panel resize handles */
+.panel-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+}
+.panel-resize-right { right: -3px; }
+.panel-resize-left { left: -3px; }
+.panel-resize-handle:hover {
+  background: var(--accent-glow);
 }

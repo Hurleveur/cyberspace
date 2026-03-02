@@ -182,6 +182,10 @@ html, body {
   right: 0;
   bottom: 0;
   z-index: var(--z-map);
+  background: var(--bg-primary);
+}
+.leaflet-tile {
+  will-change: transform;
 }
 
 /* Override Leaflet popup styles */
@@ -309,6 +313,109 @@ html, body {
 }
 .feedback-actions button:hover {
   background: var(--bg-active);
+}
+
+/* === Toast notifications === */
+.toast-container {
+  position: fixed;
+  top: calc(var(--header-height) + 12px);
+  right: 16px;
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-left: 3px solid var(--accent);
+  color: var(--text-bright);
+  font-size: 12px;
+  border-radius: 3px;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: auto;
+}
+.toast.visible { opacity: 1; transform: translateX(0); }
+.toast-briefing { border-left-color: var(--accent); }
+.toast-feeds { border-left-color: var(--rss-color); }
+.toast-events { border-left-color: var(--event-color); }
+.toast-info { border-left-color: var(--text-dim); }
+
+/* === Keyboard shortcut hints === */
+.shortcuts-content {
+  width: 400px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  padding: 20px;
+}
+.shortcuts-content h3 {
+  color: var(--accent);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px 16px;
+  margin: 16px 0;
+}
+.shortcut-key kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+.shortcut-action {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 24px;
+}
+.shortcuts-dismiss {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.shortcuts-dismiss kbd {
+  display: inline-block;
+  padding: 0 4px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+/* Header badge for events unread count */
+.header-badge {
+  display: inline-block;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  background: var(--event-color);
+  color: var(--bg-primary);
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 7px;
+  text-align: center;
+  line-height: 14px;
+  position: relative;
+  top: -6px;
+  margin-left: -4px;
+}
+.header-badge.zero {
+  background: var(--border-bright);
+  color: var(--text-dim);
 }
 
 /* === Empty states === */

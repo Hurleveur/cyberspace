@@ -11,6 +11,9 @@ const MapView = {
     this.map = L.map('map', {
       center: [50.85, 4.35], // Brussels
       zoom: 4,
+      minZoom: 2,
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1.0,
       zoomControl: false,
       attributionControl: true,
     });
@@ -115,6 +118,7 @@ const MapView = {
         <div class="marker-popup-summary">${this.escapeHtml(item.summary || '')}</div>
         <div class="marker-popup-actions">
           ${item.source_url ? `<a href="${this.escapeHtml(item.source_url)}" target="_blank">Open source ↗</a>` : ''}
+          <button class="marker-btn-show" onclick="App.showInPanel('${item.id}')">Show in panel ↓</button>
           <button class="marker-btn-read" onclick="ReadTracker.markRead('${item.id}'); App.updateUnreadCount();">Mark read</button>
         </div>
       </div>

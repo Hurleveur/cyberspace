@@ -1,10 +1,13 @@
 /**
  * Feeds panel — fetches RSS feed items from the server and renders them.
+ * Single-click expands inline preview, double-click opens externally.
  */
 const Feeds = {
   items: [],
   filteredItems: [],
   categories: new Set(),
+  expandedId: null,
+  focusIndex: -1,
 
   async init() {
     this.bindEvents();
@@ -93,41 +96,63 @@ const Feeds = {
       return;
     }
 
-    // Group by time
     const groups = this.groupByTime(this.filteredItems);
     let html = '';
+    let idx = 0;
 
     for (const [label, items] of groups) {
       if (items.length === 0) continue;
       html += `<div class="feed-group-header">${label}</div>`;
       for (const item of items) {
         const isRead = ReadTracker.isRead(item.id);
-        html += this.renderItem(item, isRead);
+        const isExpanded = this.expandedId === item.id;
+        html += this.renderItem(item, isRead, isExpanded, idx);
+        idx++;
       }
     }
 
     container.innerHTML = html;
 
-    // Bind click handlers
+    // Bind click handlers — single click to expand preview
     container.querySelectorAll('.feed-item').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.dataset.id;
+        this.togglePreview(id);
+      });
+      el.addEventListener('dblclick', () => {
+        const id = el.dataset.id;
         const item = this.items.find(i => i.id === id);
-        if (!item) return;
+        if (item?.url) {
+          ReadTracker.markRead(id);
+          App.updateUnreadCount();
+          window.open(item.url, '_blank');
+        }
+      });
+    });
+
+    // Bind "Open source" links
+    container.querySelectorAll('.feed-open-btn').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = a.dataset.id;
         ReadTracker.markRead(id);
-        el.classList.add('read');
         App.updateUnreadCount();
-        if (item.url) window.open(item.url, '_blank');
+        const el = container.querySelector(`.feed-item[data-id="${id}"]`);
+        if (el) el.classList.add('read');
       });
     });
 
     this.updateBadge();
   },
 
-  renderItem(item, isRead) {
+  renderItem(item, isRead, isExpanded, idx) {
     const timeAgo = this.timeAgo(item.published);
+    const summary = item.summary || item.description || 'No preview available.';
+    // Truncate summary to ~200 chars
+    const truncated = summary.length > 200 ? summary.slice(0, 200) + '...' : summary;
+
     return `
-      <div class="feed-item ${isRead ? 'read' : ''}" data-id="${item.id}">
+      <div class="feed-item ${isRead ? 'read' : ''} ${isExpanded ? 'feed-item-expanded' : ''}" data-id="${item.id}" data-idx="${idx}">
         <div class="feed-priority-dot ${item.priority}"></div>
         <div class="feed-item-body">
           <div class="feed-item-title">${this.escapeHtml(item.title)}</div>
@@ -137,7 +162,98 @@ const Feeds = {
           </div>
         </div>
       </div>
+      <div class="feed-preview ${isExpanded ? 'active' : ''}" id="preview-${item.id}">
+        <div class="feed-preview-text">${this.escapeHtml(truncated)}</div>
+        <div class="feed-preview-actions">
+          <a href="${this.escapeHtml(item.url)}" target="_blank" class="feed-open-btn" data-id="${item.id}">Open source ↗</a>
+        </div>
+      </div>
     `;
+  },
+
+  togglePreview(id) {
+    const wasExpanded = this.expandedId === id;
+    this.expandedId = wasExpanded ? null : id;
+
+    // Mark as read when expanding
+    if (!wasExpanded) {
+      ReadTracker.markRead(id);
+      App.updateUnreadCount();
+      const el = document.querySelector(`.feed-item[data-id="${id}"]`);
+      if (el) el.classList.add('read');
+    }
+
+    // Toggle all previews
+    document.querySelectorAll('.feed-preview').forEach(el => {
+      el.classList.toggle('active', el.id === `preview-${this.expandedId}`);
+    });
+    document.querySelectorAll('.feed-item').forEach(el => {
+      el.classList.toggle('feed-item-expanded', el.dataset.id === this.expandedId);
+    });
+
+    this.updateBadge();
+  },
+
+  scrollToItem(itemId) {
+    const el = document.querySelector(`.feed-item[data-id="${itemId}"]`);
+    if (el) {
+      this.togglePreview(itemId);
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('highlight-flash');
+    }
+  },
+
+  // Keyboard navigation
+  handleKeyNav(e) {
+    const items = document.querySelectorAll('.feed-item');
+    if (items.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        this.focusFeedItem(items, this.focusIndex + 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        this.focusFeedItem(items, this.focusIndex - 1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (this.focusIndex >= 0 && this.focusIndex < items.length) {
+          const id = items[this.focusIndex].dataset.id;
+          if (e.shiftKey) {
+            const item = this.items.find(i => i.id === id);
+            if (item?.url) {
+              ReadTracker.markRead(id);
+              App.updateUnreadCount();
+              window.open(item.url, '_blank');
+            }
+          } else {
+            this.togglePreview(id);
+          }
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        this.expandedId = null;
+        this.focusIndex = -1;
+        document.querySelectorAll('.feed-preview').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.feed-item').forEach(el => {
+          el.classList.remove('feed-item-expanded', 'feed-item-focused');
+        });
+        break;
+    }
+  },
+
+  focusFeedItem(items, newIndex) {
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= items.length) newIndex = items.length - 1;
+
+    items.forEach(el => el.classList.remove('feed-item-focused'));
+    this.focusIndex = newIndex;
+    const target = items[newIndex];
+    target.classList.add('feed-item-focused');
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
 
   groupByTime(items) {

@@ -44,8 +44,20 @@ const App = {
     right: { el: null, visible: false },
   },
 
+  shortcuts: [
+    { key: 'F', action: 'Open Feeds panel' },
+    { key: 'B', action: 'Open Briefing panel' },
+    { key: 'E', action: 'Toggle Events panel' },
+    { key: 'S', action: 'Open Settings' },
+    { key: '/', action: 'Search in Briefing' },
+    { key: '↑ ↓', action: 'Navigate feed items' },
+    { key: 'Enter', action: 'Expand selected item' },
+    { key: 'Shift+Enter', action: 'Open item externally' },
+    { key: 'Esc', action: 'Close overlays / clear focus' },
+    { key: '?', action: 'Show keyboard shortcuts' },
+  ],
+
   async init() {
-    // Cache panel elements
     this.panels.left.el = document.getElementById('left-panel');
     this.panels.right.el = document.getElementById('right-panel');
 
@@ -61,12 +73,22 @@ const App = {
       Events.init(),
     ]);
 
+    // Share markers with briefing for cross-linking
+    if (MapView.markers) {
+      Briefing.setMarkers(MapView.markers.map(m => m.data));
+    }
+
     // Bind UI events
     this.bindPanelButtons();
     this.bindTabSwitching();
     this.bindFeedback();
     this.bindKeyboard();
     this.bindWebSocketEvents();
+    this.initPanelResize();
+    this.buildShortcutsGrid();
+
+    // Restore panel widths
+    this.restorePanelWidths();
 
     // Update unread count
     this.updateUnreadCount();
@@ -79,12 +101,22 @@ const App = {
 
   bindPanelButtons() {
     document.getElementById('btn-feeds').addEventListener('click', () => {
-      this.showPanel('left');
-      this.switchLeftTab('feeds');
+      const leftTab = document.querySelector('.panel-tab.active')?.dataset.tab;
+      if (this.panels.left.visible && leftTab === 'feeds') {
+        this.togglePanel('left');
+      } else {
+        this.showPanel('left');
+        this.switchLeftTab('feeds');
+      }
     });
     document.getElementById('btn-briefing').addEventListener('click', () => {
-      this.showPanel('left');
-      this.switchLeftTab('briefing');
+      const leftTab = document.querySelector('.panel-tab.active')?.dataset.tab;
+      if (this.panels.left.visible && leftTab === 'briefing') {
+        this.togglePanel('left');
+      } else {
+        this.showPanel('left');
+        this.switchLeftTab('briefing');
+      }
     });
     document.getElementById('btn-events').addEventListener('click', () => {
       this.togglePanel('right');
@@ -174,6 +206,7 @@ const App = {
         if (res.ok) {
           textarea.value = '';
           box.classList.add('hidden');
+          this.toast('Feedback saved', 'info');
         }
       } catch (err) {
         console.error('[feedback] Error:', err);
@@ -187,6 +220,15 @@ const App = {
     document.addEventListener('keydown', (e) => {
       // Don't trigger shortcuts when typing in inputs
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+      // Feed keyboard navigation (arrow keys, enter, escape)
+      const leftTab = document.querySelector('.panel-tab.active')?.dataset.tab;
+      if (this.panels.left.visible && leftTab === 'feeds') {
+        if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+          Feeds.handleKeyNav(e);
+          return;
+        }
+      }
 
       switch (e.key.toLowerCase()) {
         case 'f':
@@ -207,13 +249,119 @@ const App = {
           e.preventDefault();
           Settings.open();
           break;
+        case '/':
+          e.preventDefault();
+          this.showPanel('left');
+          this.switchLeftTab('briefing');
+          Briefing.toggleSearch(true);
+          break;
+        case '?':
+          e.preventDefault();
+          this.toggleShortcutsOverlay();
+          break;
         case 'escape':
-          // Close overlays/panels
           document.getElementById('settings-overlay').classList.add('hidden');
+          document.getElementById('shortcuts-overlay').classList.add('hidden');
           document.getElementById('feedback-box').classList.add('hidden');
+          Briefing.toggleSearch(false);
           break;
       }
     });
+  },
+
+  // --- Toast notifications ---
+
+  toast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = message;
+    container.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('visible'));
+    setTimeout(() => {
+      el.classList.remove('visible');
+      el.addEventListener('transitionend', () => el.remove());
+    }, 4000);
+  },
+
+  // --- Keyboard shortcut hints ---
+
+  buildShortcutsGrid() {
+    const grid = document.getElementById('shortcuts-grid');
+    grid.innerHTML = this.shortcuts.map(s =>
+      `<div class="shortcut-key"><kbd>${s.key}</kbd></div><div class="shortcut-action">${s.action}</div>`
+    ).join('');
+  },
+
+  toggleShortcutsOverlay() {
+    document.getElementById('shortcuts-overlay').classList.toggle('hidden');
+  },
+
+  // --- Map-to-panel linking ---
+
+  showInPanel(markerId) {
+    const marker = MapView.markers?.find(m => m.data.id === markerId);
+    if (!marker) return;
+
+    if (marker.data.type === 'event') {
+      this.showPanel('right');
+      Events.scrollToEvent(markerId);
+    } else {
+      // Try briefing first
+      this.showPanel('left');
+      this.switchLeftTab('briefing');
+      Briefing.scrollToMarker(markerId);
+    }
+  },
+
+  // --- Panel resize ---
+
+  initPanelResize() {
+    this._createResizeHandle('left-panel', 'right');
+    this._createResizeHandle('right-panel', 'left');
+  },
+
+  _createResizeHandle(panelId, edgeSide) {
+    const panel = document.getElementById(panelId);
+    const handle = document.createElement('div');
+    handle.className = `panel-resize-handle panel-resize-${edgeSide}`;
+    panel.appendChild(handle);
+
+    let startX, startWidth;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startX = e.clientX;
+      startWidth = panel.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMove = (e) => {
+        const delta = panelId === 'left-panel' ? (e.clientX - startX) : (startX - e.clientX);
+        const newWidth = Math.min(700, Math.max(300, startWidth + delta));
+        panel.style.width = newWidth + 'px';
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem(`panel-width-${panelId}`, panel.offsetWidth);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  },
+
+  restorePanelWidths() {
+    for (const id of ['left-panel', 'right-panel']) {
+      const saved = localStorage.getItem(`panel-width-${id}`);
+      if (saved) {
+        document.getElementById(id).style.width = saved + 'px';
+      }
+    }
   },
 
   // --- WebSocket event handlers ---
@@ -224,9 +372,11 @@ const App = {
       if (data.file.includes('briefing.md')) {
         Briefing.refresh();
         MapView.refresh();
+        this.toast('Briefing updated', 'briefing');
       }
       if (data.file.includes('events.md')) {
         Events.refresh();
+        this.toast('Event radar updated', 'events');
       }
       if (data.file.includes('markers.json')) {
         MapView.refresh();
@@ -236,28 +386,46 @@ const App = {
     WS.on('feeds_updated', (data) => {
       console.log('[ws] Feeds updated:', data.count, 'items');
       Feeds.load();
+      this.toast(`${data.count} feed items refreshed`, 'feeds');
     });
   },
 
   // --- Unread count ---
 
   updateUnreadCount() {
-    // Count unread feeds
+    // Feeds
     const feedUnread = Feeds.getUnreadCount ? Feeds.getUnreadCount() : 0;
 
-    // Count unread map markers
+    // Map markers
     let markerUnread = 0;
     if (MapView.markers) {
       markerUnread = MapView.markers.filter(m => !ReadTracker.isRead(m.data.id)).length;
     }
 
+    // Total for header badge
     const total = feedUnread + markerUnread;
     const badge = document.getElementById('unread-badge');
     badge.textContent = total;
     badge.classList.toggle('zero', total === 0);
 
-    // Also update feeds tab badge
+    // Feeds tab badge
     Feeds.updateBadge && Feeds.updateBadge();
+
+    // Briefing tab badge
+    const briefingUnread = Briefing.getUnreadCount ? Briefing.getUnreadCount() : 0;
+    const briefingBadge = document.getElementById('briefing-unread-badge');
+    if (briefingBadge) {
+      briefingBadge.textContent = briefingUnread;
+      briefingBadge.classList.toggle('zero', briefingUnread === 0);
+    }
+
+    // Events header badge
+    const eventsUnread = Events.getUnreadCount ? Events.getUnreadCount() : 0;
+    const eventsBadge = document.getElementById('events-unread-badge');
+    if (eventsBadge) {
+      eventsBadge.textContent = eventsUnread;
+      eventsBadge.classList.toggle('zero', eventsUnread === 0);
+    }
   },
 };
 
