@@ -31,7 +31,39 @@
   --z-feedback: 250;
 }
 
-/* === Reset === */
+/* === Theme: Amber === */
+:root[data-theme="amber"] {
+  --accent: #ffb300;
+  --accent-dim: #e6a000;
+  --accent-glow: rgba(255, 179, 0, 0.15);
+  --accent-glow-strong: rgba(255, 179, 0, 0.3);
+  --threat-low: #ffb300;
+}
+
+/* === Theme: Cyan === */
+:root[data-theme="cyan"] {
+  --accent: #00d4aa;
+  --accent-dim: #00b893;
+  --accent-glow: rgba(0, 212, 170, 0.15);
+  --accent-glow-strong: rgba(0, 212, 170, 0.3);
+  --threat-low: #00d4aa;
+}
+
+/* === Map Marker Animations === */
+@keyframes marker-pulse {
+  0%, 100% { fill-opacity: 0.5; stroke-opacity: 0.9; }
+  50%       { fill-opacity: 0.9; stroke-opacity: 0.4; }
+}
+@keyframes marker-pulse-critical {
+  0%, 100% { fill-opacity: 0.6; stroke-opacity: 1; stroke-width: 2px; }
+  50%       { fill-opacity: 1;   stroke-opacity: 0.2; stroke-width: 5px; }
+}
+.marker-unread {
+  animation: marker-pulse 2.5s ease-in-out infinite;
+}
+.marker-critical {
+  animation: marker-pulse-critical 1.2s ease-in-out infinite;
+}
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -584,4 +616,30 @@ html, body {
   color: var(--text-dim);
   white-space: nowrap;
   flex-shrink: 0;
+}
+/* Command mode styling */
+.palette-cmd-hint {
+  padding: 6px 14px;
+  font-size: 11px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.palette-cmd-hint code {
+  background: var(--bg-active);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+}
+.palette-result[data-type="command"] .palette-result-icon { color: var(--accent); }
+.palette-cmd-output {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-bright);
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  line-height: 1.7;
 }

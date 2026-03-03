@@ -88,9 +88,10 @@ const App = {
     { key: 'F', action: 'Open Feeds panel' },
     { key: 'B', action: 'Open Briefing panel' },
     { key: 'E', action: 'Toggle Events panel' },
-    { key: 'T', action: 'Toggle Tasks panel' },
+    { key: 'T', action: 'Toggle Terminal' },
     { key: 'S', action: 'Open Settings' },
-    { key: 'Ctrl+K', action: 'Command palette' },
+    { key: 'Ctrl+K', action: 'Command palette / > commands' },
+    { key: '>', action: 'Command mode (direct)' },
     { key: '/', action: 'Search in Briefing' },
     { key: '↑ ↓', action: 'Navigate feed items' },
     { key: 'Enter', action: 'Expand selected item' },
@@ -108,6 +109,10 @@ const App = {
     MapView.init();
     Settings.init();
     Palette.init();
+    Terminal.init();
+    this._initNotifications();
+
+    if (typeof MatrixRain !== 'undefined') MatrixRain.init();
 
     // Load data
     await Promise.all([
@@ -190,6 +195,9 @@ const App = {
         this.switchRightTab('todo');
       }
     });
+    document.getElementById('btn-terminal').addEventListener('click', () => {
+      Terminal.toggle();
+    });
     document.getElementById('btn-settings').addEventListener('click', () => {
       Settings.open();
     });
@@ -238,6 +246,13 @@ const App = {
     const panel = this.panels[side];
     panel.el.classList.remove('hidden');
     panel.visible = true;
+    this.updateButtonStates();
+  },
+
+  hidePanel(side) {
+    const panel = this.panels[side];
+    panel.el.classList.add('hidden');
+    panel.visible = false;
     this.updateButtonStates();
   },
 
@@ -393,12 +408,7 @@ const App = {
           break;
         case 't':
           e.preventDefault();
-          if (this.panels.right.visible && this.currentRightTab === 'todo') {
-            this.togglePanel('right');
-          } else {
-            this.showPanel('right');
-            this.switchRightTab('todo');
-          }
+          Terminal.toggle();
           break;
         case 's':
           e.preventDefault();
@@ -413,6 +423,10 @@ const App = {
         case '?':
           e.preventDefault();
           this.toggleShortcutsOverlay();
+          break;
+        case '>':
+          e.preventDefault();
+          Palette.openCommandMode();
           break;
         case 'escape':
           document.getElementById('settings-overlay').classList.add('hidden');
@@ -461,6 +475,34 @@ const App = {
         }
       });
     }
+  },
+
+  // --- Desktop notifications ---
+
+  async _initNotifications() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Request permission lazily — call after a brief delay so it doesn't
+      // fire immediately on page load before the user has interacted.
+      setTimeout(() => Notification.requestPermission(), 3000);
+    }
+  },
+
+  _sendDesktopNotification(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const n = new Notification(title, { body, tag: 'cyberspace-alert' });
+    setTimeout(() => n.close(), 8000);
+    n.onclick = () => { window.focus(); n.close(); };
+  },
+
+  _notifyCriticalThreats() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const criticals = (MapView.markers || [])
+      .filter(m => m.data?.priority === 'critical' && !ReadTracker.isRead(m.data?.id));
+    if (criticals.length === 0) return;    if (typeof MatrixRain !== 'undefined') MatrixRain.intensify();    const sample = criticals.slice(0, 2).map(m => m.data.title).join('; ');
+    this._sendDesktopNotification(
+      `\uD83D\uDD34 ${criticals.length} CRITICAL Threat${criticals.length !== 1 ? 's' : ''}`,
+      sample
+    );
   },
 
   // --- Map-to-panel linking ---
@@ -544,6 +586,7 @@ const App = {
             MapView.loadMarkersForDateWithEvents(latestDate, this.eventsSourceDates);
             if (typeof TodoList !== 'undefined') TodoList.loadBriefingContentForDate(latestDate);
             this.updateUnreadCount();
+            this._notifyCriticalThreats();
           } else {
             // User is viewing older date — don't disrupt, just notify
             this.toast('New briefing available — navigate to latest to view', 'briefing');
@@ -616,3 +659,6 @@ const App = {
 
 // --- Boot ---
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+// Expose App globally for inline onclick handlers in popups
+window.App = App;

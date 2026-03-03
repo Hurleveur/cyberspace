@@ -49,7 +49,7 @@ valid UX pivot, but several Phase 3 deliverables are still missing:
 
 ### ❌ Missing for Phase 3 Completion
 
-- [ ] **Command execution in palette** — The palette is search-only. It should support
+- [x] **Command execution in palette** — The palette is search-only. It should support
   a `>` prefix for command mode (like VS Code), allowing:
   - `> theme green|amber|cyan` — switch accent color live
   - `> status` — show system status (last briefing, feed count, unread count, streak)
@@ -59,27 +59,74 @@ valid UX pivot, but several Phase 3 deliverables are still missing:
   - `> refresh feeds` — force re-fetch RSS feeds
   - `> unread` — list all unread items with counts per source
 
-- [ ] **Theme switching** — CSS custom properties are ready for green/amber/cyan
+- [x] **Theme switching** — CSS custom properties are ready for green/amber/cyan
   theming but there's no UI to switch. Needs:
   - Theme selector in Settings (System tab)
   - CSS property overrides for amber (`#ffb300`) and cyan (`#00d4aa`) accents
   - `localStorage` persistence
   - Optional: `> theme` command in palette
 
-- [ ] **"Today" button** — Quick jump back to the latest briefing when viewing an
+- [x] **"Today" button** — Quick jump back to the latest briefing when viewing an
   older report. Should appear in the briefing nav bar next to the ◄/► arrows.
 
-- [ ] **URL hash date bookmarking** — `#date=2026-03-01` in the URL so you can
+- [x] **URL hash date bookmarking** — `#date=2026-03-01` in the URL so you can
   bookmark or share a link to a specific day's briefing. Phase 2 carry-over.
 
-- [ ] **Tab completion / command history** — If implementing the `>` command mode,
-  add Up/Down arrow history (localStorage) and basic tab completion for commands.
+- [x] **Tab completion / command history** — `>` command mode now has:
+  - Tab completion (completes to longest common prefix across matching command IDs)
+  - Up/Down arrow history navigation (persisted to `cyberspace-cmd-history` localStorage)
+  - `Shift+>` shortcut (`>` key) opens palette directly in command mode
 
 ### 🔶 Phase 2 Carry-overs (affect Phase 3 UX)
 
-- [ ] **Google Calendar integration** — Accept button currently only posts feedback.
-  Should create a calendar event (if GCal connected) or download an .ics file.
-  This is prerequisite for the event acceptance flow feeling complete.
+- [x] **ICS calendar export** — Accept button now downloads an `.ics` file for the
+  accepted event. Parses `When:` field for date/time ranges, falls back to 7 days
+  from now if unparseable. Toast confirmation shown on download.
+
+- [ ] **Google Calendar integration** — Full GCal API connect (OAuth). The .ics
+  download above covers the offline case. GCal would add click-to-add-to-calendar.
+
+---
+
+## Phase 4 — Visual & Atmosphere Effects
+
+- [x] **Pulsing unread map markers** — Unread markers now animate:
+  - All unread markers: `marker-pulse` (2.5s ease-in-out, fill-opacity oscillation)
+  - Critical unread markers: `marker-pulse-critical` (1.2s fast, stroke-width expansion)
+  - Read markers: no animation (clean state)
+
+- [x] **Desktop notifications for critical threats** — On new briefing arriving via
+  WebSocket (when viewing the latest date), if there are unread critical markers,
+  sends a native browser notification. Permission requested after 3s on first load.
+  Also triggers `MatrixRain.intensify()`.
+
+- [x] **Matrix rain canvas overlay** — Subtle katakana/hex character rain drawn on a
+  full-page fixed canvas (`pointer-events: none`, `opacity: 0.045`). Toggleable
+  from Settings → System tab. Intensifies (opacity 0.10 for 6s) on CRITICAL threat
+  level and on incoming critical notifications. Persisted to localStorage.
+
+### Phase 4 Remaining
+
+- [ ] **Glitch text CSS animation** — Apply `glitch` keyframes to threat-level label
+  header when threat is HIGH or above. CSS-only, no JS required.
+
+- [ ] **Watch Dogs profiler hover** — On hovering a person/org entity in the briefing,
+  show a typewriter + scanline hover card (CSS + small JS). Phase 4 atmosphere.
+
+- [ ] **Panel slide-in animations** — Animate panels sliding in on first load instead
+  of appearing instantly. CSS `@keyframes slideInLeft/Right`.
+
+- [ ] **Skeleton loading states** — Show a skeleton shimmer while briefing markdown
+  is being fetched, instead of showing nothing.
+
+- [ ] **Music player** — Howler.js, looping ambient track in the footer bar.
+  Toggle with a ♫ button. Phase 4 original spec.
+
+- [ ] **Connection lines between related markers** — Leaflet polylines linking
+  markers that share a CVE, threat actor, or campaign. Toggle in map controls.
+
+- [ ] **Threat level sparkline** — Mini SVG sparkline in the header showing threat
+  level trend across the last 7 reports (green→red gradient).
 
 ---
 

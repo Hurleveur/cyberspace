@@ -7,6 +7,7 @@ const Settings = {
   editing: false,
 
   init() {
+    this.loadTheme();
     this.bindEvents();
   },
 
@@ -62,6 +63,12 @@ const Settings = {
   async loadFile() {
     const view = document.getElementById('settings-view');
     view.innerHTML = '<div class="empty-state">Loading...</div>';
+
+    // System tab gets a custom UI
+    if (this.currentFile === '__system') {
+      this.loadSystemTab();
+      return;
+    }
 
     // RSS feeds get a visual manager unless raw editing is active
     if (this.currentFile === 'rss.md' && !this.editing) {
@@ -386,12 +393,102 @@ const Settings = {
     return url.replace(/[^a-z0-9]/gi, '_').slice(-30);
   },
 
+  // ── System Tab ──
+
+  loadSystemTab() {
+    const view = document.getElementById('settings-view');
+    const current = localStorage.getItem('cyberspace-theme') || 'green';
+
+    const themes = [
+      { id: 'green', label: 'Green', color: '#00ff41', desc: 'Matrix green (default)' },
+      { id: 'amber', label: 'Amber', color: '#ffb300', desc: 'Orange amber terminal' },
+      { id: 'cyan',  label: 'Cyan',  color: '#00d4aa', desc: 'Cool teal/cyan' },
+    ];
+
+    const lastBriefing = (typeof Briefing !== 'undefined' && Briefing.dates[0]) || '—';
+    const feedCount = (typeof Feeds !== 'undefined' && Feeds.items) ? Feeds.items.length : '—';
+    const streak = (() => {
+      const m = document.querySelector('#briefing-content .markdown-body')?.textContent?.match(/Briefing #(\d+)/);
+      return m ? m[1] : '—';
+    })();
+
+    const matrixEnabled = localStorage.getItem('cyberspace-matrix') !== 'off';
+    const feedInterval = parseInt(localStorage.getItem('cyberspace-feed-interval') || '15');
+
+    const swatches = themes.map(t => `
+      <button class="theme-swatch${t.id === current ? ' active' : ''}" data-theme="${t.id}" title="${t.desc}">
+        <span class="theme-swatch-dot" style="background:${t.color}"></span>
+        <span class="theme-swatch-label">${t.label}</span>
+        ${t.id === current ? '<span class="theme-swatch-check">✓</span>' : ''}
+      </button>`).join('');
+
+    view.innerHTML = `
+      <div class="system-panel">
+        <div class="system-section">
+          <div class="system-section-title">Accent Theme</div>
+          <div class="theme-swatches">${swatches}</div>
+          <div class="system-hint">Theme applied immediately and persisted.</div>
+        </div>
+        <div class="system-section">
+          <div class="system-section-title">Visual Effects</div>
+          <label class="system-toggle-row">
+            <span class="system-info-label">Matrix rain</span>
+            <button id="matrix-toggle-btn" class="system-toggle-btn ${matrixEnabled ? 'on' : 'off'}">${matrixEnabled ? 'ON' : 'OFF'}</button>
+          </label>
+          <div class="system-hint">Subtle animated background. &gt; theme to also change via command.</div>
+        </div>
+        <div class="system-section">
+          <div class="system-section-title">System Info</div>
+          <div class="system-info-grid">
+            <span class="system-info-label">Last briefing</span><span class="system-info-value">${lastBriefing}</span>
+            <span class="system-info-label">Feed items</span><span class="system-info-value">${feedCount}</span>
+            <span class="system-info-label">Streak</span><span class="system-info-value">#${streak}</span>
+            <span class="system-info-label">Active theme</span><span class="system-info-value" id="system-theme-label">${current}</span>
+          </div>
+        </div>
+      </div>`;
+
+    view.querySelectorAll('.theme-swatch').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.applyTheme(btn.dataset.theme);
+        this.loadSystemTab();
+      });
+    });
+
+    const matrixBtn = view.querySelector('#matrix-toggle-btn');
+    if (matrixBtn) {
+      matrixBtn.addEventListener('click', () => {
+        if (typeof MatrixRain !== 'undefined') {
+          const on = MatrixRain.toggle();
+          matrixBtn.textContent = on ? 'ON' : 'OFF';
+          matrixBtn.className = `system-toggle-btn ${on ? 'on' : 'off'}`;
+        }
+      });
+    }
+  },
+
+  applyTheme(name) {
+    if (name === 'green' || !name) {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', name);
+    }
+    localStorage.setItem('cyberspace-theme', name);
+  },
+
+  loadTheme() {
+    const saved = localStorage.getItem('cyberspace-theme');
+    if (saved && saved !== 'green') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  },
+
   showView() {
     document.getElementById('settings-view').classList.remove('hidden');
     document.getElementById('settings-edit').classList.add('hidden');
-    // seen-events.md is auto-maintained — hide raw editor button
+    // seen-events.md and __system are auto-maintained — hide raw editor button
     document.getElementById('settings-edit-btn').style.display =
-      this.currentFile === 'seen-events.md' ? 'none' : '';
+      (this.currentFile === 'seen-events.md' || this.currentFile === '__system') ? 'none' : '';
   },
 
   showEditor() {

@@ -222,6 +222,10 @@ const MapView = {
     const color = this.getColor(item);
     const radius = item.priority === 'critical' ? 8 : item.priority === 'high' ? 7 : 6;
     const isRead = ReadTracker.isRead(item.id);
+    const isCritical = item.priority === 'critical';
+
+    let className = '';
+    if (!isRead) className = isCritical ? 'marker-unread marker-critical' : 'marker-unread';
 
     const marker = L.circleMarker([item.lat, item.lng], {
       radius,
@@ -230,7 +234,7 @@ const MapView = {
       weight: isRead ? 1 : 2,
       opacity: isRead ? 0.3 : 0.9,
       fillOpacity: isRead ? 0.15 : 0.5,
-      className: isRead ? '' : 'marker-unread',
+      className,
     });
 
     marker.data = item;

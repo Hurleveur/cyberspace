@@ -331,8 +331,10 @@ const Events = {
         body: JSON.stringify({ text: `EVENT ACCEPTED: "${event.name}" (${event.when}, ${event.where})` }),
       });
       localStorage.setItem(`event-accepted-${id}`, 'true');
+      this.downloadIcs(event);
       this.render();
       App.updateUnreadCount();
+      App.toast(`✓ Accepted — ${event.name.slice(0, 30)}  (.ics downloaded)`, 'briefing');
     } catch (err) {
       console.error('[events] Accept error:', err);
     }
@@ -372,4 +374,102 @@ const Events = {
     div.textContent = str || '';
     return div.innerHTML;
   },
-};
+
+  // ── ICS Generation ─────────────────────────────────────────────────────────
+
+  generateIcs(event) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const toIcsDt = (date) =>
+      `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+
+    const now = new Date();
+    const stamp = toIcsDt(now) + 'Z';
+    let dtStart = null, dtEnd = null;
+
+    if (event.when) {
+      const cleaned = event.when.replace(/[⏰🎫]/g, '').replace(/\s+/g, ' ').trim();
+      const timeRangeMatch = cleaned.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+      const singleTimeMatch = cleaned.match(/(\d{1,2}:\d{2})/);
+      const dateOnly = cleaned
+        .replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/, '')
+        .replace(/\d{1,2}:\d{2}/, '')
+        .trim().replace(/,\s*$/, '');
+
+      let baseDate = new Date(dateOnly);
+      if (isNaN(baseDate.getTime())) baseDate = new Date(dateOnly + ' ' + new Date().getFullYear());
+
+      if (!isNaN(baseDate.getTime())) {
+        if (timeRangeMatch) {
+          const [sh, sm] = timeRangeMatch[1].split(':').map(Number);
+          const [eh, em] = timeRangeMatch[2].split(':').map(Number);
+          const s = new Date(baseDate); s.setHours(sh, sm, 0, 0);
+          const e2 = new Date(baseDate); e2.setHours(eh, em, 0, 0);
+          dtStart = toIcsDt(s); dtEnd = toIcsDt(e2);
+        } else if (singleTimeMatch) {
+          const [h, m] = singleTimeMatch[1].split(':').map(Number);
+          const s = new Date(baseDate); s.setHours(h, m, 0, 0);
+          const e2 = new Date(s); e2.setHours(h + 2, m, 0, 0);
+          dtStart = toIcsDt(s); dtEnd = toIcsDt(e2);
+        } else {
+          // All-day
+          const y = baseDate.getFullYear(), m = pad(baseDate.getMonth()+1), d = pad(baseDate.getDate());
+          const e2 = new Date(baseDate); e2.setDate(e2.getDate() + 1);
+          const lines = [
+            `DTSTART;VALUE=DATE:${y}${m}${d}`,
+            `DTEND;VALUE=DATE:${e2.getFullYear()}${pad(e2.getMonth()+1)}${pad(e2.getDate())}`,
+          ];
+          return this._buildIcs(event, lines, stamp);
+        }
+      }
+    }
+
+    if (!dtStart) {
+      const s = new Date(now); s.setDate(s.getDate() + 7); s.setHours(10, 0, 0, 0);
+      const e2 = new Date(s); e2.setHours(12, 0, 0, 0);
+      dtStart = toIcsDt(s); dtEnd = toIcsDt(e2);
+    }
+    return this._buildIcs(event, [`DTSTART:${dtStart}`, `DTEND:${dtEnd}`], stamp);
+  },
+
+  _buildIcs(event, dtLines, stamp) {
+    const esc = (s) => (s || '').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+    const uid = `${event.id}-${Date.now()}@cyberspace-dashboard`;
+    const description = [
+      event.why,
+      event.url ? `Event page: ${event.url}` : '',
+      event.cost ? `Cost: ${event.cost}` : '',
+      event.relevance ? `Relevance: ${event.relevance}` : '',
+    ].filter(Boolean).join('\\n');
+
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Cyberspace Intelligence//Dashboard//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      ...dtLines,
+      `DTSTAMP:${stamp}`,
+      `UID:${uid}`,
+      `SUMMARY:${esc(event.name)}`,
+      event.where ? `LOCATION:${esc(event.where)}` : null,
+      description ? `DESCRIPTION:${esc(description)}` : null,
+      event.url ? `URL:${event.url}` : null,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+  },
+
+  downloadIcs(event) {
+    const ics = this.generateIcs(event);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.setAttribute('download', `${event.name.replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 50)}.ics`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },};

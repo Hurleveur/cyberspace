@@ -41,8 +41,11 @@
       <button class="header-btn" id="btn-events" title="Events (E)">
         <span class="btn-icon">📅</span><span id="events-unread-badge" class="header-badge zero">0</span>
       </button>
-      <button class="header-btn" id="btn-todo" title="Tasks (T)">
+      <button class="header-btn" id="btn-todo" title="Tasks">
         <span class="btn-icon">☑</span>
+      </button>
+      <button class="header-btn" id="btn-terminal" title="Terminal (T)">
+        <span class="btn-icon">⌘</span>
       </button>
       <button class="header-btn" id="btn-settings" title="Settings (S)">
         <span class="btn-icon">⚙</span>
@@ -94,9 +97,10 @@
       <!-- Briefing Tab -->
       <div id="tab-briefing" class="tab-content">
         <div class="briefing-nav">
-          <button id="briefing-prev" title="Previous day">◄</button>
+          <button id="briefing-prev" title="Previous day (older)">◄</button>
           <span id="briefing-date">Loading...</span>
-          <button id="briefing-next" title="Next day">►</button>
+          <button id="briefing-next" title="Next day (newer)">►</button>
+          <button id="briefing-today" class="briefing-today-btn hidden" title="Jump to latest report">today</button>
         </div>
         <div id="briefing-search-bar" class="briefing-search-bar hidden">
           <input type="text" id="briefing-search-input" placeholder="Search briefing..." />
@@ -216,6 +220,7 @@
         <button class="settings-tab" data-config="events.md">Events</button>
         <button class="settings-tab" data-config="rss.md">RSS Feeds</button>
         <button class="settings-tab" data-config="seen-events.md">Seen Events</button>
+        <button class="settings-tab" data-config="__system">System</button>
       </div>
       <div id="settings-view" class="settings-view">
         <div class="empty-state">Select a tab</div>
@@ -252,6 +257,23 @@
     </div>
   </div>
 
+  <!-- Terminal Panel (bottom) -->
+  <div id="terminal-panel" class="terminal-panel hidden">
+    <div class="terminal-header">
+      <span class="terminal-title"><span class="t-accent">CYBERSPACE</span> TERMINAL</span>
+      <div class="terminal-header-right">
+        <span class="terminal-hint">Tab complete · ↑↓ history · Esc close</span>
+        <button id="terminal-close" class="terminal-close-btn">&times;</button>
+      </div>
+    </div>
+    <div id="terminal-output" class="terminal-output"></div>
+    <div class="terminal-inputline">
+      <span class="terminal-prompt">cyberspace&gt;</span>
+      <input type="text" id="terminal-input" class="terminal-input"
+             autocomplete="off" spellcheck="false" placeholder="type a command..." />
+    </div>
+  </div>
+
   <!-- Connection status -->
   <div id="connection-status" class="connection-status hidden">Disconnected</div>
 
@@ -266,6 +288,8 @@
   <script src="/js/settings.js"></script>
   <script src="/js/todo.js"></script>
   <script src="/js/palette.js"></script>
+  <script src="/js/effects.js"></script>
+  <script src="/js/terminal.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

@@ -21,7 +21,16 @@ const Briefing = {
     this.bindEvents();
     await this.loadDates();
     if (this.dates.length > 0) {
-      await this.loadBriefing(this.dates[0]);
+      // Honour URL hash — e.g. #date=2026-03-01
+      const hashDate = this._getHashDate();
+      const hashIdx = hashDate ? this.dates.indexOf(hashDate) : -1;
+      if (hashIdx !== -1) {
+        this.currentIndex = hashIdx;
+        await this.loadBriefing(hashDate);
+      } else {
+        await this.loadBriefing(this.dates[0]);
+      }
+      this.updateNav();
     } else {
       document.getElementById('briefing-content').innerHTML =
         '<div class="empty-state">No briefings yet.<br>Run the intelligence system to generate your first report.</div>';
@@ -32,6 +41,21 @@ const Briefing = {
   bindEvents() {
     document.getElementById('briefing-prev').addEventListener('click', () => this.navigate(1));
     document.getElementById('briefing-next').addEventListener('click', () => this.navigate(-1));
+    document.getElementById('briefing-today').addEventListener('click', () => this.goToToday());
+
+    // Hash navigation — browser back/forward
+    window.addEventListener('hashchange', () => {
+      const date = this._getHashDate();
+      if (date && date !== this.dates[this.currentIndex]) {
+        const idx = this.dates.indexOf(date);
+        if (idx !== -1) {
+          this.currentIndex = idx;
+          this.loadBriefing(date);
+          this.updateNav();
+          App.setActiveDate(date);
+        }
+      }
+    });
 
     // Search events
     const searchInput = document.getElementById('briefing-search-input');
@@ -459,8 +483,10 @@ const Briefing = {
       label.textContent = level;
 
       badge.className = 'threat-badge';
-      if (emoji === '🔴' || level === 'CRITICAL' || level === 'SEVERE') badge.classList.add('threat-critical');
-      else if (emoji === '🟠' || level === 'HIGH') badge.classList.add('threat-high');
+      if (emoji === '🔴' || level === 'CRITICAL' || level === 'SEVERE') {
+        badge.classList.add('threat-critical');
+        if (typeof MatrixRain !== 'undefined') MatrixRain.intensify();
+      } else if (emoji === '🟠' || level === 'HIGH') badge.classList.add('threat-high');
       else if (emoji === '🟡' || level === 'ELEVATED' || level === 'MEDIUM') badge.classList.add('threat-medium');
       else badge.classList.add('threat-low');
     }
@@ -486,13 +512,40 @@ const Briefing = {
     const date = this.dates[this.currentIndex];
     this.loadBriefing(date);
     this.updateNav();
+    this._setHashDate(date);
     // Sync the entire dashboard to this date
+    App.setActiveDate(date);
+  },
+
+  goToToday() {
+    if (this.currentIndex === 0 || this.dates.length === 0) return;
+    this.currentIndex = 0;
+    const date = this.dates[0];
+    this.loadBriefing(date);
+    this.updateNav();
+    this._setHashDate(date);
     App.setActiveDate(date);
   },
 
   updateNav() {
     document.getElementById('briefing-prev').disabled = this.currentIndex >= this.dates.length - 1;
     document.getElementById('briefing-next').disabled = this.currentIndex <= 0;
+    // Show "today" button only when viewing an older report
+    const todayBtn = document.getElementById('briefing-today');
+    if (todayBtn) todayBtn.classList.toggle('hidden', this.currentIndex === 0);
+  },
+
+  _setHashDate(date) {
+    if (history.pushState) {
+      history.pushState(null, '', `#date=${date}`);
+    } else {
+      window.location.hash = `date=${date}`;
+    }
+  },
+
+  _getHashDate() {
+    const m = window.location.hash.match(/^#date=(\d{4}-\d{2}-\d{2})$/);
+    return m ? m[1] : null;
   },
 
   async refresh() {
