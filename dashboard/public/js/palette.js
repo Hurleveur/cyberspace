@@ -48,8 +48,8 @@ const Palette = {
       const inCmdMode = input.value.trimStart().startsWith('>');
       if (e.key === 'Escape') { e.preventDefault(); this.close(); return; }
       if (e.key === 'Tab' && inCmdMode) { e.preventDefault(); this._tabComplete(input); return; }
-      if (e.key === 'ArrowUp' && inCmdMode) { e.preventDefault(); this._historyNav(-1, input); return; }
-      if (e.key === 'ArrowDown' && inCmdMode) { e.preventDefault(); this._historyNav(1, input); return; }
+      if (e.key === 'ArrowUp' && inCmdMode) { e.preventDefault(); this._historyNav(1, input); return; }
+      if (e.key === 'ArrowDown' && inCmdMode) { e.preventDefault(); this._historyNav(-1, input); return; }
       if (e.key === 'ArrowDown' && !inCmdMode) { e.preventDefault(); this.navigate(1); }
       if (e.key === 'ArrowUp' && !inCmdMode) { e.preventDefault(); this.navigate(-1); }
       if (e.key === 'Enter') {
@@ -201,6 +201,14 @@ const Palette = {
   execute(el) {
     const type = el.dataset.type;
     const id = el.dataset.id;
+
+    if (type === 'command') {
+      // Run first, then close — keeps same order as the click handler
+      this._runPaletteCommand(el.dataset.id, el.dataset.cmdargs || '');
+      this.close();
+      return;
+    }
+
     this.close();
 
     if (type === 'feed') {
@@ -226,8 +234,6 @@ const Palette = {
     } else if (type === 'event') {
       App.showPanel('right');
       setTimeout(() => Events.scrollToEvent(id), 150);
-    } else if (type === 'command') {
-      this._runPaletteCommand(el.dataset.id, el.dataset.cmdargs || '');
     }
   },
 
@@ -306,6 +312,7 @@ const Palette = {
     container.querySelectorAll('.palette-result').forEach(el => {
       el.addEventListener('click', () => {
         this._runPaletteCommand(el.dataset.id, el.dataset.cmdargs || '');
+        this.close();
       });
       el.addEventListener('mouseenter', () => {
         container.querySelectorAll('.palette-result').forEach(r => r.classList.remove('palette-active'));
@@ -325,7 +332,6 @@ const Palette = {
         return;
       }
       Settings.applyTheme(color);
-      this.close();
       App.toast(`Theme switched to ${color}`, 'briefing');
       return;
     }
@@ -334,13 +340,11 @@ const Palette = {
       const ids = (MapView.markers || []).map(m => m.data?.id).filter(Boolean);
       if (ids.length) ReadTracker.markAllRead(ids);
       App.updateUnreadCount();
-      this.close();
       App.toast(`Marked ${ids.length} items as read`, 'briefing');
       return;
     }
 
     if (id === 'refresh') {
-      this.close();
       Feeds.load();
       App.toast('Refreshing feeds…', 'feeds');
       return;
@@ -360,7 +364,6 @@ const Palette = {
         }))
         .then(() => App.toast('Feedback saved', 'briefing'))
         .catch(() => App.toast('Could not save feedback', 'briefing'));
-      this.close();
       return;
     }
 

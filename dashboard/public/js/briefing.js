@@ -9,7 +9,6 @@ const Briefing = {
   markersData: [],
 
   // Search state
-  searchVisible: false,
   searchMatches: [],
   searchIndex: -1,
 
@@ -44,13 +43,16 @@ const Briefing = {
     document.getElementById('briefing-today').addEventListener('click', () => this.goToToday());
 
     // Hash navigation — browser back/forward
-    window.addEventListener('hashchange', () => {
+    window.addEventListener('hashchange', async () => {
+      if (this._isLoading) return;
       const date = this._getHashDate();
       if (date && date !== this.dates[this.currentIndex]) {
         const idx = this.dates.indexOf(date);
         if (idx !== -1) {
           this.currentIndex = idx;
-          this.loadBriefing(date);
+          this._isLoading = true;
+          await this.loadBriefing(date);
+          this._isLoading = false;
           this.updateNav();
           App.setActiveDate(date);
         }
@@ -76,21 +78,20 @@ const Briefing = {
     if (crossBtn) crossBtn.addEventListener('click', () => this.toggleCrossSearch());
   },
 
-  toggleSearch(forceState) {
-    this.searchVisible = forceState !== undefined ? forceState : !this.searchVisible;
-    const bar = document.getElementById('briefing-search-bar');
-    bar.classList.toggle('hidden', !this.searchVisible);
-    if (this.searchVisible) {
-      document.getElementById('briefing-search-input').focus();
-    } else {
+  toggleSearch(forceVisible) {
+    // Search bar is always visible — this just focuses or clears
+    if (forceVisible === false) {
+      const input = document.getElementById('briefing-search-input');
+      if (input) input.value = '';
       this.clearSearch();
-      // Reset cross-search if it was active
       if (this.crossSearchActive) {
         this.crossSearchActive = false;
         const crossBtn = document.getElementById('briefing-search-cross-btn');
         if (crossBtn) crossBtn.classList.remove('active');
         this.loadBriefing(this.dates[this.currentIndex]);
       }
+    } else {
+      document.getElementById('briefing-search-input').focus();
     }
   },
 

@@ -19,6 +19,11 @@ const Terminal = {
     this._output = document.getElementById('terminal-output');
     this._input  = document.getElementById('terminal-input');
 
+    if (!this._el || !this._output || !this._input) {
+      console.warn('[terminal] DOM elements not found — skipping init');
+      return;
+    }
+
     this._loadHistory();
 
     this._input.addEventListener('keydown', (e) => {
@@ -219,9 +224,7 @@ const Terminal = {
     if (flags.includes('priority') || flags.includes('score')) {
       document.getElementById('events-filter-score').value = '0';
       Events.applyFilters();
-      const sorted = [...(Events.filteredEvents || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
-      Events.filteredEvents = sorted;
-      Events._renderFiltered ? Events._renderFiltered() : Events.applyFilters();
+      Events.sortByScore();
       this._print('Events panel open — sorted by relevance score (highest first).', 'success');
     } else if (flags.includes('date')) {
       document.getElementById('events-filter-urgency').value = '';

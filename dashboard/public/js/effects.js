@@ -25,7 +25,7 @@ const MatrixRain = {
       'height:100%',
       'pointer-events:none',
       `z-index:${this._enabled ? 2 : -1}`,
-      `opacity:${this._enabled ? 0.045 : 0}`,
+      `opacity:${this._enabled ? 0.07 : 0}`,
       'transition:opacity 1s',
     ].join(';');
     document.body.insertBefore(this.canvas, document.body.firstChild);
@@ -87,14 +87,18 @@ const MatrixRain = {
   /** Briefly increase intensity (called on CRITICAL threat level). */
   intensify(duration = 6000) {
     if (!this._enabled) return;
-    this.canvas.style.opacity = '0.10';
-    setTimeout(() => { this.canvas.style.opacity = '0.045'; }, duration);
+    clearTimeout(this._intensifyTimeout);
+    this.canvas.style.opacity = '0.14';
+    this._intensifyTimeout = setTimeout(() => {
+      this.canvas.style.opacity = '0.07';
+      this._intensifyTimeout = null;
+    }, duration);
   },
 
   enable() {
     this._enabled = true;
     localStorage.setItem('cyberspace-matrix', 'on');
-    this.canvas.style.opacity = '0.045';
+    this.canvas.style.opacity = '0.07';
     this.canvas.style.zIndex = '2';
     this._startLoop();
   },

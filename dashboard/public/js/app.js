@@ -88,16 +88,17 @@ const App = {
     { key: 'F', action: 'Open Feeds panel' },
     { key: 'B', action: 'Open Briefing panel' },
     { key: 'E', action: 'Toggle Events panel' },
-    { key: 'T', action: 'Toggle Terminal' },
+    { key: 'T', action: 'Toggle Task board' },
     { key: 'S', action: 'Open Settings' },
     { key: 'Ctrl+K', action: 'Command palette / > commands' },
     { key: '>', action: 'Command mode (direct)' },
-    { key: '/', action: 'Search in Briefing' },
+    { key: '/', action: 'Focus Briefing search' },
+    { key: 'Ctrl+/', action: 'Toggle Terminal' },
+    { key: '?', action: 'Show keyboard shortcuts' },
     { key: '↑ ↓', action: 'Navigate feed items' },
     { key: 'Enter', action: 'Expand selected item' },
     { key: 'Shift+Enter', action: 'Open item externally' },
-    { key: 'Esc', action: 'Close overlays / clear focus' },
-    { key: '?', action: 'Show keyboard shortcuts' },
+    { key: 'Esc', action: 'Close overlays / terminal / clear search' },
   ],
 
   async init() {
@@ -109,7 +110,7 @@ const App = {
     MapView.init();
     Settings.init();
     Palette.init();
-    Terminal.init();
+    if (typeof Terminal !== 'undefined') Terminal.init();
     this._initNotifications();
 
     if (typeof MatrixRain !== 'undefined') MatrixRain.init();
@@ -196,7 +197,7 @@ const App = {
       }
     });
     document.getElementById('btn-terminal').addEventListener('click', () => {
-      Terminal.toggle();
+      if (typeof Terminal !== 'undefined' && typeof Terminal.toggle === 'function') Terminal.toggle();
     });
     document.getElementById('btn-settings').addEventListener('click', () => {
       Settings.open();
@@ -367,6 +368,11 @@ const App = {
         if (!settings.classList.contains('hidden'))  { settings.classList.add('hidden');  return; }
         if (feedback && !feedback.classList.contains('hidden')) { feedback.classList.add('hidden'); return; }
         if (typeof Palette !== 'undefined' && Palette.visible) { Palette.close(); return; }
+        const terminalPanel = document.getElementById('terminal-panel');
+        if (terminalPanel && !terminalPanel.classList.contains('hidden')) {
+          if (typeof Terminal !== 'undefined' && typeof Terminal.close === 'function') Terminal.close();
+          return;
+        }
       }
 
       // Feed keyboard navigation (arrow keys, enter, escape)
@@ -376,6 +382,13 @@ const App = {
           Feeds.handleKeyNav(e);
           return;
         }
+      }
+
+      // Dedicated terminal shortcut to avoid conflict with '?' help
+      if (e.ctrlKey && e.key === '/') {
+        e.preventDefault();
+        if (typeof Terminal !== 'undefined' && typeof Terminal.toggle === 'function') Terminal.toggle();
+        return;
       }
 
       switch (e.key.toLowerCase()) {
@@ -408,7 +421,12 @@ const App = {
           break;
         case 't':
           e.preventDefault();
-          Terminal.toggle();
+          if (this.panels.right.visible && this.currentRightTab === 'todo') {
+            this.togglePanel('right');
+          } else {
+            this.showPanel('right');
+            this.switchRightTab('todo');
+          }
           break;
         case 's':
           e.preventDefault();
@@ -479,12 +497,16 @@ const App = {
 
   // --- Desktop notifications ---
 
-  async _initNotifications() {
-    if ('Notification' in window && Notification.permission === 'default') {
-      // Request permission lazily — call after a brief delay so it doesn't
-      // fire immediately on page load before the user has interacted.
-      setTimeout(() => Notification.requestPermission(), 3000);
-    }
+  _initNotifications() {
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    // Request permission only after the first user gesture (required by browsers).
+    const request = () => {
+      if (Notification.permission === 'default') Notification.requestPermission();
+      document.removeEventListener('click', request);
+      document.removeEventListener('keydown', request);
+    };
+    document.addEventListener('click', request, { once: true });
+    document.addEventListener('keydown', request, { once: true });
   },
 
   _sendDesktopNotification(title, body) {
@@ -496,13 +518,17 @@ const App = {
 
   _notifyCriticalThreats() {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const criticals = (MapView.markers || [])
-      .filter(m => m.data?.priority === 'critical' && !ReadTracker.isRead(m.data?.id));
-    if (criticals.length === 0) return;    if (typeof MatrixRain !== 'undefined') MatrixRain.intensify();    const sample = criticals.slice(0, 2).map(m => m.data.title).join('; ');
-    this._sendDesktopNotification(
-      `\uD83D\uDD34 ${criticals.length} CRITICAL Threat${criticals.length !== 1 ? 's' : ''}`,
-      sample
+    const criticals = (MapView.markers || []).filter(
+      m => m.data?.priority === 'critical' && !ReadTracker.isRead(m.data?.id)
     );
+    if (criticals.length === 0) return;
+    if (typeof MatrixRain !== 'undefined') MatrixRain.intensify();
+    const sample = criticals
+      .slice(0, 2)
+      .map(m => m.data?.title || '(no title)')
+      .join('; ');
+    const title = `\uD83D\uDD34 ${criticals.length} CRITICAL Threat${criticals.length !== 1 ? 's' : ''}`;
+    this._sendDesktopNotification(title, sample);
   },
 
   // --- Map-to-panel linking ---
@@ -574,24 +600,23 @@ const App = {
   // --- WebSocket event handlers ---
 
   bindWebSocketEvents() {
-    WS.on('file_changed', (data) => {
+    WS.on('file_changed', async (data) => {
       console.log('[ws] File changed:', data.file);
       if (data.file.includes('briefing.md')) {
-        Briefing.loadDates().then(() => {
-          const latestDate = Briefing.dates[0];
-          // If user is viewing the latest date, auto-advance
-          if (!this.activeDate || this.activeDate === latestDate || Briefing.currentIndex === 0) {
-            Briefing.refresh();
-            this.activeDate = latestDate;
-            MapView.loadMarkersForDateWithEvents(latestDate, this.eventsSourceDates);
-            if (typeof TodoList !== 'undefined') TodoList.loadBriefingContentForDate(latestDate);
-            this.updateUnreadCount();
-            this._notifyCriticalThreats();
-          } else {
-            // User is viewing older date — don't disrupt, just notify
-            this.toast('New briefing available — navigate to latest to view', 'briefing');
-          }
-        });
+        await Briefing.loadDates();
+        const latestDate = Briefing.dates[0];
+        // If user is viewing the latest date, auto-advance
+        if (!this.activeDate || this.activeDate === latestDate || Briefing.currentIndex === 0) {
+          Briefing.refresh();
+          this.activeDate = latestDate;
+          await MapView.loadMarkersForDateWithEvents(latestDate, this.eventsSourceDates);
+          if (typeof TodoList !== 'undefined') TodoList.loadBriefingContentForDate(latestDate);
+          this.updateUnreadCount();
+          this._notifyCriticalThreats();
+        } else {
+          // User is viewing older date — don't disrupt, just notify
+          this.toast('New briefing available — navigate to latest to view', 'briefing');
+        }
         this.toast('Briefing updated', 'briefing');
       }
       if (data.file.includes('events.md')) {

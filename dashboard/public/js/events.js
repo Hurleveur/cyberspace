@@ -213,6 +213,12 @@ const Events = {
     this.render();
   },
 
+  /** Sort filteredEvents in-place by relevance score (highest first) and re-render. */
+  sortByScore() {
+    this.filteredEvents.sort((a, b) => (b.score || 0) - (a.score || 0));
+    this.render();
+  },
+
   render() {
     const container = document.getElementById('events-list');
     const events = this.filteredEvents;
@@ -331,12 +337,19 @@ const Events = {
         body: JSON.stringify({ text: `EVENT ACCEPTED: "${event.name}" (${event.when}, ${event.where})` }),
       });
       localStorage.setItem(`event-accepted-${id}`, 'true');
-      this.downloadIcs(event);
-      this.render();
-      App.updateUnreadCount();
-      App.toast(`✓ Accepted — ${event.name.slice(0, 30)}  (.ics downloaded)`, 'briefing');
     } catch (err) {
       console.error('[events] Accept error:', err);
+    } finally {
+      this.render();
+      App.updateUnreadCount();
+    }
+    // Download ICS separately so render() always runs even if download fails
+    try {
+      this.downloadIcs(event);
+      App.toast(`✓ Accepted — ${event.name.slice(0, 30)}  (.ics downloaded)`, 'briefing');
+    } catch (err) {
+      console.error('[events] ICS download error:', err);
+      App.toast(`✓ Accepted — ${event.name.slice(0, 30)}`, 'briefing');
     }
   },
 
@@ -381,9 +394,11 @@ const Events = {
     const pad = (n) => String(n).padStart(2, '0');
     const toIcsDt = (date) =>
       `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+    const toIcsDtUtc = (date) =>
+      `${date.getUTCFullYear()}${pad(date.getUTCMonth()+1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}00`;
 
     const now = new Date();
-    const stamp = toIcsDt(now) + 'Z';
+    const stamp = toIcsDtUtc(now) + 'Z';
     let dtStart = null, dtEnd = null;
 
     if (event.when) {
@@ -432,7 +447,11 @@ const Events = {
   },
 
   _buildIcs(event, dtLines, stamp) {
-    const esc = (s) => (s || '').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+    const esc = (s) => (s || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;')
+      .replace(/\n/g, '\\n');
     const uid = `${event.id}-${Date.now()}@cyberspace-dashboard`;
     const description = [
       event.why,

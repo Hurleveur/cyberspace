@@ -12,6 +12,8 @@ const Settings = {
   },
 
   bindEvents() {
+    const overlay = document.getElementById('settings-overlay');
+
     // Tab switching
     document.querySelectorAll('.settings-tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -46,6 +48,13 @@ const Settings = {
     // Close
     document.getElementById('settings-close').addEventListener('click', () => {
       document.getElementById('settings-overlay').classList.add('hidden');
+    });
+
+    // Click outside content closes overlay unless currently editing
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay && !this.editing) {
+        this.close();
+      }
     });
   },
 
@@ -443,7 +452,7 @@ const Settings = {
             <span class="system-info-label">Last briefing</span><span class="system-info-value">${lastBriefing}</span>
             <span class="system-info-label">Feed items</span><span class="system-info-value">${feedCount}</span>
             <span class="system-info-label">Streak</span><span class="system-info-value">#${streak}</span>
-            <span class="system-info-label">Active theme</span><span class="system-info-value" id="system-theme-label">${current}</span>
+            <span class="system-info-label">Active theme</span><span class="system-info-value" id="system-theme-label">${this._esc(current)}</span>
           </div>
         </div>
       </div>`;
