@@ -15,6 +15,7 @@ const Briefing = {
   // Cross-report search state
   crossSearchActive: false,
   crossSearchTimer: null,
+  _profilerTimer: null,
 
   async init() {
     this.bindEvents();
@@ -369,6 +370,7 @@ const Briefing = {
   async loadBriefing(date) {
     const container = document.getElementById('briefing-content');
     document.getElementById('briefing-date').textContent = date;
+    this.renderSkeleton(container);
 
     try {
       const res = await fetch(`/api/file?path=reports/${date}/briefing.md`);
@@ -397,12 +399,75 @@ const Briefing = {
     }
   },
 
+  renderSkeleton(container) {
+    container.innerHTML = `
+      <div class="briefing-skeleton">
+        <div class="skeleton-line lg"></div>
+        <div class="skeleton-line md"></div>
+        <div class="skeleton-line md"></div>
+        <div class="skeleton-line sm"></div>
+        <div class="skeleton-line md"></div>
+        <div class="skeleton-line sm"></div>
+      </div>
+    `;
+  },
+
   renderMarkdown(container, markdown, date) {
     marked.setOptions({ breaks: true, gfm: true });
     let html = marked.parse(this.stripTodoSections(markdown));
     container.innerHTML = `<div class="markdown-body">${html}</div>`;
     this.makeCollapsible(container);
     this.bindCheckboxes(container, date);
+    this.bindProfilerHover(container);
+  },
+
+  bindProfilerHover(container) {
+    const targets = container.querySelectorAll('.markdown-body h3, .markdown-body a');
+    targets.forEach(el => {
+      el.addEventListener('mouseenter', (e) => {
+        const title = (el.textContent || '').trim();
+        if (!title || title.length < 4) return;
+
+        const card = document.getElementById('profiler-card');
+        const titleEl = document.getElementById('profiler-title');
+        const metaEl = document.getElementById('profiler-meta');
+        const summaryEl = document.getElementById('profiler-summary');
+        if (!card || !titleEl || !metaEl || !summaryEl) return;
+
+        metaEl.textContent = 'BRIEFING ENTITY · SCANNED';
+        const context = el.closest('p, li, div')?.textContent || '';
+        summaryEl.textContent = context.slice(0, 160);
+
+        titleEl.textContent = '';
+        clearTimeout(this._profilerTimer);
+        let i = 0;
+        const type = () => {
+          titleEl.textContent = title.slice(0, i);
+          i++;
+          if (i <= Math.min(title.length, 56)) {
+            this._profilerTimer = setTimeout(type, 14);
+          }
+        };
+        type();
+
+        card.classList.remove('hidden');
+        card.style.left = `${Math.min(window.innerWidth - 320, Math.max(8, e.clientX + 14))}px`;
+        card.style.top = `${Math.min(window.innerHeight - 140, Math.max(50, e.clientY - 10))}px`;
+      });
+
+      el.addEventListener('mousemove', (e) => {
+        const card = document.getElementById('profiler-card');
+        if (!card || card.classList.contains('hidden')) return;
+        card.style.left = `${Math.min(window.innerWidth - card.offsetWidth - 8, Math.max(8, e.clientX + 14))}px`;
+        card.style.top = `${Math.min(window.innerHeight - card.offsetHeight - 8, Math.max(50, e.clientY - 8))}px`;
+      });
+
+      el.addEventListener('mouseleave', () => {
+        const card = document.getElementById('profiler-card');
+        if (card) card.classList.add('hidden');
+        clearTimeout(this._profilerTimer);
+      });
+    });
   },
 
   /**
@@ -482,12 +547,18 @@ const Briefing = {
       const emoji = match[1];
       const level = match[2].toUpperCase();
       label.textContent = level;
+      label.dataset.text = level;
+      label.classList.remove('glitch');
 
       badge.className = 'threat-badge';
       if (emoji === '🔴' || level === 'CRITICAL' || level === 'SEVERE') {
         badge.classList.add('threat-critical');
+        label.classList.add('glitch');
         if (typeof MatrixRain !== 'undefined') MatrixRain.intensify();
-      } else if (emoji === '🟠' || level === 'HIGH') badge.classList.add('threat-high');
+      } else if (emoji === '🟠' || level === 'HIGH') {
+        badge.classList.add('threat-high');
+        label.classList.add('glitch');
+      }
       else if (emoji === '🟡' || level === 'ELEVATED' || level === 'MEDIUM') badge.classList.add('threat-medium');
       else badge.classList.add('threat-low');
     }

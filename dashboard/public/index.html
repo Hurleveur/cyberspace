@@ -28,10 +28,14 @@
         <span class="threat-dot"></span>
         <span id="threat-label">LOADING</span>
       </span>
+      <span id="threat-sparkline" class="threat-sparkline" title="Threat trend (last 7 briefings)"></span>
       <span id="streak-badge" class="streak-badge"></span>
     </div>
     <div class="header-right">
       <span id="unread-badge" class="unread-badge" title="Unread items">0</span>
+      <button class="header-btn" id="btn-links" title="Toggle marker links">
+        <span class="btn-icon">⤳</span>
+      </button>
       <button class="header-btn" id="btn-feeds" title="Feeds (F)">
         <span class="btn-icon">📡</span>
       </button>
@@ -274,6 +278,25 @@
     </div>
   </div>
 
+  <!-- Profiler Hover Card -->
+  <div id="profiler-card" class="profiler-card hidden" aria-hidden="true">
+    <div class="profiler-scanline"></div>
+    <div class="profiler-label">PROFILE</div>
+    <div id="profiler-title" class="profiler-title"></div>
+    <div id="profiler-meta" class="profiler-meta"></div>
+    <div id="profiler-summary" class="profiler-summary"></div>
+  </div>
+
+  <!-- Footer Music Bar -->
+  <footer id="music-bar" class="music-bar">
+    <button id="music-play" class="music-btn" title="Play/Pause ambient">▶</button>
+    <button id="music-next" class="music-btn" title="Next track">⏭</button>
+    <span id="music-track" class="music-track">Ambient Track 01</span>
+    <input id="music-progress" class="music-progress" type="range" min="0" max="100" value="0" />
+    <span id="music-time" class="music-time">0:00 / 5:12</span>
+    <input id="music-volume" class="music-volume" type="range" min="0" max="100" value="45" title="Volume" />
+  </footer>
+
   <!-- Connection status -->
   <div id="connection-status" class="connection-status hidden">Disconnected</div>
 
@@ -289,6 +312,7 @@
   <script src="/js/todo.js"></script>
   <script src="/js/palette.js"></script>
   <script src="/js/effects.js"></script>
+  <script src="/js/music.js"></script>
   <script src="/js/terminal.js"></script>
   <script src="/js/app.js"></script>
 </body>

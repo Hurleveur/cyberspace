@@ -8,9 +8,13 @@ const MapView = {
   map: null,
   markers: [],
   markerLayer: null,
+  linkLayer: null,
   geoCache: {},
+  linksEnabled: true,
+  _profilerTimer: null,
 
   GEO_CACHE_KEY: 'cyberspace-geocache',
+  LINKS_KEY: 'cyberspace-marker-links',
 
   init() {
     this.map = L.map('map', {
@@ -32,6 +36,10 @@ const MapView = {
 
     // Marker layer group
     this.markerLayer = L.layerGroup().addTo(this.map);
+    this.linkLayer = L.layerGroup().addTo(this.map);
+
+    const savedLinks = localStorage.getItem(this.LINKS_KEY);
+    this.linksEnabled = savedLinks !== 'off';
 
     // Load geocoding cache from localStorage
     this.loadGeoCache();
@@ -174,6 +182,7 @@ const MapView = {
 
   plotMarkers(data) {
     this.markerLayer.clearLayers();
+    this.linkLayer.clearLayers();
     this.markers = [];
 
     const needsGeocoding = [];
@@ -199,6 +208,8 @@ const MapView = {
     if (needsGeocoding.length > 0) {
       this.geocodePending(needsGeocoding);
     }
+
+    this.renderConnections();
   },
 
   /**
@@ -210,6 +221,7 @@ const MapView = {
       const coords = await this.geocodeLabel(item.location_label);
       if (coords) {
         this.addMarker({ ...item, lat: coords.lat, lng: coords.lng });
+        this.renderConnections();
       }
       // Wait ≥1 second between requests as required by Nominatim ToS
       await new Promise(r => setTimeout(r, 1100));
@@ -251,8 +263,120 @@ const MapView = {
       App.updateUnreadCount();
     });
 
+    marker.on('mouseover', (e) => this.showProfiler(item, e.latlng));
+    marker.on('mousemove', (e) => this.moveProfiler(e.latlng));
+    marker.on('mouseout', () => this.hideProfiler());
+
     this.markerLayer.addLayer(marker);
     this.markers.push({ marker, data: item });
+  },
+
+  // ── Profiler hover card ───────────────────────────────────────────────────
+
+  showProfiler(item, latlng) {
+    const card = document.getElementById('profiler-card');
+    if (!card || !this.map) return;
+
+    const meta = [item.type || 'news', item.priority || 'medium', item.location_label || 'Global']
+      .map(v => String(v).toUpperCase())
+      .join(' · ');
+
+    document.getElementById('profiler-meta').textContent = meta;
+    document.getElementById('profiler-summary').textContent = item.summary || '';
+
+    const titleEl = document.getElementById('profiler-title');
+    const title = item.title || 'Untitled';
+    titleEl.textContent = '';
+    clearTimeout(this._profilerTimer);
+
+    let idx = 0;
+    const type = () => {
+      titleEl.textContent = title.slice(0, idx);
+      idx++;
+      if (idx <= Math.min(title.length, 48)) {
+        this._profilerTimer = setTimeout(type, 16);
+      }
+    };
+    type();
+
+    card.classList.remove('hidden');
+    this.moveProfiler(latlng);
+  },
+
+  moveProfiler(latlng) {
+    const card = document.getElementById('profiler-card');
+    if (!card || card.classList.contains('hidden') || !this.map) return;
+    const p = this.map.latLngToContainerPoint(latlng);
+    const mapRect = this.map.getContainer().getBoundingClientRect();
+    const x = mapRect.left + p.x + 14;
+    const y = mapRect.top + p.y - 14;
+    card.style.left = `${Math.max(8, Math.min(window.innerWidth - card.offsetWidth - 8, x))}px`;
+    card.style.top = `${Math.max(50, Math.min(window.innerHeight - card.offsetHeight - 8, y))}px`;
+  },
+
+  hideProfiler() {
+    const card = document.getElementById('profiler-card');
+    if (card) card.classList.add('hidden');
+    clearTimeout(this._profilerTimer);
+  },
+
+  // ── Marker connection lines ───────────────────────────────────────────────
+
+  toggleConnections(force) {
+    this.linksEnabled = force === undefined ? !this.linksEnabled : !!force;
+    localStorage.setItem(this.LINKS_KEY, this.linksEnabled ? 'on' : 'off');
+    this.renderConnections();
+    return this.linksEnabled;
+  },
+
+  renderConnections() {
+    if (!this.linkLayer) return;
+    this.linkLayer.clearLayers();
+    if (!this.linksEnabled || this.markers.length < 2) return;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00ff41';
+
+    const groups = new Map();
+    for (const m of this.markers) {
+      for (const token of this._relationTokens(m.data)) {
+        if (!groups.has(token)) groups.set(token, []);
+        groups.get(token).push(m);
+      }
+    }
+
+    let drawn = 0;
+    for (const group of groups.values()) {
+      if (group.length < 2) continue;
+      for (let i = 0; i < group.length - 1; i++) {
+        if (drawn >= 40) return;
+        const a = group[i].marker.getLatLng();
+        const b = group[i + 1].marker.getLatLng();
+        L.polyline([a, b], {
+          color: accent,
+          weight: 1,
+          opacity: 0.35,
+          dashArray: '3 5',
+          interactive: false,
+        }).addTo(this.linkLayer);
+        drawn++;
+      }
+    }
+  },
+
+  _relationTokens(item) {
+    const text = `${item.title || ''} ${item.summary || ''}`.toLowerCase();
+    const tokens = new Set();
+
+    const cves = text.match(/cve-\d{4}-\d{3,7}/g) || [];
+    for (const cve of cves) tokens.add(cve);
+
+    const apt = text.match(/\bapt\s?\d{1,3}\b/g) || [];
+    for (const a of apt) tokens.add(a.replace(/\s+/g, ''));
+
+    const known = ['lockbit', 'alphv', 'clop', 'lazarus', 'volt typhoon', 'sandworm', 'mustang panda'];
+    for (const k of known) if (text.includes(k)) tokens.add(k);
+
+    if (tokens.size === 0 && item.category) tokens.add(String(item.category).toLowerCase());
+    return [...tokens];
   },
 
   getColor(item) {

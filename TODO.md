@@ -107,25 +107,25 @@ valid UX pivot, but several Phase 3 deliverables are still missing:
 
 ### Phase 4 Remaining
 
-- [ ] **Glitch text CSS animation** — Apply `glitch` keyframes to threat-level label
+- [x] **Glitch text CSS animation** — Apply `glitch` keyframes to threat-level label
   header when threat is HIGH or above. CSS-only, no JS required.
 
-- [ ] **Watch Dogs profiler hover** — On hovering a person/org entity in the briefing,
+- [x] **Watch Dogs profiler hover** — On hovering a person/org entity in the briefing,
   show a typewriter + scanline hover card (CSS + small JS). Phase 4 atmosphere.
 
-- [ ] **Panel slide-in animations** — Animate panels sliding in on first load instead
+- [x] **Panel slide-in animations** — Animate panels sliding in on first load instead
   of appearing instantly. CSS `@keyframes slideInLeft/Right`.
 
-- [ ] **Skeleton loading states** — Show a skeleton shimmer while briefing markdown
+- [x] **Skeleton loading states** — Show a skeleton shimmer while briefing markdown
   is being fetched, instead of showing nothing.
 
-- [ ] **Music player** — Howler.js, looping ambient track in the footer bar.
+- [x] **Music player** — Howler.js, looping ambient track in the footer bar.
   Toggle with a ♫ button. Phase 4 original spec.
 
-- [ ] **Connection lines between related markers** — Leaflet polylines linking
+- [x] **Connection lines between related markers** — Leaflet polylines linking
   markers that share a CVE, threat actor, or campaign. Toggle in map controls.
 
-- [ ] **Threat level sparkline** — Mini SVG sparkline in the header showing threat
+- [x] **Threat level sparkline** — Mini SVG sparkline in the header showing threat
   level trend across the last 7 reports (green→red gradient).
 
 ---

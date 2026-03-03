@@ -114,6 +114,7 @@ const App = {
     this._initNotifications();
 
     if (typeof MatrixRain !== 'undefined') MatrixRain.init();
+    if (typeof MusicPlayer !== 'undefined') MusicPlayer.init();
 
     // Load data
     await Promise.all([
@@ -154,6 +155,9 @@ const App = {
 
     // Update unread count
     this.updateUnreadCount();
+    this.syncLinksButton();
+    this.applyIntroAnimations();
+    this.renderThreatSparkline();
 
     // Show left panel by default (feeds tab)
     this.showPanel('left');
@@ -204,6 +208,13 @@ const App = {
     });
     document.getElementById('btn-help').addEventListener('click', () => {
       this.toggleShortcutsOverlay();
+    });
+    document.getElementById('btn-links').addEventListener('click', () => {
+      if (typeof MapView !== 'undefined' && typeof MapView.toggleConnections === 'function') {
+        const on = MapView.toggleConnections();
+        this.syncLinksButton();
+        this.toast(on ? 'Marker links: ON' : 'Marker links: OFF', 'info');
+      }
     });
 
     // Close buttons
@@ -274,6 +285,81 @@ const App = {
       this.panels.right.visible && this.currentRightTab === 'events');
     document.getElementById('btn-todo').classList.toggle('active',
       this.panels.right.visible && this.currentRightTab === 'todo');
+  },
+
+  syncLinksButton() {
+    const btn = document.getElementById('btn-links');
+    if (!btn || typeof MapView === 'undefined') return;
+    btn.classList.toggle('active', !!MapView.linksEnabled);
+  },
+
+  applyIntroAnimations() {
+    const left = document.getElementById('left-panel');
+    const right = document.getElementById('right-panel');
+    const terminal = document.getElementById('terminal-panel');
+    if (left && !left.classList.contains('hidden')) left.classList.add('panel-intro');
+    if (right && !right.classList.contains('hidden')) right.classList.add('panel-intro');
+    if (terminal && !terminal.classList.contains('hidden')) terminal.classList.add('panel-intro');
+    setTimeout(() => {
+      if (left) left.classList.remove('panel-intro');
+      if (right) right.classList.remove('panel-intro');
+      if (terminal) terminal.classList.remove('panel-intro');
+    }, 420);
+  },
+
+  async renderThreatSparkline() {
+    const host = document.getElementById('threat-sparkline');
+    if (!host || typeof Briefing === 'undefined') return;
+
+    const dates = (Briefing.dates || []).slice(0, 7).reverse();
+    if (dates.length === 0) {
+      host.innerHTML = '';
+      return;
+    }
+
+    const scores = [];
+    for (const date of dates) {
+      try {
+        const res = await fetch(`/api/file?path=reports/${date}/briefing.md`);
+        if (!res.ok) continue;
+        const md = await res.text();
+        scores.push(this._threatScoreFromMarkdown(md));
+      } catch {}
+    }
+
+    if (scores.length === 0) {
+      host.innerHTML = '';
+      return;
+    }
+
+    const w = 96;
+    const h = 18;
+    const step = scores.length > 1 ? w / (scores.length - 1) : w;
+    const y = (s) => h - ((s - 1) / 3) * (h - 2) - 1;
+    const points = scores.map((s, i) => `${(i * step).toFixed(1)},${y(s).toFixed(1)}`).join(' ');
+    const lastY = y(scores[scores.length - 1]).toFixed(1);
+
+    host.innerHTML = `
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="threat-grad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#00ff41"/>
+            <stop offset="50%" stop-color="#ffd700"/>
+            <stop offset="100%" stop-color="#ff3333"/>
+          </linearGradient>
+        </defs>
+        <polyline points="${points}" fill="none" stroke="url(#threat-grad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${(scores.length - 1) * step}" cy="${lastY}" r="2" fill="var(--text-bright)"/>
+      </svg>
+    `;
+  },
+
+  _threatScoreFromMarkdown(markdown) {
+    const text = String(markdown || '').toUpperCase();
+    if (/CRITICAL|SEVERE|🔴/.test(text)) return 4;
+    if (/HIGH|🟠/.test(text)) return 3;
+    if (/ELEVATED|MEDIUM|🟡/.test(text)) return 2;
+    return 1;
   },
 
   // --- Left panel tab switching ---
@@ -604,6 +690,7 @@ const App = {
       console.log('[ws] File changed:', data.file);
       if (data.file.includes('briefing.md')) {
         await Briefing.loadDates();
+        this.renderThreatSparkline();
         const latestDate = Briefing.dates[0];
         // If user is viewing the latest date, auto-advance
         if (!this.activeDate || this.activeDate === latestDate || Briefing.currentIndex === 0) {

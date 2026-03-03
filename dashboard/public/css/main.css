@@ -163,6 +163,51 @@ html, body {
 .threat-low { border-color: var(--threat-low); }
 .threat-low .threat-dot { background: var(--threat-low); }
 
+#threat-label.glitch {
+  position: relative;
+  animation: threat-glitch-jitter 1.8s steps(1, end) infinite;
+}
+#threat-label.glitch::before,
+#threat-label.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+#threat-label.glitch::before {
+  color: rgba(255, 0, 60, 0.75);
+  transform: translate(-1px, 0);
+  clip-path: inset(0 0 55% 0);
+}
+#threat-label.glitch::after {
+  color: rgba(0, 220, 255, 0.75);
+  transform: translate(1px, 0);
+  clip-path: inset(45% 0 0 0);
+}
+@keyframes threat-glitch-jitter {
+  0%, 88%, 100% { transform: translate(0, 0); }
+  90% { transform: translate(-1px, 0); }
+  92% { transform: translate(1px, -1px); }
+  94% { transform: translate(-1px, 1px); }
+  96% { transform: translate(1px, 0); }
+}
+
+.threat-sparkline {
+  width: 96px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.9;
+}
+.threat-sparkline svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .streak-badge {
   font-size: 11px;
   color: var(--text-dim);
@@ -269,6 +314,132 @@ html, body {
   z-index: var(--z-overlay);
 }
 .connection-status.hidden { display: none; }
+
+/* === Profiler hover card === */
+.profiler-card {
+  position: fixed;
+  min-width: 220px;
+  max-width: 300px;
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 8px 10px;
+  z-index: calc(var(--z-overlay) + 5);
+  pointer-events: none;
+  box-shadow: 0 0 20px var(--accent-glow-strong);
+  overflow: hidden;
+}
+.profiler-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.55;
+  animation: profiler-scan 1.2s linear infinite;
+}
+@keyframes profiler-scan {
+  0% { top: 0; }
+  100% { top: calc(100% - 2px); }
+}
+.profiler-label {
+  font-size: 9px;
+  color: var(--accent-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.profiler-title {
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.profiler-meta {
+  color: var(--accent);
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+.profiler-summary {
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* === Briefing skeleton === */
+.briefing-skeleton {
+  padding: 12px;
+}
+.skeleton-line {
+  height: 12px;
+  border-radius: 3px;
+  margin: 8px 0;
+  background: linear-gradient(
+    90deg,
+    var(--bg-panel-alt) 0%,
+    var(--bg-hover) 45%,
+    var(--bg-panel-alt) 100%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.25s ease infinite;
+}
+.skeleton-line.lg { height: 18px; width: 70%; }
+.skeleton-line.md { width: 92%; }
+.skeleton-line.sm { width: 62%; }
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* === Footer music bar === */
+.music-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 8px;
+  height: 34px;
+  background: rgba(12, 12, 12, 0.92);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  z-index: calc(var(--z-panel) + 2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+.music-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  background: var(--bg-panel-alt);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+.music-btn:hover { border-color: var(--accent); color: var(--accent); }
+.music-track {
+  font-size: 11px;
+  color: var(--text-bright);
+  min-width: 130px;
+}
+.music-progress,
+.music-volume {
+  accent-color: var(--accent);
+}
+.music-progress {
+  flex: 1;
+  min-width: 120px;
+}
+.music-volume {
+  width: 76px;
+}
+.music-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 76px;
+  text-align: right;
+}
 
 /* === Feedback Box === */
 .feedback-toggle {

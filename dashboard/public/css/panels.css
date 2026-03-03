@@ -30,6 +30,23 @@
   transform: translateX(100%);
 }
 
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0.65; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0.65; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInBottom {
+  from { transform: translateY(100%); opacity: 0.65; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.panel-left.panel-intro { animation: slideInLeft 0.36s ease-out; }
+.panel-right.panel-intro { animation: slideInRight 0.36s ease-out; }
+.terminal-panel.panel-intro { animation: slideInBottom 0.32s ease-out; }
+
 /* === Panel Tabs === */
 .panel-tabs {
   display: flex;
