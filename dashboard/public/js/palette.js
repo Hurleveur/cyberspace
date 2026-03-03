@@ -247,6 +247,9 @@ const Palette = {
     { id: 'mark-read',    label: 'mark-read',                 icon: '✓',  desc: 'Mark all current items as read' },
     { id: 'refresh',      label: 'refresh feeds',             icon: '↻',  desc: 'Force re-fetch all RSS feeds' },
     { id: 'unread',       label: 'unread',                    icon: '🔔', desc: 'Show unread counts by source' },
+    { id: 'crt',          label: 'crt',                       icon: '📺', desc: 'Toggle CRT scanline overlay' },
+    { id: 'vignette',     label: 'vignette',                  icon: '🔲', desc: 'Toggle vignette overlay' },
+    { id: 'effects',      label: 'effects',                   icon: '✨', desc: 'Show visual effect states' },
   ],
 
   searchCommands(query) {
@@ -418,6 +421,30 @@ const Palette = {
         lines.push(`  ${cat.padEnd(18)}: ${cnt}`);
       }
       container.innerHTML = `<div class="palette-cmd-hint">⌘ unread</div><div class="palette-cmd-output">${this._esc(lines.join('\n'))}</div>`;
+      this.results = [];
+      this.activeIndex = -1;
+      return;
+    }
+
+    if (id === 'crt') {
+      const on = VisualFX.toggleCRT();
+      App.toast(`CRT scanlines ${on ? 'ON' : 'OFF'}`, 'briefing');
+      return;
+    }
+
+    if (id === 'vignette') {
+      const on = VisualFX.toggleVignette();
+      App.toast(`Vignette ${on ? 'ON' : 'OFF'}`, 'briefing');
+      return;
+    }
+
+    if (id === 'effects') {
+      const crt = VisualFX.crtEnabled ? 'ON' : 'OFF';
+      const vig = VisualFX.vignetteEnabled ? 'ON' : 'OFF';
+      const matrix = localStorage.getItem('cyberspace-matrix') !== 'off' ? 'ON' : 'OFF';
+      const theme = localStorage.getItem('cyberspace-theme') || 'green';
+      const lines = [`CRT scanlines : ${crt}`, `Vignette      : ${vig}`, `Matrix rain   : ${matrix}`, `Theme         : ${theme}`];
+      container.innerHTML = `<div class="palette-cmd-hint">⌘ effects</div><div class="palette-cmd-output">${this._esc(lines.join('\n'))}</div>`;
       this.results = [];
       this.activeIndex = -1;
       return;

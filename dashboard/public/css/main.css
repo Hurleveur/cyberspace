@@ -391,55 +391,89 @@ html, body {
   100% { background-position: -100% 0; }
 }
 
-/* === Footer music bar === */
-.music-bar {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 8px;
-  height: 34px;
-  background: rgba(12, 12, 12, 0.92);
-  border: 1px solid var(--border-bright);
-  border-radius: 4px;
-  z-index: calc(var(--z-panel) + 2);
-  display: flex;
+/* === Inline music bar (header) === */
+.music-bar-inline {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-}
-.music-btn {
-  width: 24px;
-  height: 24px;
+  gap: 5px;
+  margin-left: 6px;
+  padding: 2px 6px;
   border: 1px solid var(--border-bright);
   border-radius: 3px;
-  background: var(--bg-panel-alt);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 12px;
+  background: rgba(12, 12, 12, 0.6);
+  height: 26px;
+  flex-shrink: 0;
 }
-.music-btn:hover { border-color: var(--accent); color: var(--accent); }
-.music-track {
-  font-size: 11px;
-  color: var(--text-bright);
-  min-width: 130px;
-}
-.music-progress,
-.music-volume {
-  accent-color: var(--accent);
-}
-.music-progress {
-  flex: 1;
-  min-width: 120px;
-}
-.music-volume {
-  width: 76px;
-}
-.music-time {
-  font-size: 10px;
+.music-btn-sm {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  background: transparent;
   color: var(--text-dim);
-  min-width: 76px;
-  text-align: right;
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.music-btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+.music-select-sm {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  padding: 1px 2px;
+  height: 20px;
+  max-width: 130px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  /* Custom dropdown arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 3px center;
+  padding-right: 12px;
+}
+.music-select-sm:hover,
+.music-select-sm:focus { border-color: var(--accent); }
+.music-select-sm option {
+  background: var(--bg-panel);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.music-now-sm {
+  font-size: 9px;
+  color: var(--text-dim);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-volume-sm {
+  accent-color: var(--accent);
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-bright);
+  border-radius: 2px;
+  outline: none;
+}
+.music-volume-sm::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.music-volume-sm { width: 40px; }
 
 /* === Feedback Box === */
 .feedback-toggle {
@@ -813,4 +847,286 @@ html, body {
   white-space: pre-wrap;
   font-family: var(--font-mono);
   line-height: 1.7;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Phase 4 — Visual Effects: Glitch, CRT, Animations
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── CRT Scanline Overlay ─────────────────────────────────────────────
+   Subtle TV scanlines across the entire viewport. Togglable.          */
+.crt-on::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.06) 0px,
+    rgba(0, 0, 0, 0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* ── Glitch Text — hover effect for headings ──────────────────────── */
+@keyframes glitch-skew {
+  0%    { transform: skewX(0deg); }
+  20%   { transform: skewX(-2deg); }
+  40%   { transform: skewX(1deg); }
+  60%   { transform: skewX(-1deg); }
+  80%   { transform: skewX(2deg); }
+  100%  { transform: skewX(0deg); }
+}
+@keyframes glitch-clip-1 {
+  0%    { clip-path: inset(20% 0 60% 0); }
+  20%   { clip-path: inset(80% 0 0% 0); }
+  40%   { clip-path: inset(0% 0 85% 0); }
+  60%   { clip-path: inset(50% 0 30% 0); }
+  80%   { clip-path: inset(10% 0 70% 0); }
+  100%  { clip-path: inset(40% 0 40% 0); }
+}
+@keyframes glitch-clip-2 {
+  0%    { clip-path: inset(60% 0 10% 0); }
+  20%   { clip-path: inset(10% 0 70% 0); }
+  40%   { clip-path: inset(70% 0 5% 0); }
+  60%   { clip-path: inset(5% 0 80% 0); }
+  80%   { clip-path: inset(40% 0 30% 0); }
+  100%  { clip-path: inset(25% 0 50% 0); }
+}
+
+.glitch-hover {
+  position: relative;
+}
+.glitch-hover:hover {
+  animation: glitch-skew 0.4s steps(4) both;
+}
+.glitch-hover::before,
+.glitch-hover::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+.glitch-hover:hover::before {
+  opacity: 1;
+  color: rgba(255, 0, 60, 0.7);
+  animation: glitch-clip-1 0.3s steps(3) infinite alternate-reverse;
+  transform: translate(-2px, 0);
+}
+.glitch-hover:hover::after {
+  opacity: 1;
+  color: rgba(0, 220, 255, 0.7);
+  animation: glitch-clip-2 0.3s steps(3) infinite alternate;
+  transform: translate(2px, 0);
+}
+
+/* Triggered glitch (one-shot via JS adding .glitch-trigger class) */
+@keyframes glitch-burst {
+  0%   { transform: translate(0); filter: none; }
+  10%  { transform: translate(-2px, 1px); filter: hue-rotate(90deg); }
+  20%  { transform: translate(2px, -1px); filter: hue-rotate(-90deg); }
+  30%  { transform: translate(-1px, -1px); }
+  40%  { transform: translate(1px, 1px); filter: hue-rotate(45deg); }
+  50%  { transform: translate(0, -2px); filter: none; }
+  60%  { transform: translate(-1px, 0); filter: hue-rotate(-45deg); }
+  70%  { transform: translate(2px, 1px); }
+  80%  { transform: translate(-2px, -1px); filter: hue-rotate(90deg); }
+  90%  { transform: translate(1px, 0); filter: none; }
+  100% { transform: translate(0); filter: none; }
+}
+.glitch-trigger {
+  animation: glitch-burst 0.35s steps(2) !important;
+}
+
+/* Logo glitch effect */
+.logo {
+  position: relative;
+}
+.logo.glitch-hover::before,
+.logo.glitch-hover::after {
+  content: 'CYBERSPACE';
+}
+
+/* ── Panel Border Glitch on Open ──────────────────────────────────── */
+@keyframes border-glitch {
+  0%   { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow-strong), inset 0 0 8px var(--accent-glow); }
+  15%  { border-color: var(--threat-critical); box-shadow: 0 0 6px rgba(255,51,51,0.3); }
+  30%  { border-color: var(--accent); box-shadow: none; }
+  45%  { border-color: #00d4ff; box-shadow: 0 0 10px rgba(0,212,255,0.3); }
+  60%  { border-color: var(--border); box-shadow: none; }
+  75%  { border-color: var(--accent); box-shadow: 0 0 4px var(--accent-glow); }
+  90%  { border-color: var(--border-bright); box-shadow: none; }
+  100% { border-color: var(--border); box-shadow: none; }
+}
+.panel-glitch-border {
+  animation: border-glitch 0.5s steps(3) both;
+}
+
+/* ── Marker Drop-in Animation ─────────────────────────────────────── */
+@keyframes marker-drop {
+  0%   { transform: scale(0) translateY(-20px); opacity: 0; }
+  50%  { transform: scale(1.3) translateY(2px); opacity: 0.8; }
+  70%  { transform: scale(0.9) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.marker-dropin {
+  animation: marker-drop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Staggered delay classes for markers loading in sequence */
+.marker-delay-1 { animation-delay: 0.03s; }
+.marker-delay-2 { animation-delay: 0.06s; }
+.marker-delay-3 { animation-delay: 0.09s; }
+.marker-delay-4 { animation-delay: 0.12s; }
+.marker-delay-5 { animation-delay: 0.15s; }
+.marker-delay-6 { animation-delay: 0.18s; }
+.marker-delay-7 { animation-delay: 0.21s; }
+.marker-delay-8 { animation-delay: 0.24s; }
+.marker-delay-9 { animation-delay: 0.27s; }
+
+/* ── Enhanced Profiler Card — Watch Dogs style ────────────────────── */
+.profiler-card {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.profiler-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--accent);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  pointer-events: none;
+  opacity: 0.7;
+}
+/* Scan progress bar at top of profiler */
+.profiler-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow-strong);
+  width: 0;
+  animation: profiler-fill 0.8s ease-out forwards;
+  z-index: 2;
+}
+@keyframes profiler-fill {
+  0%   { width: 0; }
+  100% { width: 100%; }
+}
+/* Corner brackets (Watch Dogs style) */
+.profiler-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--accent);
+  border-style: solid;
+  pointer-events: none;
+  opacity: 0.5;
+}
+.profiler-corner-tl { top: 3px; left: 3px; border-width: 1px 0 0 1px; }
+.profiler-corner-tr { top: 3px; right: 3px; border-width: 1px 1px 0 0; }
+.profiler-corner-bl { bottom: 3px; left: 3px; border-width: 0 0 1px 1px; }
+.profiler-corner-br { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+
+/* Profiler data-load typewriter cursor */
+.profiler-title::after {
+  content: '█';
+  animation: blink-cursor 0.5s step-end infinite;
+  color: var(--accent);
+  font-weight: 300;
+  margin-left: 1px;
+}
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ── Feed Item Staggered Load ─────────────────────────────────────── */
+@keyframes feed-slide-in {
+  0%   { opacity: 0; transform: translateX(-8px); }
+  100% { transform: translateX(0); }
+}
+.feed-anim-in {
+  animation: feed-slide-in 0.25s ease-out;
+}
+
+/* ── Event Item Staggered Load ────────────────────────────────────── */
+@keyframes event-slide-in {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { transform: translateY(0); }
+}
+.event-anim-in {
+  animation: event-slide-in 0.2s ease-out;
+}
+
+/* ── Typewriter for briefing heading ──────────────────────────────── */
+.typewriter-heading {
+  overflow: hidden;
+  border-right: 2px solid var(--accent);
+  white-space: nowrap;
+  animation: tw-type 1.5s steps(40) forwards, tw-cursor 0.5s step-end 6;
+  width: 0;
+}
+@keyframes tw-type {
+  0%   { width: 0; }
+  100% { width: 100%; }
+}
+@keyframes tw-cursor {
+  0%, 100% { border-color: var(--accent); }
+  50%      { border-color: transparent; }
+}
+
+/* ── Data-received flash on panels ────────────────────────────────── */
+@keyframes data-flash {
+  0%   { box-shadow: inset 0 0 20px var(--accent-glow-strong); }
+  100% { box-shadow: none; }
+}
+.data-flash {
+  animation: data-flash 0.6s ease-out;
+}
+
+/* ── Notification pulse on header buttons ─────────────────────────── */
+@keyframes btn-notify-pulse {
+  0%, 100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 8px var(--accent-glow-strong); }
+}
+.btn-notify-pulse {
+  animation: btn-notify-pulse 1s ease-in-out 3;
+}
+
+/* ── Ambient glow on map container ────────────────────────────────── */
+#map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    var(--accent-glow) 0%,
+    transparent 60%
+  );
+  opacity: 0.15;
+}
+
+/* ── Vignette overlay (dark edges) ────────────────────────────────── */
+.vignette::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
 }

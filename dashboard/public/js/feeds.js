@@ -119,6 +119,11 @@ const Feeds = {
 
     container.innerHTML = html;
 
+    // Staggered slide-in animation for feed items
+    if (typeof VisualFX !== 'undefined') {
+      VisualFX.staggerItems(container.querySelectorAll('.feed-item'), 'feed-anim-in');
+    }
+
     // Bind click handlers — single click to expand preview
     container.querySelectorAll('.feed-item').forEach(el => {
       el.addEventListener('click', () => {

@@ -314,17 +314,64 @@ const Briefing = {
     const marker = this.markersData.find(m => m.id === markerId);
     if (!marker) return;
 
-    const headings = [...container.querySelectorAll('h2, h3')];
+    const titleNeedle = (marker.title || '').toLowerCase();
+    // Collect all story-level headings (h3, h4) and section headings (h2)
+    const allHeadings = [...container.querySelectorAll('h2, h3, h4')];
 
-    // Try exact title match first (individual story heading)
-    for (const h of headings) {
-      if (h.textContent.toLowerCase().includes(marker.title.toLowerCase().slice(0, 20))) {
-        this._flashHeading(h);
+    // 1) Try exact heading match on h3/h4 (individual story titles)
+    for (const h of allHeadings) {
+      if (h.tagName === 'H2') continue;
+      const hText = h.textContent.toLowerCase();
+      if (titleNeedle && hText.includes(titleNeedle.slice(0, 30))) {
+        this._expandAndFlash(h);
         return;
       }
     }
 
-    // Fall back: scroll to the matching section by category
+    // 2) Try matching a link whose text contains the story title
+    if (titleNeedle.length > 10) {
+      const links = [...container.querySelectorAll('a')];
+      for (const a of links) {
+        if (a.textContent.toLowerCase().includes(titleNeedle.slice(0, 30))) {
+          // Find the closest heading above this link
+          const heading = a.closest('h3, h4') || this._closestHeadingAbove(a, container);
+          if (heading) { this._expandAndFlash(heading); return; }
+          // No heading — flash the link's parent block
+          const block = a.closest('p, li, div');
+          if (block) { this._expandAndFlash(block); return; }
+        }
+      }
+    }
+
+    // 3) Try matching by source_url (href)
+    if (marker.source_url) {
+      const a = container.querySelector(`a[href="${CSS.escape(marker.source_url)}"]`)
+             || container.querySelector(`a[href*="${CSS.escape(new URL(marker.source_url).hostname)}"]`);
+      if (a) {
+        const heading = a.closest('h3, h4') || this._closestHeadingAbove(a, container);
+        if (heading) { this._expandAndFlash(heading); return; }
+      }
+    }
+
+    // 4) Full-text search in paragraphs for title keywords
+    if (titleNeedle.length > 10) {
+      const words = titleNeedle.split(/\s+/).filter(w => w.length > 4).slice(0, 4);
+      if (words.length >= 2) {
+        const paras = [...container.querySelectorAll('p, li')];
+        for (const p of paras) {
+          const pText = p.textContent.toLowerCase();
+          const hits = words.filter(w => pText.includes(w)).length;
+          if (hits >= Math.ceil(words.length * 0.6)) {
+            const heading = this._closestHeadingAbove(p, container);
+            if (heading) { this._expandAndFlash(heading); return; }
+            this._expandAndFlash(p);
+            return;
+          }
+        }
+      }
+    }
+
+    // 5) Fall back: section heading by category
     const categoryMap = {
       'active-threats': ['active threats', 'critical'],
       'vulnerability-intel': ['vulnerability'],
@@ -339,20 +386,48 @@ const Briefing = {
       : (categoryMap[marker.category] || []);
 
     for (const kw of keywords) {
-      const h = headings.find(h => h.textContent.toLowerCase().includes(kw));
-      if (h) { this._flashHeading(h); return; }
+      const h = allHeadings.find(h => h.textContent.toLowerCase().includes(kw));
+      if (h) { this._expandAndFlash(h); return; }
     }
   },
 
-  _flashHeading(h) {
-    const section = h.nextElementSibling;
-    if (section?.classList.contains('briefing-section') && !section.classList.contains('expanded')) {
-      section.classList.add('expanded');
-      if (h.tagName === 'H2') h.classList.add('expanded');
+  /** Walk backwards from an element to find the nearest heading above it. */
+  _closestHeadingAbove(el, container) {
+    let node = el.previousElementSibling || el.parentElement;
+    let depth = 0;
+    while (node && node !== container && depth < 50) {
+      if (/^H[2-4]$/.test(node.tagName)) return node;
+      // Check inside briefing-section wrappers
+      if (node.previousElementSibling) {
+        node = node.previousElementSibling;
+      } else {
+        node = node.parentElement;
+      }
+      depth++;
     }
-    h.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    h.classList.add('highlight-flash');
-    setTimeout(() => h.classList.remove('highlight-flash'), 1500);
+    return null;
+  },
+
+  /** Expand the briefing section containing an element, flash it, scroll to it. */
+  _expandAndFlash(el) {
+    // Walk up to find and expand any collapsed briefing-section ancestor
+    let section = el.closest('.briefing-section');
+    if (section && !section.classList.contains('expanded')) {
+      section.classList.add('expanded');
+      const h2 = section.previousElementSibling;
+      if (h2?.tagName === 'H2') h2.classList.add('expanded');
+    }
+    // Also handle if el IS a h2 section heading
+    if (el.tagName === 'H2') {
+      const nextSec = el.nextElementSibling;
+      if (nextSec?.classList.contains('briefing-section') && !nextSec.classList.contains('expanded')) {
+        nextSec.classList.add('expanded');
+        el.classList.add('expanded');
+      }
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('highlight-flash');
+    setTimeout(() => el.classList.remove('highlight-flash'), 1500);
   },
 
   async loadDates() {
@@ -419,10 +494,155 @@ const Briefing = {
     this.makeCollapsible(container);
     this.bindCheckboxes(container, date);
     this.bindProfilerHover(container);
+
+    // Open all links in new tab
+    container.querySelectorAll('.markdown-body a[href]').forEach(a => {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+    });
+
+    // Typewriter effect on the main heading (h1) on first render
+    const h1 = container.querySelector('.markdown-body h1');
+    if (h1 && typeof VisualFX !== 'undefined') {
+      VisualFX.typewriterHeading(h1);
+    }
+
+    // Glitch-hover on h2 section headings
+    container.querySelectorAll('.markdown-body h2').forEach(el => {
+      el.classList.add('glitch-hover');
+      el.setAttribute('data-text', el.textContent);
+    });
+
+    // Click anywhere in a story block → mark corresponding marker as read
+    this._bindStoryReadTracking(container);
+  },
+
+  /**
+   * For each h3/h4 story heading and the content below it (until the next
+   * heading), clicking anywhere marks the corresponding map marker as read.
+   */
+  _bindStoryReadTracking(container) {
+    const md = container.querySelector('.markdown-body');
+    if (!md || !this.markersData?.length) return;
+
+    const headings = [...md.querySelectorAll('h3, h4')];
+    for (const h of headings) {
+      // Collect sibling elements belonging to this story (until next heading or section end)
+      const storyEls = [h];
+      let sib = h.nextElementSibling;
+      while (sib && !/^H[2-4]$/.test(sib.tagName)) {
+        storyEls.push(sib);
+        sib = sib.nextElementSibling;
+      }
+
+      // Find matching marker for this heading
+      const hText = h.textContent.toLowerCase();
+      const marker = this._findMarkerForHeading(hText, storyEls);
+      if (!marker) continue;
+
+      // Bind click on all story elements
+      for (const el of storyEls) {
+        el.addEventListener('click', () => {
+          if (!ReadTracker.isRead(marker.id)) {
+            MapView.markMarkerRead(marker.id);
+          }
+        });
+        el.style.cursor = 'pointer';
+      }
+    }
+  },
+
+  /**
+   * Match a story heading to a marker using title text, link href,
+   * or keyword overlap.
+   */
+  _findMarkerForHeading(hText, storyEls) {
+    if (!this.markersData?.length) return null;
+
+    // 1) Title text match (first 30 chars)
+    for (const m of this.markersData) {
+      const mTitle = (m.title || '').toLowerCase();
+      if (mTitle && hText.includes(mTitle.slice(0, 30))) return m;
+      if (mTitle && mTitle.includes(hText.slice(0, 30)) && hText.length > 5) return m;
+    }
+
+    // 2) Match by source_url in any link within the story block
+    const links = [];
+    for (const el of storyEls) {
+      links.push(...el.querySelectorAll('a[href]'));
+    }
+    for (const a of links) {
+      const href = a.getAttribute('href') || '';
+      for (const m of this.markersData) {
+        if (m.source_url && href === m.source_url) return m;
+      }
+    }
+
+    // 3) Keyword fuzzy match
+    const allText = storyEls.map(e => e.textContent).join(' ').toLowerCase();
+    let bestMarker = null, bestScore = 0;
+    for (const m of this.markersData) {
+      const words = (m.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 4);
+      if (words.length < 2) continue;
+      const hits = words.filter(w => allText.includes(w)).length;
+      const score = hits / words.length;
+      if (score > bestScore && score >= 0.5) {
+        bestScore = score;
+        bestMarker = m;
+      }
+    }
+    return bestMarker;
+  },
+
+  // Source descriptions for known security/tech news domains
+  _SOURCE_INFO: {
+    'thehackernews.com': 'The Hacker News — leading cybersecurity news platform covering vulnerabilities, breaches, and threat intelligence.',
+    'bleepingcomputer.com': 'BleepingComputer — technology and security news, malware analysis, and vulnerability advisories.',
+    'krebsonsecurity.com': 'Krebs on Security — investigative cybersecurity journalism by Brian Krebs.',
+    'darkreading.com': 'Dark Reading — enterprise security news, research, and analysis.',
+    'therecord.media': 'The Record — cybersecurity news from Recorded Future covering APTs, policy, and intelligence.',
+    'cisa.gov': 'CISA — US Cybersecurity & Infrastructure Security Agency official advisories and alerts.',
+    'cert.europa.eu': 'CERT-EU — EU Computer Emergency Response Team security advisories.',
+    'schneier.com': 'Schneier on Security — Bruce Schneier\'s blog on security, privacy, and cryptography.',
+    'arstechnica.com': 'Ars Technica — in-depth technology journalism and security coverage.',
+    'wired.com': 'WIRED — technology and security reporting, investigative journalism.',
+    'securityweek.com': 'SecurityWeek — enterprise security news, ICS/SCADA, vulnerability coverage.',
+    'mandiant.com': 'Mandiant (Google) — threat intelligence, APT research, and incident response.',
+    'unit42.paloaltonetworks.com': 'Unit 42 — Palo Alto Networks threat intelligence and malware research.',
+    'research.checkpoint.com': 'Check Point Research — vulnerability disclosures, malware analysis, and threat intelligence.',
+    'blog.talosintelligence.com': 'Cisco Talos — threat intelligence, vulnerability research, and malware analysis.',
+    'microsoft.com': 'Microsoft — security response center, threat intelligence, and patch advisories.',
+    'google.com': 'Google — security blog, Project Zero research, Chrome security updates.',
+    'trufflesecurity.com': 'Truffle Security — secrets detection and API key security research.',
+    'orca.security': 'Orca Security — cloud security research and vulnerability analysis.',
+    'borncity.com': 'BornCity — German-language tech blog covering Windows security and patches.',
+    'malwarebytes.com': 'Malwarebytes — malware cleanup vendor, threat research and breach reporting.',
+    'simonwillison.net': 'Simon Willison\'s Blog — AI/LLM tools, security implications, and developer insights.',
+    'nist.gov': 'NIST — National Institute of Standards and Technology, NVD vulnerability database.',
+    'nvd.nist.gov': 'NVD — NIST National Vulnerability Database, authoritative CVE/CVSS source.',
+    'arctic.wolf': 'Arctic Wolf — managed detection & response, threat research.',
+    'csoonline.com': 'CSO Online — security leadership news, breach analysis, risk management.',
+    'infosecurity-magazine.com': 'Infosecurity Magazine — cybersecurity news, events, and expert analysis.',
+    'threatpost.com': 'Threatpost — cybersecurity news, vulnerabilities, and threat landscape coverage.',
+  },
+
+  _getSourceDescription(href) {
+    if (!href) return null;
+    try {
+      const host = new URL(href).hostname.replace(/^www\./, '');
+      // Exact match first
+      if (this._SOURCE_INFO[host]) return this._SOURCE_INFO[host];
+      // Partial domain match (e.g. blog.talosintelligence.com)
+      for (const [domain, desc] of Object.entries(this._SOURCE_INFO)) {
+        if (host.includes(domain) || domain.includes(host)) return desc;
+      }
+      // Fallback: clean domain name
+      return host.charAt(0).toUpperCase() + host.slice(1) + ' — external source';
+    } catch { return null; }
   },
 
   bindProfilerHover(container) {
-    const targets = container.querySelectorAll('.markdown-body h3, .markdown-body a');
+    const targets = container.querySelectorAll('.markdown-body h3, .markdown-body h4, .markdown-body a');
     targets.forEach(el => {
       el.addEventListener('mouseenter', (e) => {
         const title = (el.textContent || '').trim();
@@ -434,9 +654,18 @@ const Briefing = {
         const summaryEl = document.getElementById('profiler-summary');
         if (!card || !titleEl || !metaEl || !summaryEl) return;
 
-        metaEl.textContent = 'BRIEFING ENTITY · SCANNED';
-        const context = el.closest('p, li, div')?.textContent || '';
-        summaryEl.textContent = context.slice(0, 160);
+        // For links: show source description instead of raw context
+        const isLink = el.tagName === 'A' && el.href;
+        if (isLink) {
+          const srcDesc = this._getSourceDescription(el.href);
+          const host = (() => { try { return new URL(el.href).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+          metaEl.textContent = `SOURCE · ${host.toUpperCase()}`;
+          summaryEl.textContent = srcDesc || el.href;
+        } else {
+          metaEl.textContent = 'BRIEFING ENTITY · SCANNED';
+          const context = el.closest('p, li, div')?.textContent || '';
+          summaryEl.textContent = context.slice(0, 160);
+        }
 
         titleEl.textContent = '';
         clearTimeout(this._profilerTimer);

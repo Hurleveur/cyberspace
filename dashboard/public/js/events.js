@@ -258,6 +258,11 @@ const Events = {
 
     container.innerHTML = html;
 
+    // Staggered slide-in animation for event items
+    if (typeof VisualFX !== 'undefined') {
+      VisualFX.staggerItems(container.querySelectorAll('.event-item'), 'event-anim-in');
+    }
+
     // Bind click handlers
     container.querySelectorAll('.event-item').forEach(el => {
       el.addEventListener('click', () => this.toggleDetail(el.dataset.id));

@@ -91,9 +91,9 @@ const App = {
     { key: 'T', action: 'Toggle Task board' },
     { key: 'S', action: 'Open Settings' },
     { key: 'Ctrl+K', action: 'Command palette / > commands' },
+    { key: 'Ctrl+F', action: 'Briefing search' },
     { key: '>', action: 'Command mode (direct)' },
-    { key: '/', action: 'Focus Briefing search' },
-    { key: 'Ctrl+/', action: 'Toggle Terminal' },
+    { key: '/', action: 'Toggle Terminal' },
     { key: '?', action: 'Show keyboard shortcuts' },
     { key: '↑ ↓', action: 'Navigate feed items' },
     { key: 'Enter', action: 'Expand selected item' },
@@ -114,6 +114,7 @@ const App = {
     this._initNotifications();
 
     if (typeof MatrixRain !== 'undefined') MatrixRain.init();
+    if (typeof VisualFX !== 'undefined') VisualFX.init();
     if (typeof MusicPlayer !== 'undefined') MusicPlayer.init();
 
     // Load data
@@ -256,9 +257,14 @@ const App = {
 
   showPanel(side) {
     const panel = this.panels[side];
+    const wasHidden = panel.el.classList.contains('hidden');
     panel.el.classList.remove('hidden');
     panel.visible = true;
     this.updateButtonStates();
+    // Visual FX: border glitch when opening (not when already visible)
+    if (wasHidden && typeof VisualFX !== 'undefined') {
+      VisualFX.panelGlitch(panel.el.id);
+    }
   },
 
   hidePanel(side) {
@@ -445,8 +451,13 @@ const App = {
       // Don't trigger shortcuts when typing in inputs
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
+      const hasCtrl  = e.ctrlKey || e.metaKey;
+      const hasShift = e.shiftKey;
+      const hasAlt   = e.altKey;
+      const key      = e.key;
+
       // If Escape is pressed while any overlay is open, close it first
-      if (e.key === 'Escape') {
+      if (key === 'Escape') {
         const shortcuts = document.getElementById('shortcuts-overlay');
         const settings  = document.getElementById('settings-overlay');
         const feedback  = document.getElementById('feedback-box');
@@ -464,21 +475,38 @@ const App = {
       // Feed keyboard navigation (arrow keys, enter, escape)
       const leftTab = document.querySelector('.panel-tab.active')?.dataset.tab;
       if (this.panels.left.visible && leftTab === 'feeds') {
-        if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+        if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(key)) {
           Feeds.handleKeyNav(e);
           return;
         }
       }
 
-      // Dedicated terminal shortcut to avoid conflict with '?' help
-      if (e.ctrlKey && e.key === '/') {
+      // ── Ctrl combos (checked first so plain keys below are modifier-free) ──
+
+      // Ctrl+/ → Toggle terminal
+      if (hasCtrl && key === '/') {
         e.preventDefault();
         if (typeof Terminal !== 'undefined' && typeof Terminal.toggle === 'function') Terminal.toggle();
         return;
       }
 
-      switch (e.key.toLowerCase()) {
+      // Ctrl+F → Briefing search (override browser find)
+      if (hasCtrl && key.toLowerCase() === 'f') {
+        e.preventDefault();
+        this.showPanel('left');
+        this.switchLeftTab('briefing');
+        Briefing.toggleSearch(true);
+        return;
+      }
+
+      // Skip any remaining combos that have Ctrl/Alt so they don't hit the bare-key switch
+      if (hasCtrl || hasAlt) return;
+
+      // ── Bare keys (no Ctrl, no Alt — Shift is checked per-case) ──
+      switch (key) {
         case 'f':
+        case 'F':
+          if (hasShift) break; // Shift+F → ignore
           e.preventDefault();
           if (this.panels.left.visible && document.querySelector('.panel-tab.active')?.dataset.tab === 'feeds') {
             this.togglePanel('left');
@@ -488,6 +516,8 @@ const App = {
           }
           break;
         case 'b':
+        case 'B':
+          if (hasShift) break;
           e.preventDefault();
           if (this.panels.left.visible && document.querySelector('.panel-tab.active')?.dataset.tab === 'briefing') {
             this.togglePanel('left');
@@ -497,6 +527,8 @@ const App = {
           }
           break;
         case 'e':
+        case 'E':
+          if (hasShift) break;
           e.preventDefault();
           if (this.panels.right.visible && this.currentRightTab === 'events') {
             this.togglePanel('right');
@@ -506,6 +538,8 @@ const App = {
           }
           break;
         case 't':
+        case 'T':
+          if (hasShift) break;
           e.preventDefault();
           if (this.panels.right.visible && this.currentRightTab === 'todo') {
             this.togglePanel('right');
@@ -515,14 +549,14 @@ const App = {
           }
           break;
         case 's':
+        case 'S':
+          if (hasShift) break;
           e.preventDefault();
           Settings.open();
           break;
         case '/':
           e.preventDefault();
-          this.showPanel('left');
-          this.switchLeftTab('briefing');
-          Briefing.toggleSearch(true);
+          if (typeof Terminal !== 'undefined' && typeof Terminal.toggle === 'function') Terminal.toggle();
           break;
         case '?':
           e.preventDefault();
@@ -532,7 +566,7 @@ const App = {
           e.preventDefault();
           Palette.openCommandMode();
           break;
-        case 'escape':
+        case 'Escape':
           document.getElementById('settings-overlay').classList.add('hidden');
           document.getElementById('shortcuts-overlay').classList.add('hidden');
           document.getElementById('feedback-box').classList.add('hidden');
@@ -705,10 +739,20 @@ const App = {
           this.toast('New briefing available — navigate to latest to view', 'briefing');
         }
         this.toast('Briefing updated', 'briefing');
+        // Visual FX: flash + glitch on new briefing
+        if (typeof VisualFX !== 'undefined') {
+          VisualFX.dataFlash('left-panel');
+          VisualFX.glitch('#threat-badge');
+          VisualFX.notifyButton('btn-briefing');
+        }
       }
       if (data.file.includes('events.md')) {
         Events.refresh();
         this.toast('Event radar updated', 'events');
+        if (typeof VisualFX !== 'undefined') {
+          VisualFX.dataFlash('right-panel');
+          VisualFX.notifyButton('btn-events');
+        }
       }
       if (data.file.includes('markers.json')) {
         // Only auto-refresh map if viewing the latest date
@@ -722,6 +766,10 @@ const App = {
       console.log('[ws] Feeds updated:', data.count, 'items');
       Feeds.load();
       this.toast(`${data.count} feed items refreshed`, 'feeds');
+      if (typeof VisualFX !== 'undefined') {
+        VisualFX.dataFlash('left-panel');
+        VisualFX.notifyButton('btn-feeds');
+      }
     });
   },
 

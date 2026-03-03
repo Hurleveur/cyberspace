@@ -23,13 +23,19 @@
   <!-- Header Bar -->
   <header id="header">
     <div class="header-left">
-      <span class="logo">CYBERSPACE</span>
+      <span class="logo glitch-hover" data-text="CYBERSPACE">CYBERSPACE</span>
       <span id="threat-badge" class="threat-badge threat-unknown">
         <span class="threat-dot"></span>
         <span id="threat-label">LOADING</span>
       </span>
       <span id="threat-sparkline" class="threat-sparkline" title="Threat trend (last 7 briefings)"></span>
       <span id="streak-badge" class="streak-badge"></span>
+      <span id="music-bar" class="music-bar-inline">
+        <button id="music-play" class="music-btn-sm" title="Play/Pause">▶</button>
+        <select id="music-station" class="music-select-sm" title="Choose station"></select>
+        <span id="music-now" class="music-now-sm"></span>
+        <input id="music-volume" class="music-volume-sm" type="range" min="0" max="100" value="55" title="Volume" />
+      </span>
     </div>
     <div class="header-right">
       <span id="unread-badge" class="unread-badge" title="Unread items">0</span>
@@ -45,10 +51,10 @@
       <button class="header-btn" id="btn-events" title="Events (E)">
         <span class="btn-icon">📅</span><span id="events-unread-badge" class="header-badge zero">0</span>
       </button>
-      <button class="header-btn" id="btn-todo" title="Tasks">
+      <button class="header-btn" id="btn-todo" title="Tasks (T)">
         <span class="btn-icon">☑</span>
       </button>
-      <button class="header-btn" id="btn-terminal" title="Terminal (Ctrl+/)">
+      <button class="header-btn" id="btn-terminal" title="Terminal (/)">
         <span class="btn-icon">&#62;_</span>
       </button>
       <button class="header-btn" id="btn-settings" title="Settings (S)">
@@ -280,22 +286,17 @@
 
   <!-- Profiler Hover Card -->
   <div id="profiler-card" class="profiler-card hidden" aria-hidden="true">
+    <div class="profiler-progress"></div>
     <div class="profiler-scanline"></div>
+    <div class="profiler-corner profiler-corner-tl"></div>
+    <div class="profiler-corner profiler-corner-tr"></div>
+    <div class="profiler-corner profiler-corner-bl"></div>
+    <div class="profiler-corner profiler-corner-br"></div>
     <div class="profiler-label">PROFILE</div>
     <div id="profiler-title" class="profiler-title"></div>
     <div id="profiler-meta" class="profiler-meta"></div>
     <div id="profiler-summary" class="profiler-summary"></div>
   </div>
-
-  <!-- Footer Music Bar -->
-  <footer id="music-bar" class="music-bar">
-    <button id="music-play" class="music-btn" title="Play/Pause ambient">▶</button>
-    <button id="music-next" class="music-btn" title="Next track">⏭</button>
-    <span id="music-track" class="music-track">Ambient Track 01</span>
-    <input id="music-progress" class="music-progress" type="range" min="0" max="100" value="0" />
-    <span id="music-time" class="music-time">0:00 / 5:12</span>
-    <input id="music-volume" class="music-volume" type="range" min="0" max="100" value="45" title="Volume" />
-  </footer>
 
   <!-- Connection status -->
   <div id="connection-status" class="connection-status hidden">Disconnected</div>

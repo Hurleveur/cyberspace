@@ -1212,12 +1212,7 @@
   color: var(--bg-primary);
 }
 
-/* Highlight flash animation for cross-linking */
-@keyframes highlight-flash {
-  0% { background: var(--accent-glow-strong); }
-  100% { background: transparent; }
-}
-.highlight-flash { animation: highlight-flash 2s ease-out; }
+/* Highlight flash animation — see bottom of file for green-tinted version */
 
 /* Panel resize handles */
 .panel-resize-handle {
@@ -1639,3 +1634,203 @@
   caret-color: var(--accent);
 }
 .terminal-input::placeholder { color: var(--text-dim); opacity: 0.35; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Phase 4 — Hacker-green panel aesthetic: accent borders, glows,
+   corner brackets, scanline headers, tinted scrollbars
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Panel edge glow ──────────────────────────────────────────────────── */
+.panel-left {
+  border-right: 1px solid var(--accent-glow);
+  box-shadow: 2px 0 12px -4px var(--accent-glow);
+}
+.panel-right {
+  border-left: 1px solid var(--accent-glow);
+  box-shadow: -2px 0 12px -4px var(--accent-glow);
+}
+
+/* ── Panel header: top accent bar + subtle grid background ────────────── */
+.panel-header {
+  border-bottom: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  background:
+    linear-gradient(90deg, var(--accent-glow) 1px, transparent 1px) 0 0 / 20px 20px,
+    var(--bg-panel);
+  position: relative;
+}
+
+/* Corner bracket decorations on panel headers */
+.panel-header::before,
+.panel-header::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0.5;
+}
+.panel-header::before {
+  top: 4px;
+  left: 6px;
+  border-width: 1px 0 0 1px;
+}
+.panel-header::after {
+  top: 4px;
+  right: 6px;
+  border-width: 1px 1px 0 0;
+}
+
+.panel-header h2 {
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ── Tab bar accent underline ─────────────────────────────────────────── */
+.panel-tabs,
+.right-panel-tabs {
+  border-bottom: 1px solid var(--accent-glow);
+  background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-panel-alt) 100%);
+}
+.panel-tab.active,
+.right-panel-tab.active {
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* ── Green-tinted scrollbar inside panels ─────────────────────────────── */
+.panel ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 25%, var(--border-bright));
+}
+.panel ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 40%, var(--border-bright));
+}
+.panel ::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+/* ── Feed item accent touches ─────────────────────────────────────────── */
+.feed-item {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+}
+.feed-item:hover {
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}
+.feed-item-title {
+  transition: text-shadow 0.15s;
+}
+.feed-item:hover .feed-item-title {
+  text-shadow: 0 0 4px var(--accent-glow);
+}
+
+/* Feed group header scanline bar */
+.feed-group-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  text-shadow: 0 0 4px var(--accent-glow);
+}
+
+/* ── Briefing hacker touches ──────────────────────────────────────────── */
+.briefing-content .markdown-body h2 {
+  border-left: 2px solid transparent;
+  padding-left: 6px;
+  transition: border-color 0.15s, text-shadow 0.15s;
+}
+.briefing-content .markdown-body h2:hover {
+  border-left-color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+.briefing-content .markdown-body h3,
+.briefing-content .markdown-body h4 {
+  color: var(--accent-dim);
+}
+.briefing-content .markdown-body a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: border-color 0.15s, text-shadow 0.15s;
+}
+.briefing-content .markdown-body a:hover {
+  border-bottom-color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+.briefing-content .markdown-body strong {
+  color: var(--text-bright);
+}
+.briefing-content .markdown-body code {
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 0.92em;
+}
+.briefing-content .markdown-body blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.briefing-content .markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+.briefing-content .markdown-body th {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+  color: var(--accent);
+  text-align: left;
+  padding: 4px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--accent-glow);
+}
+.briefing-content .markdown-body td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+/* ── Event items accent ───────────────────────────────────────────────── */
+.event-item {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+}
+.event-item:hover .event-item-name {
+  text-shadow: 0 0 4px var(--accent-glow);
+}
+.event-detail {
+  border-left: 2px solid var(--event-color);
+}
+
+/* ── Right panel event section headers ────────────────────────────────── */
+.event-section-header {
+  text-shadow: 0 0 4px var(--accent-glow);
+}
+
+/* ── Settings overlay hacker touches ──────────────────────────────────── */
+.settings-overlay .markdown-body a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.settings-overlay .markdown-body a:hover {
+  border-bottom-color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* ── Horizontal rules in briefing ─────────────────────────────────────── */
+.briefing-content .markdown-body hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+  margin: 12px 0;
+}
+
+/* ── Highlight flash green tint ───────────────────────────────────────── */
+@keyframes highlight-flash-green {
+  0%   { background: var(--accent-glow-strong); box-shadow: inset 0 0 12px var(--accent-glow); }
+  100% { background: transparent; box-shadow: none; }
+}
+.highlight-flash {
+  animation: highlight-flash-green 2s ease-out;
+  border-radius: 2px;
+}

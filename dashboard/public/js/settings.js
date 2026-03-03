@@ -92,6 +92,11 @@ const Settings = {
 
       // Render as markdown
       view.innerHTML = `<div class="markdown-body">${marked.parse(content)}</div>`;
+      // Open all links in new tab
+      view.querySelectorAll('.markdown-body a[href]').forEach(a => {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      });
 
       // Store raw content for editor
       view.dataset.raw = content;
@@ -431,6 +436,9 @@ const Settings = {
         ${t.id === current ? '<span class="theme-swatch-check">✓</span>' : ''}
       </button>`).join('');
 
+    const crtEnabled = typeof VisualFX !== 'undefined' ? VisualFX.crtEnabled : true;
+    const vignetteEnabled = typeof VisualFX !== 'undefined' ? VisualFX.vignetteEnabled : true;
+
     view.innerHTML = `
       <div class="system-panel">
         <div class="system-section">
@@ -444,7 +452,15 @@ const Settings = {
             <span class="system-info-label">Matrix rain</span>
             <button id="matrix-toggle-btn" class="system-toggle-btn ${matrixEnabled ? 'on' : 'off'}">${matrixEnabled ? 'ON' : 'OFF'}</button>
           </label>
-          <div class="system-hint">Subtle animated background. &gt; theme to also change via command.</div>
+          <label class="system-toggle-row">
+            <span class="system-info-label">CRT scanlines</span>
+            <button id="crt-toggle-btn" class="system-toggle-btn ${crtEnabled ? 'on' : 'off'}">${crtEnabled ? 'ON' : 'OFF'}</button>
+          </label>
+          <label class="system-toggle-row">
+            <span class="system-info-label">Vignette</span>
+            <button id="vignette-toggle-btn" class="system-toggle-btn ${vignetteEnabled ? 'on' : 'off'}">${vignetteEnabled ? 'ON' : 'OFF'}</button>
+          </label>
+          <div class="system-hint">Visual overlays for the hacker workstation aesthetic.</div>
         </div>
         <div class="system-section">
           <div class="system-section-title">System Info</div>
@@ -471,6 +487,28 @@ const Settings = {
           const on = MatrixRain.toggle();
           matrixBtn.textContent = on ? 'ON' : 'OFF';
           matrixBtn.className = `system-toggle-btn ${on ? 'on' : 'off'}`;
+        }
+      });
+    }
+
+    const crtBtn = view.querySelector('#crt-toggle-btn');
+    if (crtBtn) {
+      crtBtn.addEventListener('click', () => {
+        if (typeof VisualFX !== 'undefined') {
+          const on = VisualFX.toggleCRT();
+          crtBtn.textContent = on ? 'ON' : 'OFF';
+          crtBtn.className = `system-toggle-btn ${on ? 'on' : 'off'}`;
+        }
+      });
+    }
+
+    const vignetteBtn = view.querySelector('#vignette-toggle-btn');
+    if (vignetteBtn) {
+      vignetteBtn.addEventListener('click', () => {
+        if (typeof VisualFX !== 'undefined') {
+          const on = VisualFX.toggleVignette();
+          vignetteBtn.textContent = on ? 'ON' : 'OFF';
+          vignetteBtn.className = `system-toggle-btn ${on ? 'on' : 'off'}`;
         }
       });
     }

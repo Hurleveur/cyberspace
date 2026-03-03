@@ -41,6 +41,9 @@ const MapView = {
     const savedLinks = localStorage.getItem(this.LINKS_KEY);
     this.linksEnabled = savedLinks !== 'off';
 
+    // Re-spread co-located markers when zoom changes
+    this.map.on('zoomend', () => this._respreadOnZoom());
+
     // Load geocoding cache from localStorage
     this.loadGeoCache();
 
@@ -184,24 +187,30 @@ const MapView = {
     this.markerLayer.clearLayers();
     this.linkLayer.clearLayers();
     this.markers = [];
+    this._markerIndex = 0; // For drop-in animation stagger
 
+    // Separate items into ready (have coords) and needs-geocoding
+    const ready = [];
     const needsGeocoding = [];
 
     for (const item of data) {
       if (item.lat != null && item.lng != null) {
-        // Already has coordinates — place immediately
-        this.addMarker(item);
+        ready.push(item);
       } else if (item.location_label && !/^global$/i.test(item.location_label.trim())) {
-        // Check the local cache first before queueing a network request
         const cached = this.geoCache[item.location_label];
         if (cached) {
-          this.addMarker({ ...item, lat: cached.lat, lng: cached.lng });
+          ready.push({ ...item, lat: cached.lat, lng: cached.lng });
         } else if (cached === undefined) {
-          // Not yet tried — queue for Nominatim
           needsGeocoding.push(item);
         }
-        // cached === null means previously tried and failed — skip
       }
+    }
+
+    // Spread co-located NEWS markers apart (events stay pinned)
+    this._spreadColocated(ready);
+
+    for (const item of ready) {
+      this.addMarker(item);
     }
 
     // Geocode queued items sequentially (Nominatim max 1 req/sec)
@@ -213,6 +222,75 @@ const MapView = {
   },
 
   /**
+   * Compute spread radius in degrees based on the current map zoom
+   * and the number of items in the group.
+   * At zoom 4 with 2 items: 1.5°; grows with √(count) for larger groups.
+   */
+  _spreadRadius(count = 2) {
+    const BASE_ZOOM = 4;
+    const BASE_RADIUS = 1.5;
+    const zoom = this.map ? this.map.getZoom() : BASE_ZOOM;
+    // Scale up for larger groups so items don't crowd the circle
+    const groupScale = Math.sqrt(count / 2);
+    return BASE_RADIUS * groupScale * Math.pow(2, BASE_ZOOM - zoom);
+  },
+
+  /**
+   * Offset news markers that share the same lat/lng so they fan out
+   * in a small circle instead of stacking. Events are never moved.
+   * Stores original positions (_origLat, _origLng) for re-spreading on zoom.
+   * Mutates the items in-place.
+   */
+  _spreadColocated(items) {
+    // Group items by rounded coordinate key (5-decimal precision ≈ 1 m)
+    const groups = {};
+    for (const item of items) {
+      const key = `${item.lat.toFixed(5)},${item.lng.toFixed(5)}`;
+      (groups[key] ||= []).push(item);
+    }
+
+    for (const key in groups) {
+      const group = groups[key];
+      // Only spread news items; collect the news subset
+      const news = group.filter(m => m.type !== 'event');
+      if (news.length < 2) continue;
+
+      const cx = news[0].lat;
+      const cy = news[0].lng;
+      const n = news.length;
+      const RADIUS = this._spreadRadius(n);
+
+      for (let i = 0; i < n; i++) {
+        const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+        news[i]._origLat = cx;
+        news[i]._origLng = cy;
+        news[i]._origKey = key;
+        news[i]._spreadIdx = i;
+        news[i]._spreadTotal = n;
+        news[i].lat = cx + RADIUS * Math.sin(angle);
+        news[i].lng = cy + RADIUS * Math.cos(angle);
+      }
+    }
+  },
+
+  /**
+   * Re-position all spread markers when the zoom level changes.
+   * Uses stored _origLat/_origLng and recalculates offsets with updated radius.
+   */
+  _respreadOnZoom() {
+    for (const { marker, data } of this.markers) {
+      if (data._origLat == null || data.type === 'event') continue;
+      const RADIUS = this._spreadRadius(data._spreadTotal);
+      const angle = (2 * Math.PI * data._spreadIdx) / data._spreadTotal - Math.PI / 2;
+      const newLat = data._origLat + RADIUS * Math.sin(angle);
+      const newLng = data._origLng + RADIUS * Math.cos(angle);
+      data.lat = newLat;
+      data.lng = newLng;
+      marker.setLatLng([newLat, newLng]);
+    }
+  },
+
+  /**
    * Geocode items one at a time, respecting Nominatim's 1 req/sec limit.
    * Each resolved item is added to the map as soon as its coords arrive.
    */
@@ -220,12 +298,44 @@ const MapView = {
     for (const item of items) {
       const coords = await this.geocodeLabel(item.location_label);
       if (coords) {
-        this.addMarker({ ...item, lat: coords.lat, lng: coords.lng });
+        const resolved = { ...item, lat: coords.lat, lng: coords.lng };
+        // Offset if co-located with existing news markers
+        if (resolved.type !== 'event') this._offsetIfColocated(resolved);
+        this.addMarker(resolved);
         this.renderConnections();
       }
       // Wait ≥1 second between requests as required by Nominatim ToS
       await new Promise(r => setTimeout(r, 1100));
     }
+  },
+
+  /**
+   * Nudge a single news marker if it overlaps with already-placed markers.
+   * Picks the next open slot on a circle around the collision point.
+   */
+  _offsetIfColocated(item) {
+    const precision = 5;
+    const key = `${item.lat.toFixed(precision)},${item.lng.toFixed(precision)}`;
+    // Count how many existing news markers share (roughly) this position
+    let siblings = 0;
+    for (const m of this.markers) {
+      if (m.data.type === 'event') continue;
+      const mk = `${m.data.lat.toFixed(precision)},${m.data.lng.toFixed(precision)}`;
+      // Also check against the original position stored before offset
+      const ok = m.data._origKey || mk;
+      if (ok === key || mk === key) siblings++;
+    }
+    if (siblings === 0) return; // no collision
+    const total = siblings + 1;
+    item._origLat = item.lat;
+    item._origLng = item.lng;
+    item._origKey = key;
+    item._spreadIdx = siblings;
+    item._spreadTotal = total;
+    const RADIUS = this._spreadRadius(total);
+    const angle = (2 * Math.PI * siblings) / total - Math.PI / 2;
+    item.lat += RADIUS * Math.sin(angle);
+    item.lng += RADIUS * Math.cos(angle);
   },
 
   // ── Marker creation ──────────────────────────────────────────────────────────
@@ -236,8 +346,12 @@ const MapView = {
     const isRead = ReadTracker.isRead(item.id);
     const isCritical = item.priority === 'critical';
 
-    let className = '';
-    if (!isRead) className = isCritical ? 'marker-unread marker-critical' : 'marker-unread';
+    // Build className with drop-in animation
+    const idx = (this._markerIndex || 0) % 10;
+    this._markerIndex = (this._markerIndex || 0) + 1;
+    let className = 'marker-dropin';
+    if (idx > 0 && idx <= 9) className += ` marker-delay-${idx}`;
+    if (!isRead) className += isCritical ? ' marker-unread marker-critical' : ' marker-unread';
 
     const marker = L.circleMarker([item.lat, item.lng], {
       radius,
@@ -251,19 +365,17 @@ const MapView = {
 
     marker.data = item;
 
-    marker.bindPopup(() => this.createPopup(item), {
-      maxWidth: 320,
-      minWidth: 240,
-      className: 'dark-popup',
-    });
-
-    marker.on('popupopen', () => {
+    marker.on('click', () => {
       ReadTracker.markRead(item.id);
       marker.setStyle({ opacity: 0.3, fillOpacity: 0.15, weight: 1 });
       App.updateUnreadCount();
+      App.showInPanel(item.id, item.type || 'news');
     });
 
-    marker.on('mouseover', (e) => this.showProfiler(item, e.latlng));
+    marker.on('mouseover', (e) => {
+      if (typeof VisualFX !== 'undefined') VisualFX.resetProfilerProgress();
+      this.showProfiler(item, e.latlng);
+    });
     marker.on('mousemove', (e) => this.moveProfiler(e.latlng));
     marker.on('mouseout', () => this.hideProfiler());
 
@@ -273,16 +385,50 @@ const MapView = {
 
   // ── Profiler hover card ───────────────────────────────────────────────────
 
+  /** Mark a marker as read by its data ID and dim it on the map. */
+  markMarkerRead(id) {
+    const entry = this.markers.find(m => m.data.id === id);
+    if (!entry) return;
+    ReadTracker.markRead(id);
+    entry.marker.setStyle({ opacity: 0.3, fillOpacity: 0.15, weight: 1 });
+    // Remove pulsing CSS classes
+    const el = entry.marker.getElement?.();
+    if (el) {
+      el.classList.remove('marker-unread', 'marker-critical');
+    }
+    App.updateUnreadCount();
+  },
+
   showProfiler(item, latlng) {
     const card = document.getElementById('profiler-card');
     if (!card || !this.map) return;
 
-    const meta = [item.type || 'news', item.priority || 'medium', item.location_label || 'Global']
-      .map(v => String(v).toUpperCase())
-      .join(' · ');
+    // Build rich meta line
+    const parts = [item.type || 'news', item.priority || 'medium', item.location_label || 'Global'];
 
+    if (item.type === 'event') {
+      const ev = this.getEventDetails(item.id);
+      if (ev) {
+        if (ev.when) parts.push(ev.when.slice(0, 30));
+        if (ev.cost) parts.push(ev.cost);
+        if (ev.score) parts.push(`${ev.score}/10`);
+      } else {
+        if (item.date) parts.push(item.date);
+      }
+    } else {
+      if (item.category) parts.push(item.category.replace(/-/g, ' '));
+    }
+
+    const meta = parts.map(v => String(v).toUpperCase()).join(' · ');
     document.getElementById('profiler-meta').textContent = meta;
-    document.getElementById('profiler-summary').textContent = item.summary || '';
+
+    // Summary — for events show "why this matters" if available
+    let summary = item.summary || '';
+    if (item.type === 'event') {
+      const ev = this.getEventDetails(item.id);
+      if (ev && ev.why) summary = ev.why;
+    }
+    document.getElementById('profiler-summary').textContent = summary;
 
     const titleEl = document.getElementById('profiler-title');
     const title = item.title || 'Untitled';

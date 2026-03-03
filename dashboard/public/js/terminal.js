@@ -4,7 +4,7 @@
  *
  * Commands: events, feeds, briefing, map, config, status, threat,
  *           unread, search, feedback, mark-read, refresh, clear,
- *           help, shortcuts, theme
+ *           help, shortcuts, theme, crt, vignette, effects
  */
 const Terminal = {
   _history: [],
@@ -144,7 +144,7 @@ const Terminal = {
 
   _CMDS: ['events', 'feeds', 'briefing', 'map', 'config', 'status', 'threat',
           'unread', 'search', 'feedback', 'mark-read', 'refresh', 'clear',
-          'help', 'shortcuts', 'theme'],
+          'help', 'shortcuts', 'theme', 'crt', 'vignette', 'effects'],
 
   _tabComplete() {
     const val = this._input.value;
@@ -209,6 +209,9 @@ const Terminal = {
       case 'help':     return this._cmdHelp(args[0]);
       case 'shortcuts':return this._cmdShortcuts();
       case 'theme':    return this._cmdTheme(args[0]);
+      case 'crt':      return this._cmdCRT();
+      case 'vignette': return this._cmdVignette();
+      case 'effects':  return this._cmdEffects();
       default:
         this._print(`Unknown command: <span class="t-accent">${this._escape(cmd)}</span>. Type <span class="t-accent">help</span> for a list.`, 'error');
     }
@@ -526,6 +529,27 @@ const Terminal = {
     this._print(`Theme switched to <span class="t-accent">${key}</span> ✓`, 'success');
   },
 
+  _cmdCRT() {
+    const on = VisualFX.toggleCRT();
+    this._print(`CRT scanlines: <span class="t-accent">${on ? 'ON' : 'OFF'}</span>`, on ? 'success' : 'info');
+  },
+
+  _cmdVignette() {
+    const on = VisualFX.toggleVignette();
+    this._print(`Vignette overlay: <span class="t-accent">${on ? 'ON' : 'OFF'}</span>`, on ? 'success' : 'info');
+  },
+
+  _cmdEffects() {
+    const matrix = document.body.classList.contains('matrix-active') || document.getElementById('matrix-canvas')?.style.display !== 'none';
+    this._print('─── Visual Effects ─────────────────────────', 'info');
+    this._print(`  CRT scanlines : <span class="t-accent">${VisualFX.crtEnabled ? 'ON' : 'OFF'}</span>`, 'output');
+    this._print(`  Vignette      : <span class="t-accent">${VisualFX.vignetteEnabled ? 'ON' : 'OFF'}</span>`, 'output');
+    this._print(`  Matrix rain   : <span class="t-accent">${localStorage.getItem('cyberspace-matrix') !== 'off' ? 'ON' : 'OFF'}</span>`, 'output');
+    this._print(`  Theme         : <span class="t-accent">${localStorage.getItem('cyberspace-theme') || 'green'}</span>`, 'output');
+    this._print('────────────────────────────────────────────', 'info');
+    this._print('Toggle with: <span class="t-accent">crt</span>, <span class="t-accent">vignette</span>, <span class="t-accent">theme &lt;color&gt;</span>', 'info');
+  },
+
   _cmdHelp(sub) {
     const HELP = {
       events:    'events [--priority|--date|--cost]   Open events panel with optional sort',
@@ -543,6 +567,9 @@ const Terminal = {
       clear:     'clear                                Clear terminal output',
       shortcuts: 'shortcuts                            Open keyboard shortcuts overlay',
       theme:     'theme <green|amber|cyan>             Switch accent color',
+      crt:       'crt                                  Toggle CRT scanline overlay',
+      vignette:  'vignette                             Toggle vignette overlay',
+      effects:   'effects                              Show all visual effect states',
       help:      'help [command]                       Show this help',
     };
 
@@ -558,6 +585,8 @@ const Terminal = {
       ['status', 'threat', 'unread', 'search'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('<span class="t-dim">ACTIONS</span>', 'info');
       ['feedback', 'mark-read', 'refresh', 'theme', 'shortcuts', 'clear', 'help'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
+      this._print('<span class="t-dim">VISUAL</span>', 'info');
+      ['crt', 'vignette', 'effects'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('────────────────────────────────────────────', 'info');
       this._print('Tab to complete · ↑↓ history · T to toggle', 'info');
     }
