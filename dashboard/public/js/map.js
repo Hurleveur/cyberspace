@@ -116,6 +116,62 @@ const MapView = {
     }
   },
 
+  /**
+   * Load news markers for the active date AND event markers from all
+   * events.md report dates. Merges and deduplicates by id so all event pins
+   * accumulate on the map regardless of which briefing day is shown.
+   *
+   * @param {string}          newsDate    - the currently viewed briefing date
+   * @param {string|string[]} eventsDates - one date or array of all event-radar dates
+   */
+  async loadMarkersForDateWithEvents(newsDate, eventsDates) {
+    let newsMarkers = [];
+
+    // Load news-date markers
+    if (newsDate) {
+      try {
+        const res = await fetch(`/api/file?path=reports/${newsDate}/markers.json`);
+        if (res.ok) {
+          newsMarkers = JSON.parse(await res.text());
+        }
+      } catch (err) {
+        console.warn('[map] Could not load markers.json for', newsDate, err.message);
+      }
+    }
+
+    // Normalise to array (backward compat with single-string callers)
+    const datesArr = Array.isArray(eventsDates)
+      ? eventsDates
+      : (eventsDates ? [eventsDates] : []);
+
+    // Collect event markers from every events-radar date, deduplicating by id
+    const seen = new Set(newsMarkers.map(m => m.id));
+    const merged = [...newsMarkers];
+
+    for (const evDate of datesArr) {
+      if (!evDate || evDate === newsDate) continue; // news markers already loaded above
+      try {
+        const res = await fetch(`/api/file?path=reports/${evDate}/markers.json`);
+        if (res.ok) {
+          const all = JSON.parse(await res.text());
+          for (const em of all.filter(m => m.type === 'event')) {
+            if (!seen.has(em.id)) {
+              merged.push(em);
+              seen.add(em.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[map] Could not load event markers for', evDate, err.message);
+      }
+    }
+
+    // Also pull event-type markers from the news date's own markers.json
+    // (they were already included in newsMarkers above, nothing extra needed)
+
+    this.plotMarkers(merged);
+  },
+
   plotMarkers(data) {
     this.markerLayer.clearLayers();
     this.markers = [];
@@ -205,15 +261,82 @@ const MapView = {
     }
   },
 
+  /**
+   * Look up parsed event details from Events module for rich popups.
+   * Tries exact ID match first, then partial prefix match since markers.json
+   * IDs and Events-generated IDs may differ in truncation.
+   */
+  getEventDetails(id) {
+    if (typeof Events === 'undefined' || !Events.events) return null;
+    // Exact match
+    const exact = Events.events.find(e => e.id === id);
+    if (exact) return exact;
+    // Prefix match (markers.json IDs are often shorter)
+    return Events.events.find(e => e.id.startsWith(id) || id.startsWith(e.id)) || null;
+  },
+
   createPopup(item) {
     const priorityClass = item.priority || 'medium';
     const isEvent = item.type === 'event';
 
+    // ── Rich event popup ────────────────────────────────────────────────
+    if (isEvent) {
+      const ev = this.getEventDetails(item.id);
+      const when = ev ? this.escapeHtml(ev.when) : '';
+      const where = ev ? this.escapeHtml(ev.where) : this.escapeHtml(item.location_label || '');
+      const starsCount = ev ? ev.stars : 0;
+      const starsStr = starsCount > 0
+        ? '★'.repeat(Math.min(starsCount, 5)) + '☆'.repeat(Math.max(0, 5 - starsCount))
+        : '';
+      const scoreText = ev && ev.score ? `${ev.score}/10` : '';
+
+      // Cost badge
+      let costHtml = '';
+      if (ev && ev.cost) {
+        if (/free/i.test(ev.cost)) {
+          costHtml = '<span class="cost-badge cost-free">FREE</span>';
+        } else {
+          const priceMatch = ev.cost.match(/[€$£]\s*\d[\d.,]*/i) || ev.cost.match(/\d[\d.,]*\s*(?:EUR|USD|GBP)/i);
+          costHtml = priceMatch
+            ? `<span class="cost-badge cost-paid">${this.escapeHtml(priceMatch[0].trim())}</span>`
+            : `<span class="cost-badge cost-paid">${this.escapeHtml(ev.cost.slice(0, 20))}</span>`;
+        }
+      }
+
+      let dateLine = '';
+      if (when) {
+        dateLine = `<div class="marker-popup-date">📅 ${when}</div>`;
+      } else if (item.date) {
+        const d = new Date(item.date + 'T00:00:00');
+        const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        dateLine = `<div class="marker-popup-date">📅 ${formatted}</div>`;
+      }
+
+      return `
+        <div class="marker-popup-event">
+          <div class="marker-popup-meta">
+            <span class="marker-popup-priority event">EVENT</span>
+            ${costHtml}
+          </div>
+          <div class="marker-popup-title">${this.escapeHtml(item.title)}</div>
+          ${dateLine}
+          ${where ? `<div class="marker-popup-venue">📍 ${where}</div>` : ''}
+          ${starsStr ? `<div class="marker-popup-stars"><span class="event-stars-display">${starsStr}</span>${scoreText ? ` <span class="marker-popup-score">${scoreText}</span>` : ''}</div>` : ''}
+          ${item.summary ? `<div class="marker-popup-summary">${this.escapeHtml(item.summary)}</div>` : ''}
+          <div class="marker-popup-actions">
+            ${item.source_url ? `<a href="${this.escapeHtml(item.source_url)}" target="_blank">Event page ↗</a>` : ''}
+            <button class="marker-btn-show" onclick="App.showInPanel('${item.id}','event')">View details ↓</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ── Standard news popup ─────────────────────────────────────────────
     let dateLine = '';
     if (item.date) {
       const d = new Date(item.date + 'T00:00:00');
       const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-      dateLine = `<div class="marker-popup-date">${isEvent ? '📅 ' : ''}${formatted}</div>`;
+      dateLine = `<div class="marker-popup-date">${formatted}</div>`;
     }
 
     return `
@@ -241,8 +364,15 @@ const MapView = {
 
   /**
    * Refresh markers when a new report drops.
+   * Uses the merged approach so event markers are always shown.
    */
   async refresh() {
-    await this.loadLatestMarkers();
+    const newsDate = (typeof App !== 'undefined' && App.activeDate) || null;
+    const eventsDate = (typeof App !== 'undefined' && App.eventsSourceDate) || null;
+    if (newsDate) {
+      await this.loadMarkersForDateWithEvents(newsDate, eventsDate);
+    } else {
+      await this.loadLatestMarkers();
+    }
   },
 };

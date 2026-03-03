@@ -717,6 +717,30 @@
 .deadline-week { background: var(--border-bright); color: var(--text); }
 .deadline-past { background: var(--text-dim); color: var(--bg-primary); opacity: 0.6; }
 
+/* ── Cost badges (events) ─────────────────────────────────────────────── */
+.cost-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+.cost-free {
+  background: rgba(0, 255, 65, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(0, 255, 65, 0.35);
+}
+.cost-paid {
+  background: rgba(255, 140, 0, 0.12);
+  color: var(--threat-high);
+  border: 1px solid rgba(255, 140, 0, 0.35);
+}
+
 .events-list {
   flex: 1;
   overflow-y: auto;
@@ -1043,6 +1067,33 @@
 .marker-btn-show:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ── Rich event popup enhancements ────────────────────────────────────── */
+.marker-popup-event .marker-popup-title {
+  margin-bottom: 4px;
+}
+.marker-popup-venue {
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.marker-popup-stars {
+  font-size: 11px;
+  color: var(--event-color);
+  margin-bottom: 4px;
+}
+.event-stars-display {
+  letter-spacing: 1px;
+}
+.marker-popup-score {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+.marker-popup-priority.event {
+  background: var(--event-color);
+  color: var(--bg-primary);
 }
 
 /* Highlight flash animation for cross-linking */

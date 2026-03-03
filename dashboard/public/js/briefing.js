@@ -483,8 +483,11 @@ const Briefing = {
     const newIndex = this.currentIndex + direction;
     if (newIndex < 0 || newIndex >= this.dates.length) return;
     this.currentIndex = newIndex;
-    this.loadBriefing(this.dates[this.currentIndex]);
+    const date = this.dates[this.currentIndex];
+    this.loadBriefing(date);
     this.updateNav();
+    // Sync the entire dashboard to this date
+    App.setActiveDate(date);
   },
 
   updateNav() {
@@ -498,5 +501,10 @@ const Briefing = {
       this.currentIndex = 0;
       await this.loadBriefing(this.dates[0]);
     }
+  },
+
+  /** Return the currently viewed date. */
+  getCurrentDate() {
+    return this.dates[this.currentIndex] || null;
   },
 };

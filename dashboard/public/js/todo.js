@@ -17,7 +17,7 @@ const TodoList = {
 
   async init() {
     this.bindEvents();
-    await this.loadBriefingContent();
+    await this.loadBriefingContentForDate(App.activeDate || (Briefing.dates && Briefing.dates[0]));
     this.renderMyTasks();
     this.renderMyLinks();
   },
@@ -42,13 +42,17 @@ const TodoList = {
 
   // ─── Briefing content (actions + further reading) ────────────────────────
 
-  async loadBriefingContent() {
-    const date = Briefing.dates && Briefing.dates[0];
+  /**
+   * Load briefing actions + further reading for a specific date.
+   * Called by App.setActiveDate() whenever the user navigates briefing days.
+   */
+  async loadBriefingContentForDate(date) {
     const dateEl = document.getElementById('todo-briefing-date');
 
     if (!date) {
       this.briefingActions = [];
       this.furtherReadingItems = [];
+      this.briefingDate = null;
       this.renderBriefingActions();
       this.renderFurtherReading();
       return;
@@ -70,6 +74,12 @@ const TodoList = {
 
     this.renderBriefingActions();
     this.renderFurtherReading();
+  },
+
+  /** Legacy wrapper — still used internally. */
+  async loadBriefingContent() {
+    const date = App.activeDate || (Briefing.dates && Briefing.dates[0]);
+    await this.loadBriefingContentForDate(date);
   },
 
   /**
@@ -387,9 +397,9 @@ const TodoList = {
 
   // Called when switching to the Tasks tab — refresh if briefing date changed
   refresh() {
-    const latestDate = Briefing.dates && Briefing.dates[0];
-    if (latestDate && latestDate !== this.briefingDate) {
-      this.loadBriefingContent();
+    const activeDate = App.activeDate || (Briefing.dates && Briefing.dates[0]);
+    if (activeDate && activeDate !== this.briefingDate) {
+      this.loadBriefingContentForDate(activeDate);
     } else {
       this.renderBriefingActions();
       this.renderFurtherReading();

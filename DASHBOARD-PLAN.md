@@ -97,7 +97,7 @@ cyberspace/
 │       ├── rssFetcher.js      <- Parse rss.md, fetch all feeds, return sorted items
 │       └── calendarClient.js  <- Google Calendar API client (Phase 2)
 ├── rss.md                     <- NEW: RSS feed sources configuration
-├── claude.md                  <- Master playbook (system instructions)
+├── readme.md                  <- Master playbook (system instructions)
 ├── interests.md
 ├── events.md
 ├── news.md
@@ -784,7 +784,7 @@ usable and complete at that level. No phase depends on "finishing it later."
 - [ ] `assets/geocode.json` — bundled city/country → lat/lng lookup table
 
 #### Update to Claude pipeline
-- [ ] Update `CLAUDE.md` to instruct the intelligence system to generate
+- [ ] Update `README.md` to instruct the intelligence system to generate
       `markers.json` alongside each report (Step 4 in Execution Order)
 
 **Phase 1 deliverable:** A fully functional dark dashboard. Map with markers,

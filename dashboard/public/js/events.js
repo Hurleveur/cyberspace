@@ -6,6 +6,8 @@ const Events = {
   events: [],
   filteredEvents: [],
   expandedId: null,
+  sourceDate: null,   // most recent date that had an events.md
+  eventDates: [],     // all dates that had an events.md (for map marker merging)
 
   async init() {
     this.bindFilterEvents();
@@ -18,26 +20,66 @@ const Events = {
     document.getElementById('events-filter-score').addEventListener('change', () => this.applyFilters());
   },
 
+  /**
+   * Load and merge events from ALL reports that have an events.md so that
+   * events accumulate across weeks until the user explicitly accepts or skips
+   * them. Newest events.md wins on a per-ID conflict.
+   */
   async load() {
     const container = document.getElementById('events-list');
     try {
-      const res = await fetch('/api/reports/latest');
+      const res = await fetch('/api/reports');
       if (!res.ok) {
         container.innerHTML = '<div class="empty-state">No event reports available yet.</div>';
         return;
       }
-      const { date } = await res.json();
-
-      const evRes = await fetch(`/api/file?path=reports/${date}/events.md`);
-      if (!evRes.ok) {
-        container.innerHTML = '<div class="empty-state">No event radar for the latest report.</div>';
+      const { dates } = await res.json();
+      if (!dates || dates.length === 0) {
+        container.innerHTML = '<div class="empty-state">No event reports available yet.</div>';
         return;
       }
-      const markdown = await evRes.text();
-      this.events = this.parseEvents(markdown);
+
+      // Fetch every events.md that exists across all report dates
+      const allEventsByDate = [];
+      for (const date of dates) {
+        const evRes = await fetch(`/api/file?path=reports/${date}/events.md`);
+        if (evRes.ok) {
+          const markdown = await evRes.text();
+          allEventsByDate.push({ date, events: this.parseEvents(markdown) });
+        }
+      }
+
+      if (allEventsByDate.length === 0) {
+        container.innerHTML = '<div class="empty-state">No event radar found in any report.</div>';
+        return;
+      }
+
+      // Merge: newest-first (dates array is already sorted newest-first).
+      // First occurrence of each ID wins — so the most recent version of an
+      // event takes precedence if it appears in multiple radars.
+      const seen = new Set();
+      const merged = [];
+      for (const { events } of allEventsByDate) {
+        for (const ev of events) {
+          if (!seen.has(ev.id)) {
+            seen.add(ev.id);
+            merged.push(ev);
+          }
+        }
+      }
+
+      this.events = merged;
+      this.sourceDate = allEventsByDate[0].date; // most recent events.md date
+      this.eventDates = allEventsByDate.map(e => e.date);
+
+      // Share with App so the map knows which dates to pull event markers from
+      if (typeof App !== 'undefined') {
+        App.eventsSourceDate = this.sourceDate;
+        App.eventsSourceDates = this.eventDates;
+      }
 
       if (this.events.length === 0) {
-        container.innerHTML = '<div class="empty-state">No events found in the latest radar.</div>';
+        container.innerHTML = '<div class="empty-state">No events found in any radar.</div>';
         return;
       }
 
@@ -120,6 +162,24 @@ const Events = {
     return '';
   },
 
+  /**
+   * Return an HTML badge for the cost field.
+   * GREEN pill for free events, AMBER pill for paid.
+   */
+  getCostBadge(cost) {
+    if (!cost) return '';
+    if (/free/i.test(cost)) {
+      return '<span class="cost-badge cost-free">FREE</span>';
+    }
+    // Try to extract a price like €50, EUR 200, $100
+    const priceMatch = cost.match(/[€$£]\s*\d[\d.,]*/i) || cost.match(/\d[\d.,]*\s*(?:EUR|USD|GBP)/i);
+    if (priceMatch) {
+      return `<span class="cost-badge cost-paid">${this.escapeHtml(priceMatch[0].trim())}</span>`;
+    }
+    // Fallback for any non-free cost text
+    return `<span class="cost-badge cost-paid">${this.escapeHtml(cost.slice(0, 20))}</span>`;
+  },
+
   applyFilters() {
     const urgency = document.getElementById('events-filter-urgency').value;
     const cost = document.getElementById('events-filter-cost').value;
@@ -173,11 +233,12 @@ const Events = {
       if (isSkipped) stateClass = 'event-skipped';
 
       const deadlineBadge = this.getDeadlineBadge(event);
+      const costBadge = this.getCostBadge(event.cost);
 
       html += `
         <div class="event-item ${stateClass}" data-id="${event.id}">
           <div class="event-item-body">
-            <div class="event-item-name">${this.escapeHtml(event.name)}${deadlineBadge}</div>
+            <div class="event-item-name">${costBadge}${this.escapeHtml(event.name)}${deadlineBadge}</div>
             <div class="event-item-meta">${this.escapeHtml(event.when || 'Date TBD')} · ${this.escapeHtml(event.where || 'Location TBD')}</div>
           </div>
           <div class="event-stars">${starsStr}</div>
@@ -207,7 +268,7 @@ const Events = {
     let html = '';
     if (event.when) html += `<div class="event-detail-field"><span class="event-detail-label">When: </span><span class="event-detail-value">${this.escapeHtml(event.when)}</span></div>`;
     if (event.where) html += `<div class="event-detail-field"><span class="event-detail-label">Where: </span><span class="event-detail-value">${this.escapeHtml(event.where)}</span></div>`;
-    if (event.cost) html += `<div class="event-detail-field"><span class="event-detail-label">Cost: </span><span class="event-detail-value">${this.escapeHtml(event.cost)}</span></div>`;
+    if (event.cost) html += `<div class="event-detail-field"><span class="event-detail-label">Cost: </span><span class="event-detail-value">${this.getCostBadge(event.cost)}</span></div>`;
     if (event.relevance) html += `<div class="event-detail-field"><span class="event-detail-label">Relevance: </span><span class="event-detail-value">${this.escapeHtml(event.relevance)}</span></div>`;
     if (event.calendar) html += `<div class="event-detail-field"><span class="event-detail-label">Calendar: </span><span class="event-detail-value">${this.escapeHtml(event.calendar)}</span></div>`;
     if (event.deadline) html += `<div class="event-detail-field"><span class="event-detail-label">Deadline: </span><span class="event-detail-value">${this.escapeHtml(event.deadline)}</span></div>`;
@@ -247,7 +308,9 @@ const Events = {
   },
 
   scrollToEvent(markerId) {
-    const event = this.events.find(e => e.id === markerId);
+    // Fuzzy match: try exact, then prefix match
+    let event = this.events.find(e => e.id === markerId);
+    if (!event) event = this.events.find(e => e.id.startsWith(markerId) || markerId.startsWith(e.id));
     if (!event) return;
     this.expandedId = event.id;
     this.render();

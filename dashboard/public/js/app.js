@@ -77,6 +77,13 @@ const App = {
   // Which tab is active in the right panel ('events' or 'todo')
   currentRightTab: 'events',
 
+  // The currently displayed report date (syncs map, tasks, unread counts)
+  activeDate: null,
+  // The date that has the latest events.md (may differ from activeDate)
+  eventsSourceDate: null,
+  // All dates that have an events.md file (populated by Events.load())
+  eventsSourceDates: null,
+
   shortcuts: [
     { key: 'F', action: 'Open Feeds panel' },
     { key: 'B', action: 'Open Briefing panel' },
@@ -109,7 +116,16 @@ const App = {
       Events.init(),
     ]);
 
-    // Init todo after briefing (needs Briefing.dates[0])
+    // Set active date to the latest briefing
+    this.activeDate = Briefing.dates[0] || null;
+
+    // Now that Events has discovered the eventsSourceDate, reload map with
+    // merged news + event markers so event pins are always visible.
+    if (this.activeDate) {
+      await MapView.loadMarkersForDateWithEvents(this.activeDate, this.eventsSourceDates);
+    }
+
+    // Init todo after briefing (needs activeDate)
     await TodoList.init();
 
     // Share markers with briefing for cross-linking
@@ -193,6 +209,29 @@ const App = {
         });
       }
     });
+  },
+
+  /**
+   * Set the active viewing date — syncs map markers, tasks panel,
+   * and unread counts to the specified report date.
+   */
+  async setActiveDate(date) {
+    if (!date || date === this.activeDate) return;
+    this.activeDate = date;
+
+    // Load news markers for this date + event markers from all events.md files
+    await MapView.loadMarkersForDateWithEvents(date, this.eventsSourceDates);
+
+    // Sync briefing cross-link data
+    if (MapView.markers) {
+      Briefing.setMarkers(MapView.markers.map(m => m.data));
+    }
+
+    // Refresh tasks panel to show this date's actions + further reading
+    await TodoList.loadBriefingContentForDate(date);
+
+    // Update badges for this date
+    this.updateUnreadCount();
   },
 
   showPanel(side) {
@@ -411,7 +450,17 @@ const App = {
   },
 
   toggleShortcutsOverlay() {
-    document.getElementById('shortcuts-overlay').classList.toggle('hidden');
+    const overlay = document.getElementById('shortcuts-overlay');
+    overlay.classList.toggle('hidden');
+    // Bind click-outside-to-close once, on first open
+    if (!overlay._clickOutsideBound) {
+      overlay._clickOutsideBound = true;
+      overlay.addEventListener('click', (e) => {
+        if (!e.target.closest('.shortcuts-content')) {
+          overlay.classList.add('hidden');
+        }
+      });
+    }
   },
 
   // --- Map-to-panel linking ---
@@ -486,18 +535,31 @@ const App = {
     WS.on('file_changed', (data) => {
       console.log('[ws] File changed:', data.file);
       if (data.file.includes('briefing.md')) {
-        Briefing.refresh();
-        MapView.refresh();
+        Briefing.loadDates().then(() => {
+          const latestDate = Briefing.dates[0];
+          // If user is viewing the latest date, auto-advance
+          if (!this.activeDate || this.activeDate === latestDate || Briefing.currentIndex === 0) {
+            Briefing.refresh();
+            this.activeDate = latestDate;
+            MapView.loadMarkersForDateWithEvents(latestDate, this.eventsSourceDates);
+            if (typeof TodoList !== 'undefined') TodoList.loadBriefingContentForDate(latestDate);
+            this.updateUnreadCount();
+          } else {
+            // User is viewing older date — don't disrupt, just notify
+            this.toast('New briefing available — navigate to latest to view', 'briefing');
+          }
+        });
         this.toast('Briefing updated', 'briefing');
-        // Refresh todo briefing actions too
-        if (typeof TodoList !== 'undefined') TodoList.loadBriefingActions();
       }
       if (data.file.includes('events.md')) {
         Events.refresh();
         this.toast('Event radar updated', 'events');
       }
       if (data.file.includes('markers.json')) {
-        MapView.refresh();
+        // Only auto-refresh map if viewing the latest date
+        if (!this.activeDate || this.activeDate === Briefing.dates[0]) {
+          MapView.loadMarkersForDateWithEvents(this.activeDate, this.eventsSourceDates);
+        }
       }
     });
 
