@@ -6,9 +6,6 @@ interests.md
 feedback.md
 seen-events.md
 
-# Reports (contain personal briefings and location data)
-reports/
-
 # Environment / secrets
 dashboard/.env
 dashboard/data/
