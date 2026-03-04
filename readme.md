@@ -45,6 +45,7 @@ Every run, follow these steps in order:
 3. Read `news.md` — understand news intelligence rules and sources
 4. Read `feedback.md` — check for feedback
 5. Read `seen-events.md` — know which events have already been shown
+6. Read `previous-news.md` — load the archive of already-reported stories
 
 ### Step 1: Process Feedback (if any)
 
@@ -71,20 +72,31 @@ If feedback.md is empty or only contains its template headers, skip this step en
 
 ### Step 2: News Intelligence
 
-**Time window: the previous day (yesterday).** This briefing covers what happened
-yesterday — not today. Search for stories published on the day before the current date.
+**Time window: open, recency-weighted.** There is no cutoff date. Include anything
+worth knowing — recent stories rank higher, but a significant story from last week
+beats a mediocre story from yesterday. Cross-check `previous-news.md` to avoid
+repeating things already covered. Relevance and quality are the only real filters.
 
-1. Use **WebSearch** to search for cybersecurity and AI news from the **previous day**.
-2. Run at least 8 diverse searches covering all categories defined in `news.md`.
-   Use generic queries — do NOT include personal details in search terms.
-3. For any 🔴 CRITICAL stories, use **WebFetch** to get deeper details from the source.
-4. Filter and score every story against `interests.md` and the priority rules in `news.md`.
-5. Deduplicate — same story from multiple sources = one entry, best source wins.
-6. **Technology vulnerability check:** scan specifically for any news affecting the
-   personal and company tools listed in the "Personal Technology Stack" section of
-   `interests.md` and `news.md`. If anything is found, elevate to 🔴 CRITICAL and
-   include immediate action tasks.
-7. Write the daily briefing following the format below.
+Run exactly **5 searches**, each broad enough to cover multiple categories in one query.
+This is the complete search budget — do not add more unless a CRITICAL hit demands a
+single targeted follow-up (max 1 extra). Use generic queries; no personal details.
+
+| # | Query template | Categories covered |
+|---|----------------|--------------------|
+| 1 | `cybersecurity ransomware malware breach incident {date}` | Active Threats + Breaches |
+| 2 | `CVE vulnerability exploit patch CISA KEV {date}` | Vulnerability Intel |
+| 3 | `APT threat actor campaign nation state cyber {date}` | Threat Actors |
+| 4 | `AI security LLM artificial intelligence attack {date}` | AI & Security |
+| 5 | `1Password Bitwarden Supabase Vercel Next.js Caido DigitalOcean Strix Discord Windows vulnerability {date}` | Tech stack |
+
+Replace `{date}` with yesterday's date (e.g. "March 2 2026").
+
+1. Run the 5 searches above.
+2. **WebFetch: maximum 1 per run**, only if a CRITICAL story's headline is genuinely ambiguous and the summary gives insufficient detail to write an action item. Search snippets are usually enough — default to not fetching.
+3. Filter and score every story against `interests.md` and the priority rules in `news.md`.
+4. Deduplicate — same story from multiple sources = one entry, best source wins.
+5. **Cross-check against `previous-news.md`** — if a story closely matches something already reported (same CVE, same incident, same campaign), skip it unless there is meaningful new development (patch released, attribution confirmed, scope expanded, new victim named). Novel angle or new facts = include, noting what's new.
+6. Write the daily briefing following the format below. **Omit any section that has no content** — an absent section is better than a placeholder or filler line.
 
 ### Step 3: Event Discovery
 
@@ -145,7 +157,19 @@ yesterday — not today. Search for stories published on the day before the curr
      German bank should be geocoded to Germany, not to the security vendor who
      reported it. For APT campaigns, use the threat actor's attributed origin country.
    - Every story/event in the briefing should have a corresponding marker.
-6. All files must be self-contained and readable on their own.
+6. **Update `previous-news.md`** — append a short entry for every story included in
+   today's briefing. Format: one bullet per story under today's date heading.
+   Keep each entry to one line — just enough to recognise the story if it resurfaces.
+   ```
+   ## YYYY-MM-DD
+   - CVE-2026-XXXX: [product] [what happened, e.g. "actively exploited RCE, patch available"]
+   - [Threat actor/incident name]: [one-line summary]
+   - [Topic]: [one-line summary]
+   ```
+   After appending, **prune entries older than 21 days** — remove date sections whose
+   date is more than 21 days before today. Stories don't stay relevant longer than that,
+   and a smaller file means less context loaded on every run.
+7. All files must be self-contained and readable on their own.
 
 ---
 
@@ -348,5 +372,8 @@ Changelog:
         to full narrative paragraph + key themes + forward look. Technology
         vulnerability monitoring added (personal + company tech stack flagged as
         🔴 CRITICAL if compromised). Scheduled run moved to 10:00 AM.
+        previous-news.md log added — each run appends reported stories, future runs
+        cross-check against it to avoid repeating already-covered news. Log auto-pruned
+        to 60 days.
 
 <!-- Alex: update this section when you make significant changes -->
