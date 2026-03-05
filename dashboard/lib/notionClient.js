@@ -21,7 +21,10 @@ let _client = null;
 function getClient() {
   if (!process.env.NOTION_TOKEN) return null;
   if (!_client) {
-    _client = new Client({ auth: process.env.NOTION_TOKEN });
+    _client = new Client({
+      auth: process.env.NOTION_TOKEN,
+      timeoutMs: 10000, // fail fast — default is 60s which blocks the server
+    });
   }
   return _client;
 }

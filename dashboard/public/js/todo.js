@@ -10,13 +10,32 @@ const NotionSync = {
   lastSync: null,
   _pollTimer: null,
   _debounceTimers: {},
+  // Cache of { url → notionId } for further-reading pages, keyed per sourceDate.
+  // Avoids fetching all tasks just to update a single item.
+  _frPageCache: {}, // { 'YYYY-MM-DD#url': notionId }
+
+  _CONFIG_CACHE_KEY: 'cyberspace-notion-configured',
 
   async init() {
+    // If we already know Notion is not configured (cached from a previous load),
+    // skip the API call entirely. Zero network overhead for users who never set
+    // up Notion. Cache is invalidated whenever credentials are saved via the UI.
+    const cached = localStorage.getItem(this._CONFIG_CACHE_KEY);
+    if (cached === 'false') {
+      this.configured = false;
+      this._renderStatus();
+      return;
+    }
+
     try {
       const r = await fetch('/api/notion/config');
       const d = await r.json();
       this.configured = d.configured;
-    } catch { this.configured = false; }
+      localStorage.setItem(this._CONFIG_CACHE_KEY, String(d.configured));
+    } catch {
+      // On network error, fall back to cached value if available
+      this.configured = cached === 'true';
+    }
 
     this._renderStatus();
     if (!this.configured) return;
@@ -87,13 +106,16 @@ const NotionSync = {
     }
     if (changed) { TodoList.saveLinks(links); TodoList.renderMyLinks(); }
 
-    // Further reading: if Notion marks one as done, hide it locally too
-    for (const nt of tasks.filter(t => t.type === 'further-reading' && nt.done && nt.sourceDate && nt.text)) {
-      const key = `briefing-further-hidden-${nt.sourceDate}`;
-      try {
-        const h = new Set(JSON.parse(localStorage.getItem(key) || '[]'));
-        if (!h.has(nt.text)) { h.add(nt.text); localStorage.setItem(key, JSON.stringify([...h])); }
-      } catch { /* ignore */ }
+    // Further reading: populate cache and apply done state locally
+    for (const nt of tasks.filter(t => t.type === 'further-reading' && nt.sourceDate && nt.text)) {
+      this._frPageCache[`${nt.sourceDate}#${nt.text}`] = nt.notionId;
+      if (nt.done) {
+        const key = `briefing-further-hidden-${nt.sourceDate}`;
+        try {
+          const h = new Set(JSON.parse(localStorage.getItem(key) || '[]'));
+          if (!h.has(nt.text)) { h.add(nt.text); localStorage.setItem(key, JSON.stringify([...h])); }
+        } catch { /* ignore */ }
+      }
     }
     if (TodoList.briefingDate) TodoList.renderFurtherReading();
 
@@ -105,30 +127,44 @@ const NotionSync = {
   // ─── Push local items that have no Notion ID yet ───────────────────────────
 
   async _pushOrphans() {
-    // Tasks
+    // Tasks — parallel
     let tasks = TodoList.getTasks();
-    let changed = false;
-    for (const t of tasks.filter(t => !t.notionId)) {
-      const nt = await this._apiCreate({
-        text: t.text, type: 'task', done: t.done,
-        assignedTo: t.assignedTo || [], priority: t.priority || null,
-        dueDate: t.dueDate || null, tags: t.tags || [],
-        dashboardId: String(t.id),
+    const orphanTasks = tasks.filter(t => !t.notionId);
+    if (orphanTasks.length) {
+      const results = await Promise.allSettled(orphanTasks.map(t =>
+        this._apiCreate({
+          text: t.text, type: 'task', done: t.done,
+          assignedTo: t.assignedTo || [], priority: t.priority || null,
+          dueDate: t.dueDate || null, tags: t.tags || [],
+          dashboardId: String(t.id),
+        })
+      ));
+      let changed = false;
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value.notionId) {
+          orphanTasks[i].notionId = r.value.notionId;
+          changed = true;
+        }
       });
-      if (nt.notionId) { t.notionId = nt.notionId; changed = true; }
+      if (changed) { TodoList.saveTasks(tasks); TodoList.renderMyTasks(); }
     }
-    if (changed) { TodoList.saveTasks(tasks); TodoList.renderMyTasks(); }
 
-    // Links
+    // Links — parallel
     let links = TodoList.getLinks();
-    changed = false;
-    for (const l of links.filter(l => !l.notionId)) {
-      const nt = await this._apiCreate({
-        text: l.url, type: 'link', done: false, dashboardId: String(l.id),
+    const orphanLinks = links.filter(l => !l.notionId);
+    if (orphanLinks.length) {
+      const results = await Promise.allSettled(orphanLinks.map(l =>
+        this._apiCreate({ text: l.url, type: 'link', done: false, dashboardId: String(l.id) })
+      ));
+      let changed = false;
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value.notionId) {
+          orphanLinks[i].notionId = r.value.notionId;
+          changed = true;
+        }
       });
-      if (nt.notionId) { l.notionId = nt.notionId; changed = true; }
+      if (changed) { TodoList.saveLinks(links); TodoList.renderMyLinks(); }
     }
-    if (changed) { TodoList.saveLinks(links); TodoList.renderMyLinks(); }
 
     // Further reading for today's briefing
     if (TodoList.briefingDate && TodoList.furtherReadingItems.length) {
@@ -143,18 +179,27 @@ const NotionSync = {
     catch { synced = new Set(); }
 
     const hidden = TodoList.getHiddenFurtherReading();
-    for (const item of items) {
-      if (synced.has(item.url)) continue;
-      const nt = await this._apiCreate({
+    const unsyncedItems = items.filter(item => !synced.has(item.url));
+    if (!unsyncedItems.length) return;
+
+    // Parallel creates
+    const results = await Promise.allSettled(unsyncedItems.map(item =>
+      this._apiCreate({
         text: item.url,
         type: 'further-reading',
         done: hidden.has(item.url),
         sourceDate: date,
         tags: item.title ? [item.title] : [],
         dashboardId: `fr-${date}-${this._hashCode(item.url)}`,
-      });
-      if (nt.notionId) synced.add(item.url);
-    }
+      })
+    ));
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && r.value.notionId) {
+        const url = unsyncedItems[i].url;
+        synced.add(url);
+        this._frPageCache[`${date}#${url}`] = r.value.notionId;
+      }
+    });
     localStorage.setItem(key, JSON.stringify([...synced]));
   },
 
@@ -214,15 +259,13 @@ const NotionSync = {
 
   onFurtherReadingHidden(date, item) {
     if (!this.configured) return;
-    // Find the matching Notion page (by sourceDate + text) and mark it done
-    fetch('/api/notion/tasks')
-      .then(r => r.json())
-      .then(({ tasks }) => {
-        const nt = tasks.find(t =>
-          t.type === 'further-reading' && t.sourceDate === date && t.text === item.url);
-        if (nt) this._apiUpdate(nt.notionId, { done: true });
-      })
-      .catch(() => {});
+    // Use the in-memory cache to avoid fetching all tasks for a single update
+    const cached = this._frPageCache[`${date}#${item.url}`];
+    if (cached) {
+      this._apiUpdate(cached, { done: true });
+    }
+    // If not cached yet (e.g. first run before first sync), silently skip —
+    // the next pull() will pick up the done state from Notion anyway.
   },
 
   onBriefingDateChanged(date, items) {
@@ -329,7 +372,8 @@ const TodoList = {
     await this.loadBriefingContentForDate(App.activeDate || (Briefing.dates && Briefing.dates[0]));
     this.renderMyTasks();
     this.renderMyLinks();
-    await NotionSync.init();
+    // Fire-and-forget: never block panel render on Notion connectivity
+    NotionSync.init();
   },
 
   bindEvents() {
@@ -384,8 +428,8 @@ const TodoList = {
             body: JSON.stringify({ notion_token: token, notion_db_id: dbId }),
           });
           const d = await r.json();
-          if (!r.ok) throw new Error(d.error || 'Failed to save');
-          msg.textContent = d.configured ? '\u2713 Saved — reconnecting...' : '\u2713 Cleared';
+          if (!r.ok) throw new Error(d.error || 'Failed to save');          // Invalidate the config cache so init() will re-check the server
+          localStorage.removeItem(NotionSync._CONFIG_CACHE_KEY);          msg.textContent = d.configured ? '\u2713 Saved — reconnecting...' : '\u2713 Cleared';
           msg.className = 'notion-config-msg ok';
           NotionSync.configured = d.configured;
           NotionSync._renderStatus();

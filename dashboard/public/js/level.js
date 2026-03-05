@@ -67,7 +67,8 @@ const LevelSystem = {
   },
 
   getXP() {
-    return parseInt(localStorage.getItem(this.XP_KEY) || '0', 10);
+    const parsed = parseInt(localStorage.getItem(this.XP_KEY), 10);
+    return Number.isFinite(parsed) ? parsed : 0;
   },
 
   setXP(xp) {
@@ -115,18 +116,23 @@ const LevelSystem = {
 
   // ─── Audio ─────────────────────────────────────────────────────────────────
 
-  _getAudioCtx() {
+  async _getAudioCtx() {
     if (!this._audioCtx || this._audioCtx.state === 'closed') {
       try {
         this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch { return null; }
+    }
+    if (this._audioCtx.state === 'suspended') {
+      try {
+        await this._audioCtx.resume();
       } catch { return null; }
     }
     return this._audioCtx;
   },
 
   /** Short ascending chirp for XP gain. */
-  playXPSound() {
-    const ctx = this._getAudioCtx();
+  async playXPSound() {
+    const ctx = await this._getAudioCtx();
     if (!ctx) return;
     try {
       const osc  = ctx.createOscillator();
@@ -144,8 +150,8 @@ const LevelSystem = {
   },
 
   /** Four-note ascending arpeggio for level-up. */
-  playLevelUpSound() {
-    const ctx = this._getAudioCtx();
+  async playLevelUpSound() {
+    const ctx = await this._getAudioCtx();
     if (!ctx) return;
     try {
       [[523, 0], [659, 0.1], [784, 0.2], [1047, 0.32]].forEach(([freq, delay]) => {
