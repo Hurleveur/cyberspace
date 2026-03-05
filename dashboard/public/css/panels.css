@@ -881,6 +881,46 @@
   border-color: var(--threat-critical);
   color: var(--threat-critical);
 }
+.event-links-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.event-calendar-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.event-btn-gcal,
+.event-btn-ics {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.event-btn-gcal:hover {
+  border-color: #4285F4;
+  color: #4285F4;
+  background: rgba(66, 133, 244, 0.1);
+}
+.event-btn-ics:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+.event-btn-gcal svg,
+.event-btn-ics svg {
+  flex-shrink: 0;
+}
 .event-accepted {
   border-color: var(--accent);
   opacity: 0.6;

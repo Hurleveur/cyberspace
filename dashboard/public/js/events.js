@@ -273,6 +273,12 @@ const Events = {
     container.querySelectorAll('.event-btn-skip').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); this.skipEvent(btn.dataset.id); });
     });
+    container.querySelectorAll('.event-btn-ics').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); const ev = this.events.find(x => x.id === btn.dataset.id); if (ev) this.downloadIcs(ev); });
+    });
+    container.querySelectorAll('.event-btn-gcal').forEach(el => {
+      el.addEventListener('click', (e) => { e.stopPropagation(); });
+    });
   },
 
   renderDetail(event, isAccepted, isSkipped) {
@@ -284,7 +290,22 @@ const Events = {
     if (event.calendar) html += `<div class="event-detail-field"><span class="event-detail-label">Calendar: </span><span class="event-detail-value">${this.escapeHtml(event.calendar)}</span></div>`;
     if (event.deadline) html += `<div class="event-detail-field"><span class="event-detail-label">Deadline: </span><span class="event-detail-value">${this.escapeHtml(event.deadline)}</span></div>`;
     if (event.why) html += `<div class="event-detail-why">${this.escapeHtml(event.why)}</div>`;
-    if (event.url) html += `<div class="event-detail-field"><a href="${this.escapeHtml(event.url)}" target="_blank" style="color:var(--event-color)">Event page ↗</a></div>`;
+    if (event.url) {
+      const gcalUrl = this.generateGoogleCalendarUrl(event);
+      html += `<div class="event-detail-field event-links-row">
+        <a href="${this.escapeHtml(event.url)}" target="_blank" style="color:var(--event-color)">Event page ↗</a>
+        <span class="event-calendar-actions">
+          <a href="${gcalUrl}" target="_blank" class="event-btn-gcal" title="Add to Google Calendar">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
+            Google Calendar
+          </a>
+          <button class="event-btn-ics" data-id="${event.id}" title="Download .ics file">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            .ics
+          </button>
+        </span>
+      </div>`;
+    }
 
     if (!isAccepted && !isSkipped) {
       html += `
@@ -348,14 +369,7 @@ const Events = {
       this.render();
       App.updateUnreadCount();
     }
-    // Download ICS separately so render() always runs even if download fails
-    try {
-      this.downloadIcs(event);
-      App.toast(`✓ Accepted — ${event.name.slice(0, 30)}  (.ics downloaded)`, 'briefing');
-    } catch (err) {
-      console.error('[events] ICS download error:', err);
-      App.toast(`✓ Accepted — ${event.name.slice(0, 30)}`, 'briefing');
-    }
+    App.toast(`✓ Accepted — ${event.name.slice(0, 30)}`, 'briefing');
   },
 
   async skipEvent(id) {
@@ -393,6 +407,79 @@ const Events = {
     return div.innerHTML;
   },
 
+  // ── Date/Time Parsing ──────────────────────────────────────────────────────
+
+  parseEventDateTime(when) {
+    let text = when
+      .replace(/[⏰🎫🔔⚠️]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Recurring events have no fixed date
+    if (/\bevery\b/i.test(text)) return null;
+
+    // 1. Extract time info
+    let startH = null, startM = null, endH = null, endM = null;
+    const range24 = text.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})(\s*(?:AM|PM))?/i);
+    if (range24) {
+      startH = parseInt(range24[1]); startM = parseInt(range24[2]);
+      endH = parseInt(range24[3]); endM = parseInt(range24[4]);
+      text = text.replace(range24[0], ' ');
+    } else {
+      const single = text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (single) {
+        startH = parseInt(single[1]); startM = parseInt(single[2]);
+        if (single[3]) {
+          const ampm = single[3].toUpperCase();
+          if (ampm === 'PM' && startH !== 12) startH += 12;
+          if (ampm === 'AM' && startH === 12) startH = 0;
+        }
+        endH = startH + 2; endM = startM;
+        text = text.replace(single[0], ' ');
+      }
+    }
+
+    // 2. Clean non-date tokens
+    text = text
+      .replace(/·/g, ' ')
+      .replace(/\b(?:CET|CEST|GMT|UTC|BST|EST|PST|CST|MST|EDT|PDT|EET|EEST)\b/gi, ' ')
+      .replace(/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi, ' ')
+      .replace(/\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, ' ')
+      .replace(/\bStarts?\b/gi, ' ')
+      .replace(/\(.*?\)/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // 3. Handle date ranges — take first date
+    const dayRange = text.match(/(\d{1,2})\s*[-–]\s*\d{1,2}\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*)\s+(\d{4})/i);
+    if (dayRange) {
+      text = `${dayRange[1]} ${dayRange[2]} ${dayRange[3]}`;
+    }
+    const crossRange = text.match(/(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*)\s*[-–]\s*\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{4})/i);
+    if (crossRange && !dayRange) {
+      text = `${crossRange[1]} ${crossRange[2]}`;
+    }
+
+    // 4. Final cleanup
+    text = text.replace(/^[\s,–-]+/, '').replace(/[\s,–-]+$/, '').replace(/\s+/g, ' ').trim();
+
+    // 5. Parse the date string
+    let baseDate = new Date(text);
+    if (isNaN(baseDate.getTime()) && !/\d{4}/.test(text)) {
+      baseDate = new Date(text + ' ' + new Date().getFullYear());
+    }
+    if (isNaN(baseDate.getTime())) return null;
+
+    // 6. Build result
+    if (startH !== null) {
+      const start = new Date(baseDate); start.setHours(startH, startM, 0, 0);
+      const end = new Date(baseDate); end.setHours(endH, endM, 0, 0);
+      return { start, end, allDay: false };
+    }
+    const end = new Date(baseDate); end.setDate(end.getDate() + 1);
+    return { start: baseDate, end, allDay: true };
+  },
+
   // ── ICS Generation ─────────────────────────────────────────────────────────
 
   generateIcs(event) {
@@ -404,51 +491,29 @@ const Events = {
 
     const now = new Date();
     const stamp = toIcsDtUtc(now) + 'Z';
-    let dtStart = null, dtEnd = null;
+    const parsed = event.when ? this.parseEventDateTime(event.when) : null;
 
-    if (event.when) {
-      const cleaned = event.when.replace(/[⏰🎫]/g, '').replace(/\s+/g, ' ').trim();
-      const timeRangeMatch = cleaned.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
-      const singleTimeMatch = cleaned.match(/(\d{1,2}:\d{2})/);
-      const dateOnly = cleaned
-        .replace(/\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}/, '')
-        .replace(/\d{1,2}:\d{2}/, '')
-        .trim().replace(/,\s*$/, '');
-
-      let baseDate = new Date(dateOnly);
-      if (isNaN(baseDate.getTime())) baseDate = new Date(dateOnly + ' ' + new Date().getFullYear());
-
-      if (!isNaN(baseDate.getTime())) {
-        if (timeRangeMatch) {
-          const [sh, sm] = timeRangeMatch[1].split(':').map(Number);
-          const [eh, em] = timeRangeMatch[2].split(':').map(Number);
-          const s = new Date(baseDate); s.setHours(sh, sm, 0, 0);
-          const e2 = new Date(baseDate); e2.setHours(eh, em, 0, 0);
-          dtStart = toIcsDt(s); dtEnd = toIcsDt(e2);
-        } else if (singleTimeMatch) {
-          const [h, m] = singleTimeMatch[1].split(':').map(Number);
-          const s = new Date(baseDate); s.setHours(h, m, 0, 0);
-          const e2 = new Date(s); e2.setHours(h + 2, m, 0, 0);
-          dtStart = toIcsDt(s); dtEnd = toIcsDt(e2);
-        } else {
-          // All-day
-          const y = baseDate.getFullYear(), m = pad(baseDate.getMonth()+1), d = pad(baseDate.getDate());
-          const e2 = new Date(baseDate); e2.setDate(e2.getDate() + 1);
-          const lines = [
-            `DTSTART;VALUE=DATE:${y}${m}${d}`,
-            `DTEND;VALUE=DATE:${e2.getFullYear()}${pad(e2.getMonth()+1)}${pad(e2.getDate())}`,
-          ];
-          return this._buildIcs(event, lines, stamp);
-        }
+    if (parsed) {
+      if (parsed.allDay) {
+        const y = parsed.start.getFullYear(), m = pad(parsed.start.getMonth()+1), d = pad(parsed.start.getDate());
+        const dtLines = [
+          `DTSTART;VALUE=DATE:${y}${m}${d}`,
+          `DTEND;VALUE=DATE:${parsed.end.getFullYear()}${pad(parsed.end.getMonth()+1)}${pad(parsed.end.getDate())}`,
+        ];
+        return this._buildIcs(event, dtLines, stamp);
       }
+      return this._buildIcs(event, [`DTSTART:${toIcsDt(parsed.start)}`, `DTEND:${toIcsDt(parsed.end)}`], stamp);
     }
 
-    if (!dtStart) {
-      const s = new Date(now); s.setDate(s.getDate() + 7); s.setHours(10, 0, 0, 0);
-      const e2 = new Date(s); e2.setHours(12, 0, 0, 0);
-      dtStart = toIcsDt(s); dtEnd = toIcsDt(e2);
-    }
-    return this._buildIcs(event, [`DTSTART:${dtStart}`, `DTEND:${dtEnd}`], stamp);
+    // Fallback: all-day event for today (not a fake future date)
+    const today = new Date(now);
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad2 = pad;
+    const dtLines = [
+      `DTSTART;VALUE=DATE:${today.getFullYear()}${pad2(today.getMonth()+1)}${pad2(today.getDate())}`,
+      `DTEND;VALUE=DATE:${tomorrow.getFullYear()}${pad2(tomorrow.getMonth()+1)}${pad2(tomorrow.getDate())}`,
+    ];
+    return this._buildIcs(event, dtLines, stamp);
   },
 
   _buildIcs(event, dtLines, stamp) {
@@ -463,7 +528,7 @@ const Events = {
       event.url ? `Event page: ${event.url}` : '',
       event.cost ? `Cost: ${event.cost}` : '',
       event.relevance ? `Relevance: ${event.relevance}` : '',
-    ].filter(Boolean).join('\\n');
+    ].filter(Boolean).join('\n');
 
     return [
       'BEGIN:VCALENDAR',
@@ -496,4 +561,37 @@ const Events = {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  },};
+  },
+
+  // ── Google Calendar URL ────────────────────────────────────────────────────
+
+  generateGoogleCalendarUrl(event) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const toGcalDt = (d) => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    const toGcalDate = (d) => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+
+    let dates = '';
+    const parsed = event.when ? this.parseEventDateTime(event.when) : null;
+    if (parsed) {
+      dates = parsed.allDay
+        ? `${toGcalDate(parsed.start)}/${toGcalDate(parsed.end)}`
+        : `${toGcalDt(parsed.start)}/${toGcalDt(parsed.end)}`;
+    }
+
+    const description = [
+      event.why,
+      event.url ? `Event page: ${event.url}` : '',
+      event.cost ? `Cost: ${event.cost}` : '',
+      event.relevance ? `Relevance: ${event.relevance}` : '',
+    ].filter(Boolean).join('\n');
+
+    const params = new URLSearchParams();
+    params.set('action', 'TEMPLATE');
+    params.set('text', event.name || 'Event');
+    if (dates) params.set('dates', dates);
+    if (event.where) params.set('location', event.where);
+    if (description) params.set('details', description);
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  },
+};
