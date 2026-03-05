@@ -55,8 +55,8 @@
   50%       { fill-opacity: 0.9; stroke-opacity: 0.4; }
 }
 @keyframes marker-pulse-critical {
-  0%, 100% { fill-opacity: 0.6; stroke-opacity: 1; stroke-width: 2px; }
-  50%       { fill-opacity: 1;   stroke-opacity: 0.2; stroke-width: 5px; }
+  0%, 100% { fill-opacity: 0.6; stroke-opacity: 1; }
+  50%       { fill-opacity: 1;   stroke-opacity: 0.2; }
 }
 .marker-unread {
   animation: marker-pulse 2.5s ease-in-out infinite;
@@ -333,14 +333,16 @@ html, body {
   position: absolute;
   left: 0;
   right: 0;
+  top: 0;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
   opacity: 0.55;
+  will-change: transform;
   animation: profiler-scan 1.2s linear infinite;
 }
 @keyframes profiler-scan {
-  0% { top: 0; }
-  100% { top: calc(100% - 2px); }
+  0% { transform: translateY(0); }
+  100% { transform: translateY(calc(var(--profiler-h, 80px) - 2px)); }
 }
 .profiler-label {
   font-size: 9px;

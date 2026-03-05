@@ -521,6 +521,7 @@ const Settings = {
       document.documentElement.setAttribute('data-theme', name);
     }
     localStorage.setItem('cyberspace-theme', name);
+    if (typeof MatrixRain !== 'undefined') MatrixRain._refreshAccent();
   },
 
   loadTheme() {

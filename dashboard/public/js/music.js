@@ -112,6 +112,19 @@ const MusicPlayer = {
     this._fetchNowPlaying();
     this._stopNowPlaying();
     this._nowTimer = setInterval(() => this._fetchNowPlaying(), 30000);
+
+    // Pause polling when tab is hidden to save bandwidth
+    if (!this._visHandler) {
+      this._visHandler = () => {
+        if (document.hidden) {
+          this._stopNowPlaying();
+        } else if (this.playing && !this._nowTimer) {
+          this._fetchNowPlaying();
+          this._nowTimer = setInterval(() => this._fetchNowPlaying(), 30000);
+        }
+      };
+      document.addEventListener('visibilitychange', this._visHandler);
+    }
   },
 
   _stopNowPlaying() {

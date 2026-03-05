@@ -42,15 +42,16 @@ const Events = {
         return;
       }
 
-      // Fetch every events.md that exists across all report dates
-      const allEventsByDate = [];
-      for (const date of dates) {
+      // Fetch every events.md that exists across all report dates (parallel)
+      const fetchResults = await Promise.all(dates.map(async (date) => {
         const evRes = await fetch(`/api/file?path=reports/${date}/events.md`);
         if (evRes.ok) {
           const markdown = await evRes.text();
-          allEventsByDate.push({ date, events: this.parseEvents(markdown) });
+          return { date, events: this.parseEvents(markdown) };
         }
-      }
+        return null;
+      }));
+      const allEventsByDate = fetchResults.filter(Boolean);
 
       if (allEventsByDate.length === 0) {
         container.innerHTML = '<div class="empty-state">No event radar found in any report.</div>';

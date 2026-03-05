@@ -449,19 +449,22 @@ const MapView = {
     const titleEl = document.getElementById('profiler-title');
     const title = item.title || 'Untitled';
     titleEl.textContent = '';
-    clearTimeout(this._profilerTimer);
+    if (this._profilerTimer) cancelAnimationFrame(this._profilerTimer);
 
     let idx = 0;
+    const maxLen = Math.min(title.length, 48);
     const type = () => {
       titleEl.textContent = title.slice(0, idx);
       idx++;
-      if (idx <= Math.min(title.length, 48)) {
-        this._profilerTimer = setTimeout(type, 16);
+      if (idx <= maxLen) {
+        this._profilerTimer = requestAnimationFrame(type);
       }
     };
     type();
 
     card.classList.remove('hidden');
+    // Set CSS var for scanline travel distance
+    requestAnimationFrame(() => card.style.setProperty('--profiler-h', card.offsetHeight + 'px'));
     this.moveProfiler(latlng);
   },
 

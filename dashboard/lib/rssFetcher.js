@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const RssParser = require('rss-parser');
 
 const { PROJECT_ROOT } = require('./fileManager');
@@ -31,7 +32,7 @@ function loadDiskCache() {
 function saveDiskCache(items) {
   try {
     fs.mkdirSync(path.dirname(DISK_CACHE_PATH), { recursive: true });
-    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(items, null, 2), 'utf-8');
+    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(items), 'utf-8');
   } catch (err) {
     console.error('[rssFetcher] Could not save disk cache:', err.message);
   }
@@ -214,16 +215,10 @@ async function fetchAllFeeds(forceRefresh = false) {
 }
 
 /**
- * Simple string hash for generating stable IDs.
+ * SHA256-based stable ID for feed item deduplication.
  */
 function hashString(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(36);
+  return crypto.createHash('sha256').update(str).digest('hex').slice(0, 16);
 }
 
 module.exports = {

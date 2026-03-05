@@ -1,4 +1,5 @@
 const fs = require('fs');
+const fsp = fs.promises;
 const path = require('path');
 
 // Root of the cyberspace project (one level up from dashboard/)
@@ -13,6 +14,25 @@ const BLOCKED_PATTERNS = [
 
 // Only allow these extensions
 const ALLOWED_EXTENSIONS = ['.md', '.json'];
+
+// ── In-memory cache ───────────────────────────────────────────────────────────
+
+const _fileCache = new Map();    // key: relativePath → { content, mtime }
+let _reportDatesCache = null;    // { dates: [...], cachedAt: number }
+
+/**
+ * Invalidate cache entries for a given relative path.
+ * Called by the file watcher in server.js.
+ */
+function invalidateCache(relativePath) {
+  if (relativePath) {
+    _fileCache.delete(relativePath);
+  }
+  // Invalidate report dates if a reports/ folder changed
+  if (!relativePath || relativePath.startsWith('reports/')) {
+    _reportDatesCache = null;
+  }
+}
 
 /**
  * Validate and resolve a relative path to an absolute path within PROJECT_ROOT.
@@ -43,14 +63,20 @@ function resolveSafePath(relativePath) {
 }
 
 /**
- * Read a file. Returns { content, error }.
+ * Read a file (async). Returns { content, error }.
+ * Uses in-memory cache when available.
  */
-function readFile(relativePath) {
+async function readFile(relativePath) {
   const resolved = resolveSafePath(relativePath);
   if (!resolved) return { error: 'Path not allowed', status: 403 };
 
+  // Check cache
+  const cached = _fileCache.get(relativePath);
+  if (cached) return { content: cached.content };
+
   try {
-    const content = fs.readFileSync(resolved, 'utf-8');
+    const content = await fsp.readFile(resolved, 'utf-8');
+    _fileCache.set(relativePath, { content, mtime: Date.now() });
     return { content };
   } catch (err) {
     if (err.code === 'ENOENT') return { error: 'File not found', status: 404 };
@@ -59,16 +85,16 @@ function readFile(relativePath) {
 }
 
 /**
- * Write (overwrite) a file. Returns { ok, error }.
+ * Write (overwrite) a file (async). Returns { ok, error }.
  */
-function writeFile(relativePath, content) {
+async function writeFile(relativePath, content) {
   const resolved = resolveSafePath(relativePath);
   if (!resolved) return { error: 'Path not allowed', status: 403 };
 
   try {
-    // Ensure parent directory exists
-    fs.mkdirSync(path.dirname(resolved), { recursive: true });
-    fs.writeFileSync(resolved, content, 'utf-8');
+    await fsp.mkdir(path.dirname(resolved), { recursive: true });
+    await fsp.writeFile(resolved, content, 'utf-8');
+    invalidateCache(relativePath);
     return { ok: true };
   } catch (err) {
     return { error: err.message, status: 500 };
@@ -78,13 +104,14 @@ function writeFile(relativePath, content) {
 /**
  * Append text to a file. Creates the file if it doesn't exist.
  */
-function appendFile(relativePath, content) {
+async function appendFile(relativePath, content) {
   const resolved = resolveSafePath(relativePath);
   if (!resolved) return { error: 'Path not allowed', status: 403 };
 
   try {
-    fs.mkdirSync(path.dirname(resolved), { recursive: true });
-    fs.appendFileSync(resolved, content, 'utf-8');
+    await fsp.mkdir(path.dirname(resolved), { recursive: true });
+    await fsp.appendFile(resolved, content, 'utf-8');
+    invalidateCache(relativePath);
     return { ok: true };
   } catch (err) {
     return { error: err.message, status: 500 };
@@ -92,19 +119,23 @@ function appendFile(relativePath, content) {
 }
 
 /**
- * List report dates (folders in reports/).
+ * List report dates (folders in reports/). Cached.
  */
-function listReportDates() {
+async function listReportDates() {
+  if (_reportDatesCache) return _reportDatesCache;
+
   const reportsDir = path.join(PROJECT_ROOT, 'reports');
   try {
-    const entries = fs.readdirSync(reportsDir, { withFileTypes: true });
+    const entries = await fsp.readdir(reportsDir, { withFileTypes: true });
     const dates = entries
       .filter(e => e.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(e.name))
       .map(e => e.name)
       .sort()
       .reverse(); // Most recent first
-    return { dates };
+    _reportDatesCache = { dates };
+    return _reportDatesCache;
   } catch (err) {
+    console.error('[fileManager] listReportDates error:', err.message);
     return { dates: [] };
   }
 }
@@ -112,8 +143,8 @@ function listReportDates() {
 /**
  * Get the most recent report date.
  */
-function latestReportDate() {
-  const { dates } = listReportDates();
+async function latestReportDate() {
+  const { dates } = await listReportDates();
   return dates.length > 0 ? dates[0] : null;
 }
 
@@ -125,4 +156,5 @@ module.exports = {
   appendFile,
   listReportDates,
   latestReportDate,
+  invalidateCache,
 };

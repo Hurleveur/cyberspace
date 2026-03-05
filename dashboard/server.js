@@ -19,24 +19,24 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- File API ---
 
 // GET /api/file?path=relative/path.md
-app.get('/api/file', (req, res) => {
-  const result = fm.readFile(req.query.path);
+app.get('/api/file', async (req, res) => {
+  const result = await fm.readFile(req.query.path);
   if (result.error) return res.status(result.status || 400).json({ error: result.error });
   res.type('text/plain').send(result.content);
 });
 
 // PUT /api/file?path=relative/path.md  (body = raw text)
-app.put('/api/file', (req, res) => {
+app.put('/api/file', async (req, res) => {
   const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-  const result = fm.writeFile(req.query.path, content);
+  const result = await fm.writeFile(req.query.path, content);
   if (result.error) return res.status(result.status || 400).json({ error: result.error });
   res.json({ ok: true });
 });
 
 // POST /api/file/append?path=relative/path.md  (body = raw text)
-app.post('/api/file/append', (req, res) => {
+app.post('/api/file/append', async (req, res) => {
   const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-  const result = fm.appendFile(req.query.path, content);
+  const result = await fm.appendFile(req.query.path, content);
   if (result.error) return res.status(result.status || 400).json({ error: result.error });
   res.json({ ok: true });
 });
@@ -44,13 +44,13 @@ app.post('/api/file/append', (req, res) => {
 // --- Reports API ---
 
 // GET /api/reports — list all report dates
-app.get('/api/reports', (req, res) => {
-  res.json(fm.listReportDates());
+app.get('/api/reports', async (req, res) => {
+  res.json(await fm.listReportDates());
 });
 
 // GET /api/reports/latest — most recent report date
-app.get('/api/reports/latest', (req, res) => {
-  const date = fm.latestReportDate();
+app.get('/api/reports/latest', async (req, res) => {
+  const date = await fm.latestReportDate();
   if (!date) return res.status(404).json({ error: 'No reports found' });
   res.json({ date });
 });
@@ -81,23 +81,29 @@ app.post('/api/feeds/refresh', async (req, res) => {
 
 // --- Search API ---
 
-// GET /api/search?q= — full-text search across all briefing reports
-app.get('/api/search', (req, res) => {
+// GET /api/search?q= — full-text search across all briefing reports (async with cache)
+app.get('/api/search', async (req, res) => {
   const query = (req.query.q || '').toLowerCase().trim();
   if (!query || query.length < 2) return res.json([]);
 
-  const { dates } = fm.listReportDates();
+  const { dates } = await fm.listReportDates();
   const results = [];
-  for (const date of dates) {
-    const r = fm.readFile(`reports/${date}/briefing.md`);
-    if (r.error) continue;
-    const lines = r.content.split('\n');
+
+  // Fetch all briefings in parallel (cached after first read)
+  const briefings = await Promise.all(dates.map(async (date) => {
+    const r = await fm.readFile(`reports/${date}/briefing.md`);
+    return r.error ? null : { date, content: r.content };
+  }));
+
+  for (const b of briefings) {
+    if (!b) continue;
+    const lines = b.content.split('\n');
     let currentSection = '';
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (/^## /.test(line)) currentSection = line.replace(/^#+\s*/, '').replace(/[🔴🟠🟡🟢]/gu, '').trim();
       if (line.toLowerCase().includes(query)) {
-        results.push({ date, section: currentSection, context: line.slice(0, 120).trim(), lineNum: i + 1 });
+        results.push({ date: b.date, section: currentSection, context: line.slice(0, 120).trim(), lineNum: i + 1 });
       }
     }
   }
@@ -121,13 +127,13 @@ app.get('/api/feeds/test', async (req, res) => {
 // --- Feedback API ---
 
 // POST /api/feedback  (body = { text: "..." })
-app.post('/api/feedback', (req, res) => {
+app.post('/api/feedback', async (req, res) => {
   const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
   if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
 
   const timestamp = new Date().toISOString().split('T')[0];
   const entry = `\n- [${timestamp}] ${text.trim()}\n`;
-  const result = fm.appendFile('feedback.md', entry);
+  const result = await fm.appendFile('feedback.md', entry);
   if (result.error) return res.status(result.status || 500).json({ error: result.error });
   res.json({ ok: true });
 });
@@ -141,16 +147,40 @@ const clients = new Set();
 
 wss.on('connection', (ws) => {
   clients.add(ws);
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   ws.on('close', () => clients.delete(ws));
   ws.on('error', () => clients.delete(ws));
 });
 
+// Heartbeat: detect and clean up dead connections every 30s
+const heartbeatInterval = setInterval(() => {
+  for (const ws of clients) {
+    if (!ws.isAlive) { ws.terminate(); clients.delete(ws); continue; }
+    ws.isAlive = false;
+    ws.ping();
+  }
+}, 30000);
+
+// Debounced broadcast — batches messages within a 200ms window
+let _broadcastQueue = [];
+let _broadcastTimer = null;
+
 function broadcast(data) {
-  const msg = JSON.stringify(data);
-  for (const client of clients) {
-    if (client.readyState === 1) { // WebSocket.OPEN
-      client.send(msg);
-    }
+  _broadcastQueue.push(data);
+  if (!_broadcastTimer) {
+    _broadcastTimer = setTimeout(() => {
+      const batch = _broadcastQueue;
+      _broadcastQueue = [];
+      _broadcastTimer = null;
+      // Send each message (or batch into a single array message)
+      for (const item of batch) {
+        const msg = JSON.stringify(item);
+        for (const client of clients) {
+          if (client.readyState === 1) client.send(msg);
+        }
+      }
+    }, 200);
   }
 }
 
@@ -164,19 +194,27 @@ const watcher = chokidar.watch(fm.PROJECT_ROOT, {
   ],
   persistent: true,
   ignoreInitial: true,
-  awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
+  awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 500 },
 });
 
 watcher.on('all', (event, filePath) => {
-  const rel = path.relative(fm.PROJECT_ROOT, filePath).replace(/\\/g, '/');
-  if (['add', 'change'].includes(event)) {
-    broadcast({ type: 'file_changed', file: rel, action: event === 'add' ? 'created' : 'modified' });
+  try {
+    const rel = path.relative(fm.PROJECT_ROOT, filePath).replace(/\\/g, '/');
 
-    // rss.md changed → force-refresh feeds immediately
-    if (rel === 'rss.md') {
-      console.log('[feeds] rss.md changed — triggering feed refresh');
-      refreshFeedsQuietly();
+    // Invalidate file cache for changed files
+    fm.invalidateCache(rel);
+
+    if (['add', 'change'].includes(event)) {
+      broadcast({ type: 'file_changed', file: rel, action: event === 'add' ? 'created' : 'modified' });
+
+      // rss.md changed → force-refresh feeds immediately
+      if (rel === 'rss.md') {
+        console.log('[feeds] rss.md changed — triggering feed refresh');
+        refreshFeedsQuietly();
+      }
     }
+  } catch (err) {
+    console.error('[watcher] Error in file watcher callback:', err.message);
   }
 });
 
@@ -211,6 +249,7 @@ server.listen(PORT, () => {
 process.on('SIGINT', () => {
   console.log('\nShutting down...');
   clearInterval(feedRefreshTimer);
+  clearInterval(heartbeatInterval);
   watcher.close();
   wss.close();
   server.close(() => process.exit(0));

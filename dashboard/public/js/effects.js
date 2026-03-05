@@ -9,6 +9,7 @@ const MatrixRain = {
   drops: [],
   _animId: null,
   _enabled: true,
+  _accentColor: '#00ff41',
 
   // Katakana + a handful of latin/digits for variety
   chars: 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF',
@@ -30,6 +31,7 @@ const MatrixRain = {
     ].join(';');
     document.body.insertBefore(this.canvas, document.body.firstChild);
 
+    this._refreshAccent();
     this._resize();
     window.addEventListener('resize', () => this._resize());
 
@@ -62,16 +64,19 @@ const MatrixRain = {
     }
   },
 
+  _refreshAccent() {
+    this._accentColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--accent').trim() || '#00ff41';
+  },
+
   _draw() {
     const ctx = this.canvas.getContext('2d');
-    const accent = getComputedStyle(document.documentElement)
-      .getPropertyValue('--accent').trim() || '#00ff41';
 
     // Fade trail
     ctx.fillStyle = 'rgba(10,10,10,0.04)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    ctx.fillStyle = accent;
+    ctx.fillStyle = this._accentColor;
     ctx.font = '12px monospace';
 
     for (let i = 0; i < this.drops.length; i++) {

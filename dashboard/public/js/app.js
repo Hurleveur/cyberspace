@@ -323,15 +323,15 @@ const App = {
       return;
     }
 
-    const scores = [];
-    for (const date of dates) {
+    const results = await Promise.all(dates.map(async (date) => {
       try {
         const res = await fetch(`/api/file?path=reports/${date}/briefing.md`);
-        if (!res.ok) continue;
+        if (!res.ok) return null;
         const md = await res.text();
-        scores.push(this._threatScoreFromMarkdown(md));
-      } catch {}
-    }
+        return this._threatScoreFromMarkdown(md);
+      } catch { return null; }
+    }));
+    const scores = results.filter(s => s !== null);
 
     if (scores.length === 0) {
       host.innerHTML = '';

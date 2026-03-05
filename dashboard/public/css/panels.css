@@ -472,12 +472,16 @@
   color: var(--accent);
 }
 .briefing-section {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+.briefing-section-inner {
   overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.3s ease;
+  min-height: 0;
 }
 .briefing-section.expanded {
-  max-height: 5000px;
+  grid-template-rows: 1fr;
 }
 
 /* === Right Panel Tabs === */

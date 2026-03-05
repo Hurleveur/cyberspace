@@ -727,6 +727,9 @@ const Briefing = {
     headings.forEach(h2 => {
       const section = document.createElement('div');
       section.className = 'briefing-section expanded';
+      const inner = document.createElement('div');
+      inner.className = 'briefing-section-inner';
+      section.appendChild(inner);
       h2.classList.add('expanded');
 
       let el = h2.nextElementSibling;
@@ -739,7 +742,7 @@ const Briefing = {
       if (elements.length > 0) {
         h2.after(section);
         for (const e of elements) {
-          section.appendChild(e);
+          inner.appendChild(e);
         }
       }
 
