@@ -395,6 +395,7 @@ const Events = {
     } finally {
       this.render();
       App.updateUnreadCount();
+      if (typeof MapView !== 'undefined') MapView.removeMarker(id);
     }
     App.toast(`✓ Accepted — ${event.name.slice(0, 30)}`, 'briefing');
   },
@@ -411,6 +412,7 @@ const Events = {
       localStorage.setItem(`event-skipped-${id}`, 'true');
       this.render();
       App.updateUnreadCount();
+      if (typeof MapView !== 'undefined') MapView.removeMarker(id);
     } catch (err) {
       console.error('[events] Skip error:', err);
     }

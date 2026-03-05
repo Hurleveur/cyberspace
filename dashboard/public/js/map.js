@@ -180,7 +180,14 @@ const MapView = {
     // Also pull event-type markers from the news date's own markers.json
     // (they were already included in newsMarkers above, nothing extra needed)
 
-    this.plotMarkers(merged);
+    // Filter out events the user has already accepted or skipped
+    const filtered = merged.filter(m => {
+      if (m.type !== 'event') return true;
+      return !localStorage.getItem(`event-accepted-${m.id}`) &&
+             !localStorage.getItem(`event-skipped-${m.id}`);
+    });
+
+    this.plotMarkers(filtered);
   },
 
   plotMarkers(data) {
@@ -397,6 +404,15 @@ const MapView = {
       el.classList.remove('marker-unread', 'marker-critical');
     }
     App.updateUnreadCount();
+  },
+
+  /** Remove a marker from the map by its data ID. */
+  removeMarker(id) {
+    const idx = this.markers.findIndex(m => m.data.id === id);
+    if (idx === -1) return;
+    this.markerLayer.removeLayer(this.markers[idx].marker);
+    this.markers.splice(idx, 1);
+    this.renderConnections();
   },
 
   showProfiler(item, latlng) {
