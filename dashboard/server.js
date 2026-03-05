@@ -20,39 +20,59 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // GET /api/file?path=relative/path.md
 app.get('/api/file', async (req, res) => {
-  const result = await fm.readFile(req.query.path);
-  if (result.error) return res.status(result.status || 400).json({ error: result.error });
-  res.type('text/plain').send(result.content);
+  try {
+    const result = await fm.readFile(req.query.path);
+    if (result.error) return res.status(result.status || 400).json({ error: result.error });
+    res.type('text/plain').send(result.content);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // PUT /api/file?path=relative/path.md  (body = raw text)
 app.put('/api/file', async (req, res) => {
-  const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-  const result = await fm.writeFile(req.query.path, content);
-  if (result.error) return res.status(result.status || 400).json({ error: result.error });
-  res.json({ ok: true });
+  try {
+    const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    const result = await fm.writeFile(req.query.path, content);
+    if (result.error) return res.status(result.status || 400).json({ error: result.error });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // POST /api/file/append?path=relative/path.md  (body = raw text)
 app.post('/api/file/append', async (req, res) => {
-  const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-  const result = await fm.appendFile(req.query.path, content);
-  if (result.error) return res.status(result.status || 400).json({ error: result.error });
-  res.json({ ok: true });
+  try {
+    const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    const result = await fm.appendFile(req.query.path, content);
+    if (result.error) return res.status(result.status || 400).json({ error: result.error });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // --- Reports API ---
 
 // GET /api/reports — list all report dates
 app.get('/api/reports', async (req, res) => {
-  res.json(await fm.listReportDates());
+  try {
+    res.json(await fm.listReportDates());
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // GET /api/reports/latest — most recent report date
 app.get('/api/reports/latest', async (req, res) => {
-  const date = await fm.latestReportDate();
-  if (!date) return res.status(404).json({ error: 'No reports found' });
-  res.json({ date });
+  try {
+    const date = await fm.latestReportDate();
+    if (!date) return res.status(404).json({ error: 'No reports found' });
+    res.json({ date });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // --- Feeds API ---
@@ -128,14 +148,18 @@ app.get('/api/feeds/test', async (req, res) => {
 
 // POST /api/feedback  (body = { text: "..." })
 app.post('/api/feedback', async (req, res) => {
-  const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
-  if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
+  try {
+    const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
+    if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
 
-  const timestamp = new Date().toISOString().split('T')[0];
-  const entry = `\n- [${timestamp}] ${text.trim()}\n`;
-  const result = await fm.appendFile('feedback.md', entry);
-  if (result.error) return res.status(result.status || 500).json({ error: result.error });
-  res.json({ ok: true });
+    const timestamp = new Date().toISOString().split('T')[0];
+    const entry = `\n- [${timestamp}] ${text.trim()}\n`;
+    const result = await fm.appendFile('feedback.md', entry);
+    if (result.error) return res.status(result.status || 500).json({ error: result.error });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
 // --- HTTP server + WebSocket ---

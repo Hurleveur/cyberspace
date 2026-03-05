@@ -117,7 +117,7 @@ const MusicPlayer = {
     if (!this._visHandler) {
       this._visHandler = () => {
         if (document.hidden) {
-          this._stopNowPlaying();
+          this._clearNowTimer();
         } else if (this.playing && !this._nowTimer) {
           this._fetchNowPlaying();
           this._nowTimer = setInterval(() => this._fetchNowPlaying(), 30000);
@@ -127,8 +127,12 @@ const MusicPlayer = {
     }
   },
 
-  _stopNowPlaying() {
+  _clearNowTimer() {
     if (this._nowTimer) { clearInterval(this._nowTimer); this._nowTimer = null; }
+  },
+
+  _stopNowPlaying() {
+    this._clearNowTimer();
     if (this.nowEl) this.nowEl.textContent = '';
   },
 

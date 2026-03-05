@@ -482,7 +482,7 @@ const MapView = {
   hideProfiler() {
     const card = document.getElementById('profiler-card');
     if (card) card.classList.add('hidden');
-    clearTimeout(this._profilerTimer);
+    cancelAnimationFrame(this._profilerTimer);
   },
 
   // ── Marker connection lines ───────────────────────────────────────────────
