@@ -710,6 +710,8 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .events-toolbar select {
   background: var(--bg-primary);
@@ -724,6 +726,35 @@
 .events-toolbar select:focus {
   outline: none;
   border-color: var(--accent);
+}
+.events-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.events-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.events-sort-btn {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.events-sort-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .deadline-badge {

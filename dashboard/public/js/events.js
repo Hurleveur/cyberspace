@@ -8,6 +8,7 @@ const Events = {
   expandedId: null,
   sourceDate: null,   // most recent date that had an events.md
   eventDates: [],     // all dates that had an events.md (for map marker merging)
+  dateSortAsc: true,  // toggle for date sort direction
 
   async init() {
     this.bindFilterEvents();
@@ -18,6 +19,8 @@ const Events = {
     document.getElementById('events-filter-urgency').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-filter-cost').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-filter-score').addEventListener('change', () => this.applyFilters());
+    document.getElementById('events-filter-decided').addEventListener('change', () => this.applyFilters());
+    document.getElementById('events-sort-date').addEventListener('click', () => this.sortByDate());
   },
 
   /**
@@ -184,8 +187,16 @@ const Events = {
     const urgency = document.getElementById('events-filter-urgency').value;
     const cost = document.getElementById('events-filter-cost').value;
     const minScore = parseInt(document.getElementById('events-filter-score').value) || 0;
+    const hideDecided = document.getElementById('events-filter-decided').checked;
 
     this.filteredEvents = this.events.filter(event => {
+      // Hide accepted/skipped filter
+      if (hideDecided) {
+        const isAccepted = localStorage.getItem(`event-accepted-${event.id}`);
+        const isSkipped = localStorage.getItem(`event-skipped-${event.id}`);
+        if (isAccepted || isSkipped) return false;
+      }
+
       // Score filter
       if (event.score < minScore) return false;
 
@@ -216,6 +227,22 @@ const Events = {
   /** Sort filteredEvents in-place by relevance score (highest first) and re-render. */
   sortByScore() {
     this.filteredEvents.sort((a, b) => (b.score || 0) - (a.score || 0));
+    this.render();
+  },
+
+  /** Sort filteredEvents by event date. Toggles ascending/descending on each click. */
+  sortByDate() {
+    const parseDate = (ev) => {
+      const parsed = this.parseEventDateTime(ev.when);
+      return parsed ? parsed.start.getTime() : Infinity;
+    };
+    this.filteredEvents.sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b);
+      return this.dateSortAsc ? da - db : db - da;
+    });
+    this.dateSortAsc = !this.dateSortAsc;
+    const btn = document.getElementById('events-sort-date');
+    if (btn) btn.textContent = this.dateSortAsc ? 'Date ↕' : 'Date ↕';
     this.render();
   },
 

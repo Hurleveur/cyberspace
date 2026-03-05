@@ -153,7 +153,14 @@ If feedback.md is empty or only contains its template headers, skip this step en
 ## Threat Landscape
 
 **Overall threat level:** 🟢/🟡/🟠/🔴 {LABEL}
-{One sentence explaining why, based on actual news found.}
+{Two to three sentences explaining why, based on actual news found. Cover the dominant
+theme of the day, the most significant development, and the general direction of risk.
+This is the most important part of the briefing — take time to make it substantive.}
+
+**Key developments:**
+- {1–3 bullet points highlighting the day's most consequential stories: major exploits,
+  significant breaches, notable threat actor activity, or game-changing AI developments.
+  Each bullet should be a concise but informative summary, not just a headline.}
 
 | Metric | Count |
 |--------|-------|
