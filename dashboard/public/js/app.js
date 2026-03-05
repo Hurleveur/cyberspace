@@ -91,7 +91,7 @@ const App = {
     { key: 'T', action: 'Toggle Task board' },
     { key: 'S', action: 'Open Settings' },
     { key: 'Ctrl+K', action: 'Command palette / > commands' },
-    { key: 'Ctrl+F', action: 'Briefing search' },
+    { key: 'Ctrl+F', action: 'Search active panel' },
     { key: '>', action: 'Command mode (direct)' },
     { key: '/', action: 'Toggle Terminal' },
     { key: '?', action: 'Show keyboard shortcuts' },
@@ -490,12 +490,18 @@ const App = {
         return;
       }
 
-      // Ctrl+F → Briefing search (override browser find)
+      // Ctrl+F → Search in active left tab (briefing or feeds)
       if (hasCtrl && key.toLowerCase() === 'f') {
         e.preventDefault();
         this.showPanel('left');
-        this.switchLeftTab('briefing');
-        Briefing.toggleSearch(true);
+        const activeTab = document.querySelector('.panel-tab.active')?.dataset.tab;
+        if (activeTab === 'feeds') {
+          const feedsSearch = document.getElementById('feeds-search');
+          if (feedsSearch) feedsSearch.focus();
+        } else {
+          this.switchLeftTab('briefing');
+          Briefing.toggleSearch(true);
+        }
         return;
       }
 

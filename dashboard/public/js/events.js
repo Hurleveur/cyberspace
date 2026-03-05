@@ -478,6 +478,12 @@ const Events = {
       .trim();
 
     // 3. Handle date ranges — take first date
+    // Format: Month DD–DD, YYYY (e.g. "June 22–26, 2026")
+    const monthDayRange = text.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*)\s+(\d{1,2})\s*[-–]\s*\d{1,2},?\s+(\d{4})/i);
+    if (monthDayRange) {
+      text = `${monthDayRange[1]} ${monthDayRange[2]} ${monthDayRange[3]}`;
+    }
+    // Format: DD–DD Month YYYY (e.g. "22–26 June 2026")
     const dayRange = text.match(/(\d{1,2})\s*[-–]\s*\d{1,2}\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*)\s+(\d{4})/i);
     if (dayRange) {
       text = `${dayRange[1]} ${dayRange[2]} ${dayRange[3]}`;

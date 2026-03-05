@@ -80,9 +80,10 @@ const Briefing = {
   },
 
   toggleSearch(forceVisible) {
-    // Search bar is always visible — this just focuses or clears
+    const bar = document.getElementById('briefing-search-bar');
+    const input = document.getElementById('briefing-search-input');
     if (forceVisible === false) {
-      const input = document.getElementById('briefing-search-input');
+      if (bar) bar.classList.add('hidden');
       if (input) input.value = '';
       this.clearSearch();
       if (this.crossSearchActive) {
@@ -92,7 +93,8 @@ const Briefing = {
         this.loadBriefing(this.dates[this.currentIndex]);
       }
     } else {
-      document.getElementById('briefing-search-input').focus();
+      if (bar) bar.classList.remove('hidden');
+      if (input) input.focus();
     }
   },
 

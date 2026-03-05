@@ -703,6 +703,37 @@
 }
 /* Delete button already appears on .todo-link-saved via .todo-delete-btn */
 
+/* Drag handle for reorderable items */
+.todo-drag-handle {
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--text-dim);
+  font-size: 12px;
+  opacity: 0.3;
+  transition: opacity 0.12s, color 0.12s;
+  user-select: none;
+  line-height: 1;
+  padding: 0 2px;
+}
+.todo-item:hover .todo-drag-handle,
+.todo-link-item:hover .todo-drag-handle {
+  opacity: 0.7;
+}
+.todo-drag-handle:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+  cursor: grab;
+}
+.todo-drag-handle:active {
+  cursor: grabbing;
+}
+.todo-dragging {
+  opacity: 0.35;
+}
+.todo-drag-over {
+  border-top: 2px solid var(--accent) !important;
+}
+
 /* === Events === */
 .events-toolbar {
   display: flex;
@@ -953,11 +984,51 @@
   flex-shrink: 0;
 }
 .event-accepted {
-  border-color: var(--accent);
-  opacity: 0.6;
+  border-left: 3px solid var(--accent);
+  opacity: 0.55;
+}
+.event-accepted .event-item-name {
+  color: var(--accent);
+}
+.event-accepted .event-item-name::before {
+  content: '✓ ';
+  font-size: 10px;
 }
 .event-skipped {
+  border-left: 3px solid var(--threat-critical);
   opacity: 0.3;
+}
+.event-skipped .event-item-name {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-dim);
+  color: var(--text-dim);
+}
+.event-skipped .event-stars {
+  opacity: 0.4;
+}
+/* New / undecided events — stand out from decided ones */
+.event-item:not(.event-accepted):not(.event-skipped) {
+  border-left: 3px solid var(--threat-medium);
+  background: rgba(255, 200, 50, 0.04);
+}
+.event-item:not(.event-accepted):not(.event-skipped) .event-item-name {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.event-item:not(.event-accepted):not(.event-skipped) .event-arrow {
+  color: var(--threat-medium);
+}
+.event-item:not(.event-accepted):not(.event-skipped)::after {
+  content: 'NEW';
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--threat-medium);
+  background: rgba(255, 200, 50, 0.12);
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-left: 6px;
+  flex-shrink: 0;
 }
 
 /* === Settings Overlay === */

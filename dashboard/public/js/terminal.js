@@ -425,8 +425,11 @@ const Terminal = {
     if (si) {
       si.value = query;
       si.dispatchEvent(new Event('input'));
-      const count = document.getElementById('briefing-search-count');
-      this._print(`Briefing search for "<span class="t-accent">${this._escape(query)}</span>" — ${count ? count.textContent : 'checking...'}`, 'success');
+      // Allow search to process before reading count
+      setTimeout(() => {
+        const count = document.getElementById('briefing-search-count');
+        this._print(`Briefing search for "<span class="t-accent">${this._escape(query)}</span>" — ${count ? count.textContent : 'checking...'}`, 'success');
+      }, 300);
     }
 
     // Also check feed items

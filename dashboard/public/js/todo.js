@@ -301,7 +301,8 @@ const TodoList = {
     }
 
     container.innerHTML = tasks.map(task => `
-      <div class="todo-item${task.done ? ' todo-done' : ''}" data-id="${task.id}">
+      <div class="todo-item${task.done ? ' todo-done' : ''}" data-id="${task.id}" draggable="true">
+        <span class="todo-drag-handle" title="Drag to reorder">⠿</span>
         <input type="checkbox" class="todo-checkbox my-task-cb"
                ${task.done ? 'checked' : ''} data-id="${task.id}">
         <span class="todo-text">${this.escHtml(task.text)}</span>
@@ -315,6 +316,7 @@ const TodoList = {
     container.querySelectorAll('.todo-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => this.deleteTask(Number(btn.dataset.id)));
     });
+    this.enableDragReorder(container, 'tasks');
   },
 
   // ─── My Links ────────────────────────────────────────────────────────────
@@ -357,7 +359,8 @@ const TodoList = {
     }
 
     container.innerHTML = links.map(link => `
-      <div class="todo-link-item todo-link-saved" data-id="${link.id}">
+      <div class="todo-link-item todo-link-saved" data-id="${link.id}" draggable="true">
+        <span class="todo-drag-handle" title="Drag to reorder">⠿</span>
         <a href="${this.escHtml(link.url)}" target="_blank" class="todo-link" title="${this.escHtml(link.url)}">
           <span class="todo-link-icon">↗</span>
           <span class="todo-link-title">${this.escHtml(this.getDomain(link.url))}</span>
@@ -369,6 +372,82 @@ const TodoList = {
     container.querySelectorAll('.todo-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => this.deleteLink(Number(btn.dataset.id)));
     });
+    this.enableDragReorder(container, 'links');
+  },
+
+  // ─── Drag-and-Drop Reordering ────────────────────────────────────────────
+
+  enableDragReorder(container, type) {
+    let dragEl = null;
+
+    container.querySelectorAll('[draggable="true"]').forEach(el => {
+      // Only start drag from the handle
+      el.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.todo-drag-handle')) {
+          el.setAttribute('draggable', 'true');
+        } else {
+          el.setAttribute('draggable', 'false');
+        }
+      });
+
+      el.addEventListener('dragstart', (e) => {
+        dragEl = el;
+        el.classList.add('todo-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', el.dataset.id);
+      });
+
+      el.addEventListener('dragend', () => {
+        if (dragEl) dragEl.classList.remove('todo-dragging');
+        dragEl = null;
+        container.querySelectorAll('.todo-drag-over').forEach(x => x.classList.remove('todo-drag-over'));
+        // Re-enable draggable
+        container.querySelectorAll('[draggable]').forEach(x => x.setAttribute('draggable', 'true'));
+      });
+
+      el.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (el !== dragEl) el.classList.add('todo-drag-over');
+      });
+
+      el.addEventListener('dragleave', () => {
+        el.classList.remove('todo-drag-over');
+      });
+
+      el.addEventListener('drop', (e) => {
+        e.preventDefault();
+        el.classList.remove('todo-drag-over');
+        if (!dragEl || el === dragEl) return;
+
+        const fromId = Number(dragEl.dataset.id);
+        const toId   = Number(el.dataset.id);
+        if (type === 'tasks') this.reorderTasks(fromId, toId);
+        else this.reorderLinks(fromId, toId);
+      });
+    });
+  },
+
+  reorderTasks(fromId, toId) {
+    const tasks = this.getTasks();
+    const fromIdx = tasks.findIndex(t => t.id === fromId);
+    const toIdx   = tasks.findIndex(t => t.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = tasks.splice(fromIdx, 1);
+    tasks.splice(toIdx, 0, moved);
+    this.saveTasks(tasks);
+    this.renderMyTasks();
+  },
+
+  reorderLinks(fromId, toId) {
+    const links = this.getLinks();
+    const fromIdx = links.findIndex(l => l.id === fromId);
+    const toIdx   = links.findIndex(l => l.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = links.splice(fromIdx, 1);
+    links.splice(toIdx, 0, moved);
+    this.saveLinks(links);
+    this.renderMyLinks();
   },
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
