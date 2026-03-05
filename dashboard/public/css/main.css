@@ -583,6 +583,51 @@ html, body {
 .toast-feeds { border-left-color: var(--rss-color); }
 .toast-events { border-left-color: var(--event-color); }
 .toast-info { border-left-color: var(--text-dim); }
+.toast-xp { border-left-color: var(--text-dim); opacity: 0.85; }
+.toast-levelup { border-left-color: var(--accent); box-shadow: 0 0 8px var(--accent); font-weight: 600; }
+
+/* === Level / XP widget === */
+.level-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: default;
+  user-select: none;
+}
+.level-badge {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.level-bar-wrap {
+  width: 64px;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border-bright);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.level-bar-fill {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  background: var(--accent);
+  border-radius: 3px;
+  box-shadow: 0 0 6px var(--accent);
+  transition: width 0.4s ease;
+}
+.level-xp-label {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+.level-title {
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
 
 /* === Keyboard shortcut hints === */
 .shortcuts-content {

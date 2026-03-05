@@ -766,6 +766,9 @@ const Briefing = {
       cb.addEventListener('change', () => {
         this.checkboxStates[i] = cb.checked;
         localStorage.setItem(key, JSON.stringify(this.checkboxStates));
+        if (cb.checked && typeof LevelSystem !== 'undefined') {
+          LevelSystem.reward('action', `${date}-${i}`);
+        }
       });
     });
   },

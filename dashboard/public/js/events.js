@@ -391,6 +391,7 @@ const Events = {
         body: JSON.stringify({ text: `EVENT ACCEPTED: "${event.name}" (${event.when}, ${event.where})` }),
       });
       localStorage.setItem(`event-accepted-${id}`, 'true');
+      if (typeof LevelSystem !== 'undefined') LevelSystem.reward('event', id);
     } catch (err) {
       console.error('[events] Accept error:', err);
     } finally {

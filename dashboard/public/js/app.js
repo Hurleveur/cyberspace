@@ -48,8 +48,12 @@ const ReadTracker = {
 
   markRead(id) {
     const all = this._getAll();
+    const wasRead = !!all[id];
     all[id] = Date.now();
     localStorage.setItem(this.KEY, JSON.stringify(all));
+    if (!wasRead && typeof LevelSystem !== 'undefined') {
+      LevelSystem.reward('feed', id);
+    }
   },
 
   markAllRead(ids) {
@@ -159,6 +163,9 @@ const App = {
     this.syncLinksButton();
     this.applyIntroAnimations();
     this.renderThreatSparkline();
+
+    // Init leveling system
+    if (typeof LevelSystem !== 'undefined') LevelSystem.init();
 
     // Show left panel by default (feeds tab)
     this.showPanel('left');

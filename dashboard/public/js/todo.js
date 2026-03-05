@@ -161,6 +161,9 @@ const TodoList = {
     const checks = this.getBriefingChecks();
     checks[index] = !checks[index];
     this.saveBriefingChecks(checks);
+    if (checks[index] && typeof LevelSystem !== 'undefined') {
+      LevelSystem.reward('action', `${this.briefingDate}-${index}`);
+    }
     this.renderBriefingActions();
   },
 
@@ -282,7 +285,14 @@ const TodoList = {
   toggleTask(id) {
     const tasks = this.getTasks();
     const task  = tasks.find(t => t.id === id);
-    if (task) { task.done = !task.done; this.saveTasks(tasks); this.renderMyTasks(); }
+    if (task) {
+      task.done = !task.done;
+      this.saveTasks(tasks);
+      if (task.done && typeof LevelSystem !== 'undefined') {
+        LevelSystem.reward('task', String(id));
+      }
+      this.renderMyTasks();
+    }
   },
 
   deleteTask(id) {

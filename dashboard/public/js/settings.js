@@ -428,6 +428,14 @@ const Settings = {
 
     const matrixEnabled = localStorage.getItem('cyberspace-matrix') !== 'off';
     const feedInterval = parseInt(localStorage.getItem('cyberspace-feed-interval') || '15');
+    const levelingEnabled = typeof LevelSystem !== 'undefined' ? LevelSystem.isEnabled() : false;
+    const levelingInfo = (() => {
+      if (!levelingEnabled || typeof LevelSystem === 'undefined') return '';
+      const xp = LevelSystem.getXP();
+      const { level, xpInLevel, xpNeeded } = LevelSystem.getLevelProgress(xp);
+      const title = LevelSystem.getTitle(level);
+      return `<div class="system-hint" style="margin-top:4px">Level ${level} &mdash; ${title} &middot; ${xpInLevel}/${xpNeeded} XP (${xp} total)</div>`;
+    })();
 
     const swatches = themes.map(t => `
       <button class="theme-swatch${t.id === current ? ' active' : ''}" data-theme="${t.id}" title="${t.desc}">
@@ -461,6 +469,15 @@ const Settings = {
             <button id="vignette-toggle-btn" class="system-toggle-btn ${vignetteEnabled ? 'on' : 'off'}">${vignetteEnabled ? 'ON' : 'OFF'}</button>
           </label>
           <div class="system-hint">Visual overlays for the hacker workstation aesthetic.</div>
+        </div>
+        <div class="system-section">
+          <div class="system-section-title">Leveling</div>
+          <label class="system-toggle-row">
+            <span class="system-info-label">XP &amp; levels</span>
+            <button id="leveling-toggle-btn" class="system-toggle-btn ${levelingEnabled ? 'on' : 'off'}">${levelingEnabled ? 'ON' : 'OFF'}</button>
+          </label>
+          <div class="system-hint">Earn XP by reading feeds, accepting events and completing tasks.</div>
+          ${levelingInfo}
         </div>
         <div class="system-section">
           <div class="system-section-title">System Info</div>
@@ -509,6 +526,19 @@ const Settings = {
           const on = VisualFX.toggleVignette();
           vignetteBtn.textContent = on ? 'ON' : 'OFF';
           vignetteBtn.className = `system-toggle-btn ${on ? 'on' : 'off'}`;
+        }
+      });
+    }
+
+    const levelingBtn = view.querySelector('#leveling-toggle-btn');
+    if (levelingBtn) {
+      levelingBtn.addEventListener('click', () => {
+        if (typeof LevelSystem !== 'undefined') {
+          const on = LevelSystem.toggle();
+          levelingBtn.textContent = on ? 'ON' : 'OFF';
+          levelingBtn.className = `system-toggle-btn ${on ? 'on' : 'off'}`;
+          // Refresh to show / hide level stats
+          this.loadSystemTab();
         }
       });
     }
