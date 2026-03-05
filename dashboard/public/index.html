@@ -183,6 +183,27 @@
     <div id="rtab-todo" class="rtab-content">
       <div class="todo-panel">
 
+        <!-- Notion sync status bar -->
+        <div class="todo-sync-bar">
+          <span id="notion-sync-status"></span>
+          <button id="notion-config-toggle" class="todo-sync-config-btn" title="Configure Notion integration">⚙</button>
+        </div>
+
+        <!-- Notion config panel (collapsed by default) -->
+        <div id="notion-config-panel" class="notion-config hidden">
+          <div class="notion-config-inner">
+            <label class="notion-config-label">Integration Token</label>
+            <input type="password" id="notion-token-input" placeholder="secret_..." autocomplete="off">
+            <label class="notion-config-label">Database ID</label>
+            <input type="text" id="notion-dbid-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+            <div class="notion-config-actions">
+              <button id="notion-save-btn">Save</button>
+              <a href="/api/file?path=setup.md" target="_blank" class="notion-config-link">Setup guide ↗</a>
+            </div>
+            <div id="notion-config-msg" class="notion-config-msg"></div>
+          </div>
+        </div>
+
         <!-- Briefing Actions section -->
         <div class="todo-section">
           <div class="todo-section-header">
@@ -207,7 +228,23 @@
           <div class="todo-section-header">My Tasks</div>
           <div class="todo-add-row">
             <input type="text" id="todo-new-input" placeholder="Add a task and press Enter..." />
+            <button id="todo-task-meta-toggle" class="todo-meta-toggle" title="Add details (assignee, priority, due date, tags)">&#8853;</button>
             <button id="todo-add-btn" title="Add task">+</button>
+          </div>
+          <div id="todo-task-meta" class="todo-task-meta hidden">
+            <div class="todo-meta-row">
+              <input type="text" id="todo-task-assignee" class="todo-meta-input" placeholder="Assignee">
+              <select id="todo-task-priority" class="todo-meta-select">
+                <option value="">Priority</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="todo-meta-row">
+              <input type="date" id="todo-task-due" class="todo-meta-input">
+              <input type="text" id="todo-task-tags" class="todo-meta-input" placeholder="Tags (comma separated)">
+            </div>
           </div>
           <div id="todo-my-list" class="todo-list">
             <div class="todo-empty">No tasks yet</div>

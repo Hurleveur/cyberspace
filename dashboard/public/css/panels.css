@@ -1980,3 +1980,237 @@
   animation: highlight-flash-green 2s ease-out;
   border-radius: 2px;
 }
+
+/* ============================================================
+   Notion Sync — status bar, config panel, task metadata
+   ============================================================ */
+
+/* ── Sync status bar ───────────────────────────────────────────────────── */
+.todo-sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 26px;
+}
+#notion-sync-status {
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+.notion-status-ok      { color: #4caf50; }
+.notion-status-syncing { color: var(--accent); }
+.notion-status-error   { color: var(--threat-critical); cursor: default; }
+.notion-status-off     { color: var(--text-dim); }
+.todo-sync-config-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.todo-sync-config-btn:hover { color: var(--accent); }
+
+/* ── Notion config panel ─────────────────────────────────────────────── */
+.notion-config {
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  max-height: 220px;
+  transition: max-height 0.22s ease;
+  background: var(--bg-panel);
+}
+.notion-config.hidden {
+  max-height: 0;
+  border-bottom-width: 0;
+}
+.notion-config-inner {
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.notion-config-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-top: 3px;
+}
+.notion-config-inner input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 3px;
+}
+.notion-config-inner input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.notion-config-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.notion-config-actions button {
+  background: var(--accent);
+  border: none;
+  color: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.notion-config-actions button:hover { opacity: 0.85; }
+.notion-config-link {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.notion-config-link:hover { color: var(--accent); }
+.notion-config-msg {
+  font-size: 10px;
+  min-height: 14px;
+  font-family: var(--font-mono);
+}
+.notion-config-msg.ok    { color: #4caf50; }
+.notion-config-msg.error { color: var(--threat-critical); }
+
+/* ── Task metadata expand form ───────────────────────────────────────── */
+.todo-task-meta {
+  padding: 0 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+  max-height: 80px;
+  transition: max-height 0.18s ease, opacity 0.18s ease, padding 0.18s ease;
+  opacity: 1;
+}
+.todo-task-meta.hidden {
+  max-height: 0;
+  opacity: 0;
+  padding-bottom: 0;
+}
+.todo-meta-row {
+  display: flex;
+  gap: 5px;
+}
+.todo-meta-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 7px;
+  border-radius: 3px;
+  min-width: 0;
+}
+.todo-meta-input:focus { outline: none; border-color: var(--accent); }
+.todo-meta-input::placeholder { color: var(--text-dim); }
+.todo-meta-select {
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.todo-meta-select:focus { outline: none; border-color: var(--accent); }
+.todo-meta-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.todo-meta-toggle:hover,
+.todo-meta-toggle.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Task item: wrapped body (text + meta row) ───────────────────────── */
+.todo-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+/* Override the standalone flex:1 on .todo-text when inside a body wrapper */
+.todo-item-body .todo-text {
+  flex: none;
+}
+.todo-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Priority badges */
+.todo-priority-high   { background: rgba(244, 67,  54, 0.15); color: #f44336; }
+.todo-priority-medium { background: rgba(255,152,   0, 0.15); color: #ff9800; }
+.todo-priority-low    { background: rgba( 76,175,  80, 0.15); color: #4caf50; }
+
+/* Generic tag chip */
+.todo-tag {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* Due date */
+.todo-due {
+  font-size: 9px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.todo-due.overdue { color: var(--threat-critical); font-weight: 600; }
+.todo-due.soon    { color: var(--threat-high); }
+
+/* Assignee */
+.todo-assignee {
+  font-size: 9px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ── Per-item sync state indicator ───────────────────────────────────── */
+.todo-sync-state {
+  flex-shrink: 0;
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 0 2px;
+  line-height: 1;
+}
+.todo-item:hover .todo-sync-state { opacity: 0.65; }
+.todo-sync-state.synced  { color: #4caf50; }
+.todo-sync-state.pending { color: var(--accent); }
+

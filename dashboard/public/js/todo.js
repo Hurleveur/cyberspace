@@ -1,4 +1,313 @@
 /**
+ * NotionSync — bi-directional sync between the Todo panel and a Notion database.
+ * Syncs: My Tasks, My Links, Further Reading.
+ * Briefing Actions stay localStorage-only.
+ */
+const NotionSync = {
+  configured: false,
+  _syncing: false,
+  _error: null,
+  lastSync: null,
+  _pollTimer: null,
+  _debounceTimers: {},
+
+  async init() {
+    try {
+      const r = await fetch('/api/notion/config');
+      const d = await r.json();
+      this.configured = d.configured;
+    } catch { this.configured = false; }
+
+    this._renderStatus();
+    if (!this.configured) return;
+
+    this._setSyncing(true);
+    try {
+      await this.pull();
+      await this._pushOrphans();
+    } catch (e) {
+      this._error = e.message;
+    } finally {
+      this._setSyncing(false);
+      this._renderStatus();
+    }
+    this._startPolling();
+  },
+
+  // ─── Pull: fetch Notion tasks and merge into localStorage ─────────────────
+
+  async pull() {
+    const r = await fetch('/api/notion/tasks');
+    if (!r.ok) throw new Error('Notion fetch failed (' + r.status + ')');
+    const { tasks } = await r.json();
+
+    // Tasks
+    let local = TodoList.getTasks();
+    let changed = false;
+    for (const nt of tasks.filter(t => t.type === 'task')) {
+      const idx = local.findIndex(t => t.notionId === nt.notionId);
+      if (idx >= 0) {
+        const l = local[idx];
+        const updated = { ...l, done: nt.done, text: nt.text,
+          assignedTo: nt.assignedTo, priority: nt.priority,
+          dueDate: nt.dueDate, tags: nt.tags };
+        if (JSON.stringify(l) !== JSON.stringify(updated)) {
+          local[idx] = updated;
+          changed = true;
+        }
+      } else {
+        local.push({
+          id: Date.now() + Math.round(Math.random() * 1000),
+          notionId: nt.notionId,
+          text: nt.text,
+          done: nt.done,
+          createdAt: Date.now(),
+          assignedTo: nt.assignedTo,
+          priority: nt.priority,
+          dueDate: nt.dueDate,
+          tags: nt.tags,
+        });
+        changed = true;
+      }
+    }
+    if (changed) { TodoList.saveTasks(local); TodoList.renderMyTasks(); }
+
+    // Links
+    let links = TodoList.getLinks();
+    changed = false;
+    for (const nt of tasks.filter(t => t.type === 'link')) {
+      const idx = links.findIndex(l => l.notionId === nt.notionId);
+      if (idx >= 0) {
+        if (links[idx].url !== nt.text) { links[idx].url = nt.text; changed = true; }
+      } else {
+        links.push({ id: Date.now() + Math.round(Math.random() * 1000),
+          notionId: nt.notionId, url: nt.text, addedAt: Date.now() });
+        changed = true;
+      }
+    }
+    if (changed) { TodoList.saveLinks(links); TodoList.renderMyLinks(); }
+
+    // Further reading: if Notion marks one as done, hide it locally too
+    for (const nt of tasks.filter(t => t.type === 'further-reading' && nt.done && nt.sourceDate && nt.text)) {
+      const key = `briefing-further-hidden-${nt.sourceDate}`;
+      try {
+        const h = new Set(JSON.parse(localStorage.getItem(key) || '[]'));
+        if (!h.has(nt.text)) { h.add(nt.text); localStorage.setItem(key, JSON.stringify([...h])); }
+      } catch { /* ignore */ }
+    }
+    if (TodoList.briefingDate) TodoList.renderFurtherReading();
+
+    this.lastSync = Date.now();
+    this._error = null;
+    this._renderStatus();
+  },
+
+  // ─── Push local items that have no Notion ID yet ───────────────────────────
+
+  async _pushOrphans() {
+    // Tasks
+    let tasks = TodoList.getTasks();
+    let changed = false;
+    for (const t of tasks.filter(t => !t.notionId)) {
+      const nt = await this._apiCreate({
+        text: t.text, type: 'task', done: t.done,
+        assignedTo: t.assignedTo || [], priority: t.priority || null,
+        dueDate: t.dueDate || null, tags: t.tags || [],
+        dashboardId: String(t.id),
+      });
+      if (nt.notionId) { t.notionId = nt.notionId; changed = true; }
+    }
+    if (changed) { TodoList.saveTasks(tasks); TodoList.renderMyTasks(); }
+
+    // Links
+    let links = TodoList.getLinks();
+    changed = false;
+    for (const l of links.filter(l => !l.notionId)) {
+      const nt = await this._apiCreate({
+        text: l.url, type: 'link', done: false, dashboardId: String(l.id),
+      });
+      if (nt.notionId) { l.notionId = nt.notionId; changed = true; }
+    }
+    if (changed) { TodoList.saveLinks(links); TodoList.renderMyLinks(); }
+
+    // Further reading for today's briefing
+    if (TodoList.briefingDate && TodoList.furtherReadingItems.length) {
+      await this._pushFurtherReading(TodoList.briefingDate, TodoList.furtherReadingItems);
+    }
+  },
+
+  async _pushFurtherReading(date, items) {
+    const key = `notion-fr-synced-${date}`;
+    let synced;
+    try { synced = new Set(JSON.parse(localStorage.getItem(key) || '[]')); }
+    catch { synced = new Set(); }
+
+    const hidden = TodoList.getHiddenFurtherReading();
+    for (const item of items) {
+      if (synced.has(item.url)) continue;
+      const nt = await this._apiCreate({
+        text: item.url,
+        type: 'further-reading',
+        done: hidden.has(item.url),
+        sourceDate: date,
+        tags: item.title ? [item.title] : [],
+        dashboardId: `fr-${date}-${this._hashCode(item.url)}`,
+      });
+      if (nt.notionId) synced.add(item.url);
+    }
+    localStorage.setItem(key, JSON.stringify([...synced]));
+  },
+
+  // ─── Lifecycle hooks called by TodoList ────────────────────────────────────
+
+  onTaskCreated(task) {
+    if (!this.configured) return;
+    this._apiCreate({
+      text: task.text, type: 'task', done: task.done,
+      assignedTo: task.assignedTo || [], priority: task.priority || null,
+      dueDate: task.dueDate || null, tags: task.tags || [],
+      dashboardId: String(task.id),
+    }).then(nt => {
+      if (nt.notionId) {
+        const tasks = TodoList.getTasks();
+        const t = tasks.find(x => x.id === task.id);
+        if (t) { t.notionId = nt.notionId; TodoList.saveTasks(tasks); TodoList.renderMyTasks(); }
+      }
+    });
+  },
+
+  onTaskUpdated(id) {
+    if (!this.configured) return;
+    clearTimeout(this._debounceTimers['t' + id]);
+    this._debounceTimers['t' + id] = setTimeout(() => {
+      const task = TodoList.getTasks().find(t => t.id === id);
+      if (!task?.notionId) return;
+      this._apiUpdate(task.notionId, {
+        done: task.done, text: task.text,
+        assignedTo: task.assignedTo || [], priority: task.priority || null,
+        dueDate: task.dueDate || null, tags: task.tags || [],
+      });
+    }, 500);
+  },
+
+  onTaskDeleted(notionId) {
+    if (!this.configured || !notionId) return;
+    this._apiArchive(notionId);
+  },
+
+  onLinkCreated(link) {
+    if (!this.configured) return;
+    this._apiCreate({ text: link.url, type: 'link', done: false, dashboardId: String(link.id) })
+      .then(nt => {
+        if (nt.notionId) {
+          const links = TodoList.getLinks();
+          const l = links.find(x => x.id === link.id);
+          if (l) { l.notionId = nt.notionId; TodoList.saveLinks(links); TodoList.renderMyLinks(); }
+        }
+      });
+  },
+
+  onLinkDeleted(notionId) {
+    if (!this.configured || !notionId) return;
+    this._apiArchive(notionId);
+  },
+
+  onFurtherReadingHidden(date, item) {
+    if (!this.configured) return;
+    // Find the matching Notion page (by sourceDate + text) and mark it done
+    fetch('/api/notion/tasks')
+      .then(r => r.json())
+      .then(({ tasks }) => {
+        const nt = tasks.find(t =>
+          t.type === 'further-reading' && t.sourceDate === date && t.text === item.url);
+        if (nt) this._apiUpdate(nt.notionId, { done: true });
+      })
+      .catch(() => {});
+  },
+
+  onBriefingDateChanged(date, items) {
+    if (!this.configured || !date || !items.length) return;
+    this._pushFurtherReading(date, items).catch(() => {});
+  },
+
+  // ─── API helpers ──────────────────────────────────────────────────────────
+
+  async _apiCreate(data) {
+    try {
+      const r = await fetch('/api/notion/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return await r.json();
+    } catch { return {}; }
+  },
+
+  async _apiUpdate(notionId, patch) {
+    try {
+      await fetch(`/api/notion/tasks/${encodeURIComponent(notionId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+    } catch { /* best-effort */ }
+  },
+
+  async _apiArchive(notionId) {
+    try {
+      await fetch(`/api/notion/tasks/${encodeURIComponent(notionId)}`, { method: 'DELETE' });
+    } catch { /* best-effort */ }
+  },
+
+  // ─── Polling ──────────────────────────────────────────────────────────────
+
+  _startPolling() {
+    if (this._pollTimer) clearInterval(this._pollTimer);
+    this._pollTimer = setInterval(() => {
+      if (!document.hidden && this.configured) {
+        this._setSyncing(true);
+        this.pull()
+          .catch(e => { this._error = e.message; })
+          .finally(() => { this._setSyncing(false); this._renderStatus(); });
+      }
+    }, 30000);
+  },
+
+  // ─── Status bar ───────────────────────────────────────────────────────────
+
+  _setSyncing(v)  { this._syncing = v; this._renderStatus(); },
+
+  _renderStatus() {
+    const el = document.getElementById('notion-sync-status');
+    if (!el) return;
+    if (!this.configured) {
+      el.innerHTML = '<span class="notion-status-off" title="Notion not configured">◌ Notion</span>';
+      return;
+    }
+    if (this._syncing) {
+      el.innerHTML = '<span class="notion-status-syncing">↻ Syncing...</span>';
+      return;
+    }
+    if (this._error) {
+      el.innerHTML = `<span class="notion-status-error" title="${TodoList.escHtml(this._error)}">&#9888; Sync error</span>`;
+      return;
+    }
+    const t = this.lastSync
+      ? new Date(this.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '—';
+    el.innerHTML = `<span class="notion-status-ok" title="Last synced ${t}">&#10003; Synced ${t}</span>`;
+  },
+
+  // ─── Utility ──────────────────────────────────────────────────────────────
+
+  _hashCode(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    return Math.abs(h).toString(16).padStart(8, '0').slice(0, 8);
+  },
+};
+
+/**
  * TodoList — persisted task list with four sections:
  *   1. Briefing Actions  — auto-extracted from today's briefing (shared checkbox state)
  *   2. Further Reading   — links auto-extracted from today's briefing
@@ -20,6 +329,7 @@ const TodoList = {
     await this.loadBriefingContentForDate(App.activeDate || (Briefing.dates && Briefing.dates[0]));
     this.renderMyTasks();
     this.renderMyLinks();
+    await NotionSync.init();
   },
 
   bindEvents() {
@@ -31,6 +341,17 @@ const TodoList = {
     });
     taskBtn.addEventListener('click', () => this.addTask());
 
+    // Task metadata expand/collapse toggle
+    const metaToggle = document.getElementById('todo-task-meta-toggle');
+    if (metaToggle) {
+      metaToggle.addEventListener('click', () => {
+        const panel = document.getElementById('todo-task-meta');
+        const isHidden = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden', !isHidden);
+        metaToggle.classList.toggle('active', isHidden);
+      });
+    }
+
     // My Links
     const linkInput = document.getElementById('todo-link-input');
     const linkBtn   = document.getElementById('todo-link-add-btn');
@@ -38,6 +359,43 @@ const TodoList = {
       if (e.key === 'Enter') { e.preventDefault(); this.addLink(); }
     });
     linkBtn.addEventListener('click', () => this.addLink());
+
+    // Notion config panel toggle
+    const notionToggle = document.getElementById('notion-config-toggle');
+    if (notionToggle) {
+      notionToggle.addEventListener('click', () => {
+        document.getElementById('notion-config-panel').classList.toggle('hidden');
+      });
+    }
+
+    // Notion save button
+    const notionSaveBtn = document.getElementById('notion-save-btn');
+    if (notionSaveBtn) {
+      notionSaveBtn.addEventListener('click', async () => {
+        const token = (document.getElementById('notion-token-input').value || '').trim();
+        const dbId  = (document.getElementById('notion-dbid-input').value || '').trim();
+        const msg   = document.getElementById('notion-config-msg');
+        msg.textContent = 'Saving...';
+        msg.className = 'notion-config-msg';
+        try {
+          const r = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notion_token: token, notion_db_id: dbId }),
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error || 'Failed to save');
+          msg.textContent = d.configured ? '\u2713 Saved — reconnecting...' : '\u2713 Cleared';
+          msg.className = 'notion-config-msg ok';
+          NotionSync.configured = d.configured;
+          NotionSync._renderStatus();
+          if (d.configured) setTimeout(() => NotionSync.init(), 400);
+        } catch (e) {
+          msg.textContent = '\u2717 ' + e.message;
+          msg.className = 'notion-config-msg error';
+        }
+      });
+    }
   },
 
   // ─── Briefing content (actions + further reading) ────────────────────────
@@ -74,6 +432,9 @@ const TodoList = {
 
     this.renderBriefingActions();
     this.renderFurtherReading();
+
+    // Push new further reading items to Notion (non-blocking)
+    if (date) NotionSync.onBriefingDateChanged(date, this.furtherReadingItems);
   },
 
   /** Legacy wrapper — still used internally. */
@@ -228,6 +589,8 @@ const TodoList = {
     hidden.add(url);
     localStorage.setItem(`briefing-further-hidden-${this.briefingDate}`, JSON.stringify([...hidden]));
     this.renderFurtherReading();
+    const item = this.furtherReadingItems.find(i => i.url === url);
+    if (item) NotionSync.onFurtherReadingHidden(this.briefingDate, item);
   },
 
   renderFurtherReading() {
@@ -275,11 +638,35 @@ const TodoList = {
     const input = document.getElementById('todo-new-input');
     const text  = input.value.trim();
     if (!text) return;
+
+    const assigneeEl = document.getElementById('todo-task-assignee');
+    const priorityEl = document.getElementById('todo-task-priority');
+    const dueEl      = document.getElementById('todo-task-due');
+    const tagsEl     = document.getElementById('todo-task-tags');
+
+    const assignedTo = assigneeEl?.value.trim() ? [assigneeEl.value.trim()] : [];
+    const priority   = priorityEl?.value || null;
+    const dueDate    = dueEl?.value || null;
+    const tags       = tagsEl?.value.trim()
+      ? tagsEl.value.split(',').map(t => t.trim()).filter(Boolean)
+      : [];
+
+    const task = { id: Date.now(), text, done: false, createdAt: Date.now(),
+      assignedTo, priority, dueDate, tags };
+
     const tasks = this.getTasks();
-    tasks.push({ id: Date.now(), text, done: false, createdAt: Date.now() });
+    tasks.push(task);
     this.saveTasks(tasks);
+
+    // Reset inputs
     input.value = '';
+    if (assigneeEl) assigneeEl.value = '';
+    if (priorityEl) priorityEl.value = '';
+    if (dueEl)      dueEl.value = '';
+    if (tagsEl)     tagsEl.value = '';
+
     this.renderMyTasks();
+    NotionSync.onTaskCreated(task);
   },
 
   toggleTask(id) {
@@ -292,12 +679,16 @@ const TodoList = {
         LevelSystem.reward('task', String(id));
       }
       this.renderMyTasks();
+      NotionSync.onTaskUpdated(id);
     }
   },
 
   deleteTask(id) {
-    this.saveTasks(this.getTasks().filter(t => t.id !== id));
+    const tasks = this.getTasks();
+    const task = tasks.find(t => t.id === id);
+    this.saveTasks(tasks.filter(t => t.id !== id));
     this.renderMyTasks();
+    if (task?.notionId) NotionSync.onTaskDeleted(task.notionId);
   },
 
   renderMyTasks() {
@@ -310,15 +701,56 @@ const TodoList = {
       return;
     }
 
-    container.innerHTML = tasks.map(task => `
-      <div class="todo-item${task.done ? ' todo-done' : ''}" data-id="${task.id}" draggable="true">
-        <span class="todo-drag-handle" title="Drag to reorder">⠿</span>
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const soon  = new Date(today); soon.setDate(soon.getDate() + 3);
+
+    container.innerHTML = tasks.map(task => {
+      // Notion sync indicator
+      const syncState = NotionSync.configured ? (task.notionId ? 'synced' : 'pending') : '';
+      const syncIcon  = NotionSync.configured ? (task.notionId ? '&#10003;' : '&#8635;') : '';
+
+      // Priority badge
+      const priClass = task.priority ? `todo-priority-${task.priority.toLowerCase()}` : '';
+      const priBadge = task.priority
+        ? `<span class="todo-tag ${priClass}">${this.escHtml(task.priority)}</span>` : '';
+
+      // Due date badge
+      let dueBadge = '';
+      if (task.dueDate) {
+        const d     = new Date(task.dueDate + 'T00:00:00');
+        const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const cls   = d < today ? 'overdue' : d <= soon ? 'soon' : '';
+        dueBadge = `<span class="todo-due ${cls}" title="Due ${this.escHtml(task.dueDate)}">${this.escHtml(label)}</span>`;
+      }
+
+      // Tags
+      const tagBadges = (task.tags || [])
+        .map(t => `<span class="todo-tag">${this.escHtml(t)}</span>`).join('');
+
+      // Assignees
+      const assignees = task.assignedTo || [];
+      const assigneeBadge = assignees.length
+        ? `<span class="todo-assignee">${this.escHtml(assignees.map(a => '@' + a).join(', '))}</span>` : '';
+
+      const hasMeta = task.priority || task.dueDate || (task.tags && task.tags.length) || assignees.length;
+      const metaRow = hasMeta
+        ? `<div class="todo-item-meta">${priBadge}${tagBadges}${dueBadge}${assigneeBadge}</div>` : '';
+
+      const syncEl = NotionSync.configured
+        ? `<span class="todo-sync-state ${syncState}" title="${syncState === 'synced' ? 'Synced with Notion' : 'Pending sync'}">${syncIcon}</span>` : '';
+
+      return `<div class="todo-item${task.done ? ' todo-done' : ''}" data-id="${task.id}" draggable="true">
+        <span class="todo-drag-handle" title="Drag to reorder">&#8959;</span>
         <input type="checkbox" class="todo-checkbox my-task-cb"
                ${task.done ? 'checked' : ''} data-id="${task.id}">
-        <span class="todo-text">${this.escHtml(task.text)}</span>
-        <button class="todo-delete-btn" data-id="${task.id}" title="Remove">×</button>
-      </div>
-    `).join('');
+        <div class="todo-item-body">
+          <span class="todo-text">${this.escHtml(task.text)}</span>
+          ${metaRow}
+        </div>
+        ${syncEl}
+        <button class="todo-delete-btn" data-id="${task.id}" title="Remove">&#215;</button>
+      </div>`;
+    }).join('');
 
     container.querySelectorAll('.my-task-cb').forEach(cb => {
       cb.addEventListener('change', () => this.toggleTask(Number(cb.dataset.id)));
@@ -346,16 +778,21 @@ const TodoList = {
     if (!url) return;
     // Auto-prepend https:// if protocol missing
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    const link = { id: Date.now(), url, addedAt: Date.now() };
     const links = this.getLinks();
-    links.push({ id: Date.now(), url, addedAt: Date.now() });
+    links.push(link);
     this.saveLinks(links);
     input.value = '';
     this.renderMyLinks();
+    NotionSync.onLinkCreated(link);
   },
 
   deleteLink(id) {
-    this.saveLinks(this.getLinks().filter(l => l.id !== id));
+    const links = this.getLinks();
+    const link = links.find(l => l.id === id);
+    this.saveLinks(links.filter(l => l.id !== id));
     this.renderMyLinks();
+    if (link?.notionId) NotionSync.onLinkDeleted(link.notionId);
   },
 
   renderMyLinks() {
