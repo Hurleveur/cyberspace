@@ -38,6 +38,7 @@ const LevelSystem = {
     action: 20,
     task:   15,
     event:  50,
+    intercept: 100,
   },
 
   /** Resolve final XP amount, applying feed-priority scaling when available. */

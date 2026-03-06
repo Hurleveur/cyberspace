@@ -167,6 +167,9 @@ const App = {
     // Init leveling system
     if (typeof LevelSystem !== 'undefined') LevelSystem.init();
 
+    // Check for announcement (intercepted transmission)
+    if (typeof Announcement !== 'undefined') Announcement.init();
+
     // Show left panel by default (feeds tab)
     this.showPanel('left');
   },

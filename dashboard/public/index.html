@@ -49,8 +49,11 @@
         <input id="music-volume" class="music-volume-sm" type="range" min="0" max="100" value="55" title="Volume" />
       </span>
     </div>
-    <div class="header-right">
+    <div class="header-center">
+      <button id="intercept-btn" class="intercept-btn hidden" title="Intercepted transmission — click to read">&#9673; INTERCEPT</button>
       <span id="unread-badge" class="unread-badge" title="Unread items">0</span>
+    </div>
+    <div class="header-right">
       <button class="header-btn" id="btn-links" title="Toggle marker links">
         <span class="btn-icon">⤳</span>
       </button>
@@ -308,6 +311,41 @@
     </div>
   </div>
 
+  <!-- Announcement Overlay (Intercepted Transmission) -->
+  <div id="announcement-overlay" class="announcement-overlay hidden">
+    <div class="announcement-box">
+      <div class="announcement-scanlines"></div>
+      <div class="announcement-header">
+        <div class="announcement-header-left">
+          <div class="announcement-classification">
+            <span class="announcement-warn-icon">⚠</span>
+            INTERCEPTED TRANSMISSION
+            <span class="announcement-warn-icon">⚠</span>
+          </div>
+          <div class="announcement-title" id="announcement-title">TRANSMISSION</div>
+        </div>
+        <button id="announcement-close" class="announcement-close" title="Dismiss">&#x2715;</button>
+      </div>
+      <div class="announcement-meta">
+        <span class="announcement-source">SOURCE: DARK WEB</span>
+        <span class="announcement-meta-date" id="announcement-date">DATE: —</span>
+        <span id="announcement-author" class="announcement-author">AUTHOR: ANONYMOUS</span>
+        <span class="announcement-clearance">EYES ONLY</span>
+      </div>
+      <div class="announcement-body">
+        <div id="announcement-text" class="announcement-text"></div>
+      </div>
+      <div id="announcement-scroll-hint" class="announcement-scroll-hint hidden"></div>
+      <div class="announcement-footer">
+        <span class="announcement-watermark">CYBERSPACE INTELLIGENCE — INTERCEPT LOG</span>
+        <div class="announcement-footer-actions">
+          <button id="announcement-skip" class="announcement-skip-btn skip-hidden" title="Skip typewriter">SKIP ▶▶</button>
+          <button id="announcement-dismiss" class="announcement-dismiss-btn">ACKNOWLEDGE &amp; DISMISS</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notifications -->
   <div id="toast-container" class="toast-container"></div>
 
@@ -369,6 +407,7 @@
   <script defer src="/js/music.js"></script>
   <script defer src="/js/terminal.js"></script>
   <script defer src="/js/level.js"></script>
+  <script defer src="/js/announcement.js"></script>
   <script defer src="/js/app.js"></script>
 </body>
 </html>

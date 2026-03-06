@@ -144,7 +144,7 @@ const Terminal = {
 
   _CMDS: ['events', 'feeds', 'briefing', 'map', 'config', 'status', 'threat',
           'unread', 'search', 'feedback', 'mark-read', 'refresh', 'clear',
-          'help', 'shortcuts', 'theme', 'crt', 'vignette', 'effects'],
+          'help', 'shortcuts', 'theme', 'crt', 'vignette', 'effects', 'intercept'],
 
   _tabComplete() {
     const val = this._input.value;
@@ -212,6 +212,7 @@ const Terminal = {
       case 'crt':      return this._cmdCRT();
       case 'vignette': return this._cmdVignette();
       case 'effects':  return this._cmdEffects();
+      case 'intercept': return this._cmdIntercept(args[0]);
       default:
         this._print(`Unknown command: <span class="t-accent">${this._escape(cmd)}</span>. Type <span class="t-accent">help</span> for a list.`, 'error');
     }
@@ -553,6 +554,41 @@ const Terminal = {
     this._print('Toggle with: <span class="t-accent">crt</span>, <span class="t-accent">vignette</span>, <span class="t-accent">theme &lt;color&gt;</span>', 'info');
   },
 
+  _cmdIntercept(arg) {
+    if (typeof Announcement === 'undefined') {
+      return this._print('No announcement module loaded.', 'error');
+    }
+    if (arg === 'reset') {
+      try { localStorage.removeItem(Announcement.STORAGE_KEY); } catch (_) {}
+      this._print('Announcement seen-log cleared. Reload or run <span class="t-accent">intercept show</span> to re-display.', 'success');
+      return;
+    }
+    if (arg === 'show' || !arg) {
+      // Always force-fetch so it works regardless of seen state
+      fetch('/api/reports/announcement').then(async r => {
+        if (!r.ok) {
+          this._print('No intercepted transmission found for the latest report.', 'info');
+          return;
+        }
+        const { date, content } = await r.json();
+        const { meta, body } = Announcement._parseFrontmatter(content);
+        Announcement._date = date;
+        Announcement._meta = meta;
+        Announcement._body = body;
+        // Temporarily remove this date from seen so the overlay can re-open
+        const seen = Announcement._getSeen().filter(d => d !== date);
+        try { localStorage.setItem(Announcement.STORAGE_KEY, JSON.stringify(seen)); } catch (_) {}
+        Announcement._showHeaderIcon();
+        Announcement._openOverlay();
+        this._print(`Intercepted: <span class="t-accent">${this._escape(meta?.title || date)}</span>`, 'success');
+      }).catch(() => {
+        this._print('Failed to fetch announcement.', 'error');
+      });
+      return;
+    }
+    this._print('Usage: <span class="t-accent">intercept</span> &nbsp;or&nbsp; <span class="t-accent">intercept reset</span>', 'info');
+  },
+
   _cmdHelp(sub) {
     const HELP = {
       events:    'events [--priority|--date|--cost]   Open events panel with optional sort',
@@ -567,6 +603,7 @@ const Terminal = {
       feedback:  'feedback <text>                      Append to feedback.md',
       'mark-read':'mark-read                           Mark all visible items as read',
       refresh:   'refresh [feeds]                      Force re-fetch feeds',
+      intercept: 'intercept [reset]                    Show intercepted transmission / reset seen',
       clear:     'clear                                Clear terminal output',
       shortcuts: 'shortcuts                            Open keyboard shortcuts overlay',
       theme:     'theme <green|amber|cyan>             Switch accent color',
@@ -587,7 +624,7 @@ const Terminal = {
       this._print('<span class="t-dim">INFORMATION</span>', 'info');
       ['status', 'threat', 'unread', 'search'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('<span class="t-dim">ACTIONS</span>', 'info');
-      ['feedback', 'mark-read', 'refresh', 'theme', 'shortcuts', 'clear', 'help'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
+      ['feedback', 'mark-read', 'refresh', 'intercept', 'theme', 'shortcuts', 'clear', 'help'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('<span class="t-dim">VISUAL</span>', 'info');
       ['crt', 'vignette', 'effects'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('────────────────────────────────────────────', 'info');
