@@ -32,10 +32,23 @@ const LevelSystem = {
   // ─── XP per action type ─────────────────────────────────────────────────
 
   XP_VALUES: {
-    feed:   10,
+    feed:        10, // default / MEDIUM
+    'feed:HIGH':  25,
+    'feed:LOW':    5,
     action: 20,
     task:   15,
     event:  50,
+  },
+
+  /** Resolve final XP amount, applying feed-priority scaling when available. */
+  _resolveAmount(type, id) {
+    if (type === 'feed' && typeof Feeds !== 'undefined' && Feeds.items) {
+      const item = Feeds.items.find(i => i.id === id);
+      const p = item?.priority?.toUpperCase();
+      if (p === 'HIGH') return this.XP_VALUES['feed:HIGH'];
+      if (p === 'LOW')  return this.XP_VALUES['feed:LOW'];
+    }
+    return this.XP_VALUES[type] || 0;
   },
 
   // ─── Tier titles ─────────────────────────────────────────────────────────
@@ -182,7 +195,7 @@ const LevelSystem = {
     const rewarded = this.getRewarded();
     if (rewarded[key]) return; // already awarded
 
-    const amount = this.XP_VALUES[type] || 0;
+    const amount = this._resolveAmount(type, id);
     if (!amount) return;
 
     const prevXP    = this.getXP();
