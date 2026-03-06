@@ -9,7 +9,6 @@ const fsp = require('fs').promises;
 
 const fm = require('./lib/fileManager');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
-const notion = require('./lib/notionClient');
 
 const PORT = process.env.PORT || 3000;
 const FEED_REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
@@ -149,103 +148,6 @@ app.get('/api/feeds/test', async (req, res) => {
 });
 
 // --- Feedback API ---
-
-// --- Notion API ---
-
-// GET /api/notion/config — returns whether Notion credentials are present
-app.get('/api/notion/config', (req, res) => {
-  res.json({ configured: notion.isConfigured() });
-});
-
-// GET /api/notion/tasks — fetch all tasks from Notion
-app.get('/api/notion/tasks', async (req, res) => {
-  try {
-    const result = await notion.fetchTasks();
-    if (result.error) return res.status(503).json({ error: result.error });
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/notion/tasks  (body = task object)
-app.post('/api/notion/tasks', async (req, res) => {
-  try {
-    const result = await notion.createTask(req.body);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// PATCH /api/notion/tasks/:id  (body = partial task object)
-app.patch('/api/notion/tasks/:id', async (req, res) => {
-  try {
-    const result = await notion.updateTask(req.params.id, req.body);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE /api/notion/tasks/:id  — archives the task in Notion
-app.delete('/api/notion/tasks/:id', async (req, res) => {
-  try {
-    const result = await notion.archiveTask(req.params.id);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Settings API ---
-
-// POST /api/settings  (body = { notion_token?: string, notion_db_id?: string })
-// Writes values into .env and hot-reloads them into process.env.
-app.post('/api/settings', async (req, res) => {
-  const { notion_token, notion_db_id } = req.body || {};
-
-  if (notion_token !== undefined && notion_token.trim() !== '' &&
-      !/^secret_[A-Za-z0-9_-]+$/.test(notion_token.trim())) {
-    return res.status(400).json({ error: 'Invalid token format — must start with "secret_"' });
-  }
-  // Accept both plain UUID and UUID without dashes
-  if (notion_db_id !== undefined && notion_db_id.trim() !== '' &&
-      !/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(notion_db_id.trim())) {
-    return res.status(400).json({ error: 'Invalid database ID format — UUID expected' });
-  }
-
-  try {
-    const envPath = path.join(__dirname, '.env');
-    let content = '';
-    try { content = await fsp.readFile(envPath, 'utf8'); } catch { /* file may not exist yet */ }
-
-    if (notion_token !== undefined) {
-      content = upsertEnvVar(content, 'NOTION_TOKEN', notion_token.trim());
-      process.env.NOTION_TOKEN = notion_token.trim();
-    }
-    if (notion_db_id !== undefined) {
-      content = upsertEnvVar(content, 'NOTION_DATABASE_ID', notion_db_id.trim());
-      process.env.NOTION_DATABASE_ID = notion_db_id.trim();
-    }
-
-    await fsp.writeFile(envPath, content, 'utf8');
-    notion.resetClient();
-    res.json({ ok: true, configured: notion.isConfigured() });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-function upsertEnvVar(content, key, value) {
-  const line = `${key}=${value}`;
-  const re = new RegExp(`^${key}=.*$`, 'm');
-  if (re.test(content)) return content.replace(re, line);
-  return content.trimEnd() + '\n' + line + '\n';
-}
 
 // POST /api/feedback  (body = { text: "..." })
 app.post('/api/feedback', async (req, res) => {

@@ -12,7 +12,6 @@
     "ws": "^8.18.0",
     "chokidar": "^4.0.0",
     "rss-parser": "^3.13.0",
-    "@notionhq/client": "^2.3.0",
     "dotenv": "^16.4.0"
   }
 }
