@@ -4,7 +4,8 @@ dashboard/node_modules/
 # Personal / sensitive config (contains profile data, preferences, personal feedback)
 interests.md
 feedback.md
-seen-events.md
+news.md
+events.md
 
 # Environment / secrets
 dashboard/.env

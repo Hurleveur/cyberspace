@@ -1679,11 +1679,14 @@
   flex-direction: column;
   font-family: var(--font-mono);
   font-size: 12px;
-  transition: transform 0.22s ease;
+  transition: transform 0.22s ease, left 0.25s ease, right 0.25s ease;
   box-shadow: 0 -4px 32px var(--accent-glow);
 }
 .terminal-panel.hidden {
   transform: translateY(100%);
+}
+.terminal-panel.resizing {
+  transition: transform 0.22s ease;
 }
 
 .terminal-header {

@@ -274,6 +274,7 @@ const App = {
     panel.el.classList.remove('hidden');
     panel.visible = true;
     this.updateButtonStates();
+    this._syncTerminalBounds();
     // Visual FX: border glitch when opening (not when already visible)
     if (wasHidden && typeof VisualFX !== 'undefined') {
       VisualFX.panelGlitch(panel.el.id);
@@ -285,6 +286,7 @@ const App = {
     panel.el.classList.add('hidden');
     panel.visible = false;
     this.updateButtonStates();
+    this._syncTerminalBounds();
   },
 
   togglePanel(side) {
@@ -292,6 +294,18 @@ const App = {
     panel.visible = !panel.visible;
     panel.el.classList.toggle('hidden', !panel.visible);
     this.updateButtonStates();
+    this._syncTerminalBounds();
+  },
+
+  _syncTerminalBounds() {
+    const terminal = document.getElementById('terminal-panel');
+    if (!terminal) return;
+    const leftPanel = this.panels.left?.el;
+    const rightPanel = this.panels.right?.el;
+    const leftW = leftPanel && !leftPanel.classList.contains('hidden') ? leftPanel.offsetWidth : 0;
+    const rightW = rightPanel && !rightPanel.classList.contains('hidden') ? rightPanel.offsetWidth : 0;
+    terminal.style.left = leftW + 'px';
+    terminal.style.right = rightW + 'px';
   },
 
   updateButtonStates() {
@@ -708,10 +722,14 @@ const App = {
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
 
+      const terminalPanel = document.getElementById('terminal-panel');
+      if (terminalPanel) terminalPanel.classList.add('resizing');
+
       const onMove = (e) => {
         const delta = panelId === 'left-panel' ? (e.clientX - startX) : (startX - e.clientX);
         const newWidth = Math.min(700, Math.max(300, startWidth + delta));
         panel.style.width = newWidth + 'px';
+        this._syncTerminalBounds();
       };
 
       const onUp = () => {
@@ -720,6 +738,8 @@ const App = {
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
         localStorage.setItem(`panel-width-${panelId}`, panel.offsetWidth);
+        if (terminalPanel) terminalPanel.classList.remove('resizing');
+        this._syncTerminalBounds();
       };
 
       document.addEventListener('mousemove', onMove);
@@ -734,6 +754,7 @@ const App = {
         document.getElementById(id).style.width = saved + 'px';
       }
     }
+    this._syncTerminalBounds();
   },
 
   // --- WebSocket event handlers ---

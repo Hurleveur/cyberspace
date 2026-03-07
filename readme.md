@@ -2,6 +2,9 @@
 
 A personal intelligence agent that runs every morning at 10am, scans the web for cybersecurity and AI news, and delivers a curated daily briefing + weekly event radar — tailored to your interests, deduplicated against past reports, and rendered on a local dashboard.
 
+The briefs I post are naturally tailored to my interest, which is why this project is invite only so far and not ready for forks yet, I'm still working on it.
+If you have suggestions, feel free, and also do read those briefs please.
+
 ---
 
 ## What it does
@@ -68,7 +71,7 @@ cyberspace/
 
 ## How to configure it
 
-**Instruction file:** `CLAUDE.md` is what Claude reads as its operational instructions. If you want to change how the system works at a fundamental level — output format, search budget, phase logic — edit that file directly.
+**Instruction file:** `CLAUDE.md` is what Claude reads as its operational instructions. If you want to change how the system works at a fundamental level — output format, search budget, phase logic — edit that file directly. I recommend starting by introducing your AI to this project and asking it to do an interview to fill these different .md files to your preferences.
 
 **Your profile:** Edit `interests.md` to update what you care about, your tech stack, event preferences, and scoring weights. This is the most important config file — it controls what gets included and what gets filtered out.
 

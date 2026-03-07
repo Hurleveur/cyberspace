@@ -81,7 +81,14 @@ app.get('/api/reports/latest', async (req, res) => {
 // GET /api/reports/announcement — announcement.md for a specific or latest report
 app.get('/api/reports/announcement', async (req, res) => {
   try {
-    const date = req.query.date || await fm.latestReportDate();
+    let date = Array.isArray(req.query.date) ? req.query.date[0] : req.query.date;
+    if (date !== undefined) {
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Invalid date parameter' });
+      }
+    } else {
+      date = await fm.latestReportDate();
+    }
     if (!date) return res.status(404).json({ error: 'No reports found' });
     const result = await fm.readFile(`reports/${date}/announcement.md`);
     if (result.error) return res.status(404).json({ error: 'No announcement for this report' });
