@@ -261,6 +261,9 @@ const App = {
     // Refresh tasks panel to show this date's actions + further reading
     await TodoList.loadBriefingContentForDate(date);
 
+    // Load announcement for this specific date
+    if (typeof Announcement !== 'undefined') Announcement.initForDate(date);
+
     // Update badges for this date
     this.updateUnreadCount();
   },

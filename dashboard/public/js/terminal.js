@@ -38,11 +38,11 @@ const Terminal = {
           break;
         case 'ArrowUp':
           e.preventDefault();
-          this._historyNav(-1);
+          this._historyNav(1);
           break;
         case 'ArrowDown':
           e.preventDefault();
-          this._historyNav(1);
+          this._historyNav(-1);
           break;
         case 'Escape':
           this.close();
@@ -564,10 +564,17 @@ const Terminal = {
       return;
     }
     if (arg === 'show' || !arg) {
-      // Always force-fetch so it works regardless of seen state
-      fetch('/api/reports/announcement').then(async r => {
+      // Always force-fetch for the currently viewed briefing date
+      const activeDate = (typeof Briefing !== 'undefined' && Briefing.getCurrentDate)
+        ? Briefing.getCurrentDate()
+        : null;
+      const url = activeDate
+        ? `/api/reports/announcement?date=${encodeURIComponent(activeDate)}`
+        : '/api/reports/announcement';
+      fetch(url).then(async r => {
         if (!r.ok) {
-          this._print('No intercepted transmission found for the latest report.', 'info');
+          const dateLabel = activeDate || 'the latest report';
+          this._print(`No intercepted transmission found for ${dateLabel}.`, 'info');
           return;
         }
         const { date, content } = await r.json();

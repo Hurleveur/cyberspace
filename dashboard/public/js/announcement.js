@@ -30,6 +30,38 @@ const Announcement = {
     }
   },
 
+  // Load announcement for a specific report date (called when switching briefing dates)
+  async initForDate(date) {
+    try {
+      const resp = await fetch(`/api/reports/announcement?date=${encodeURIComponent(date)}`);
+      if (!resp.ok) {
+        // No announcement for this date — hide any existing icon
+        this._hideHeaderIcon();
+        this._date = null;
+        return;
+      }
+      const { date: resDate, content } = await resp.json();
+
+      if (this._getSeen().includes(resDate)) {
+        // Already acknowledged — keep icon hidden
+        this._hideHeaderIcon();
+        this._date = resDate;
+        const { meta, body } = this._parseFrontmatter(content);
+        this._meta = meta;
+        this._body = body;
+        return;
+      }
+
+      const { meta, body } = this._parseFrontmatter(content);
+      this._date = resDate;
+      this._meta = meta;
+      this._body = body;
+      this._showHeaderIcon();
+    } catch (_) {
+      this._hideHeaderIcon();
+    }
+  },
+
   // ── Frontmatter ──────────────────────────────────────────────────────────────
 
   _parseFrontmatter(raw) {
