@@ -17,16 +17,21 @@ const Briefing = {
   crossSearchTimer: null,
   _profilerTimer: null,
 
+  SESSION_DATE_KEY: 'cyberspace-active-date',
+
   async init() {
     this.bindEvents();
     await this.loadDates();
     if (this.dates.length > 0) {
-      // Honour URL hash — e.g. #date=2026-03-01
+      // Restore from sessionStorage (persists across refresh, cleared on new tab)
+      // Fall back to URL hash, then default to dates[0] (latest)
+      const storedDate = sessionStorage.getItem(this.SESSION_DATE_KEY);
       const hashDate = this._getHashDate();
-      const hashIdx = hashDate ? this.dates.indexOf(hashDate) : -1;
-      if (hashIdx !== -1) {
-        this.currentIndex = hashIdx;
-        await this.loadBriefing(hashDate);
+      const restoreDate = storedDate || hashDate;
+      const restoreIdx = restoreDate ? this.dates.indexOf(restoreDate) : -1;
+      if (restoreIdx !== -1) {
+        this.currentIndex = restoreIdx;
+        await this.loadBriefing(restoreDate);
       } else {
         await this.loadBriefing(this.dates[0]);
       }
@@ -822,6 +827,7 @@ const Briefing = {
     this.loadBriefing(date);
     this.updateNav();
     this._setHashDate(date);
+    sessionStorage.setItem(this.SESSION_DATE_KEY, date);
     // Sync the entire dashboard to this date
     App.setActiveDate(date);
   },
@@ -833,6 +839,7 @@ const Briefing = {
     this.loadBriefing(date);
     this.updateNav();
     this._setHashDate(date);
+    sessionStorage.setItem(this.SESSION_DATE_KEY, date);
     App.setActiveDate(date);
   },
 

@@ -81,6 +81,12 @@ const App = {
   // Which tab is active in the right panel ('events' or 'todo')
   currentRightTab: 'events',
 
+  SESSION_KEYS: {
+    rightVisible: 'cyberspace-right-panel-visible',
+    rightTab:     'cyberspace-right-tab',
+    leftTab:      'cyberspace-left-tab',
+  },
+
   // The currently displayed report date (syncs map, tasks, unread counts)
   activeDate: null,
   // The date that has the latest events.md (may differ from activeDate)
@@ -128,8 +134,8 @@ const App = {
       Events.init(),
     ]);
 
-    // Set active date to the latest briefing
-    this.activeDate = Briefing.dates[0] || null;
+    // Set active date to whatever the briefing loaded (respects hash/sessionStorage restore)
+    this.activeDate = Briefing.getCurrentDate() || Briefing.dates[0] || null;
 
     // Now that Events has discovered the eventsSourceDate, reload map with
     // merged news + event markers so event pins are always visible.
@@ -170,8 +176,30 @@ const App = {
     // Check for announcement (intercepted transmission)
     if (typeof Announcement !== 'undefined') Announcement.init();
 
-    // Show left panel by default (feeds tab)
+    // Restore panel / tab / terminal state from last session
+    this._restoreUIState();
+  },
+
+  _saveUIState() {
+    sessionStorage.setItem(this.SESSION_KEYS.rightVisible, this.panels.right.visible ? '1' : '0');
+    sessionStorage.setItem(this.SESSION_KEYS.rightTab, this.currentRightTab);
+    const activeLeftTab = document.querySelector('.panel-tab.active')?.dataset.tab || 'feeds';
+    sessionStorage.setItem(this.SESSION_KEYS.leftTab, activeLeftTab);
+  },
+
+  _restoreUIState() {
+    // Left panel is always shown; restore which tab was active
+    const leftTab = sessionStorage.getItem(this.SESSION_KEYS.leftTab) || 'feeds';
     this.showPanel('left');
+    this.switchLeftTab(leftTab);
+
+    // Right panel
+    const rightVisible = sessionStorage.getItem(this.SESSION_KEYS.rightVisible);
+    const rightTab = sessionStorage.getItem(this.SESSION_KEYS.rightTab) || 'events';
+    if (rightVisible === '1') {
+      this.showPanel('right');
+      this.switchRightTab(rightTab);
+    }
   },
 
   // --- Panel management ---
@@ -233,10 +261,12 @@ const App = {
       const panelId = btn.dataset.panel;
       if (panelId) {
         btn.addEventListener('click', () => {
-          document.getElementById(panelId).classList.add('hidden');
-          if (panelId === 'left-panel') this.panels.left.visible = false;
-          if (panelId === 'right-panel') this.panels.right.visible = false;
-          this.updateButtonStates();
+          if (panelId === 'left-panel') this.hidePanel('left');
+          else if (panelId === 'right-panel') this.hidePanel('right');
+          else {
+            document.getElementById(panelId).classList.add('hidden');
+            this.updateButtonStates();
+          }
         });
       }
     });
@@ -275,6 +305,7 @@ const App = {
     panel.visible = true;
     this.updateButtonStates();
     this._syncTerminalBounds();
+    if (side === 'right') this._saveUIState();
     // Visual FX: border glitch when opening (not when already visible)
     if (wasHidden && typeof VisualFX !== 'undefined') {
       VisualFX.panelGlitch(panel.el.id);
@@ -287,6 +318,7 @@ const App = {
     panel.visible = false;
     this.updateButtonStates();
     this._syncTerminalBounds();
+    if (side === 'right') this._saveUIState();
   },
 
   togglePanel(side) {
@@ -295,6 +327,7 @@ const App = {
     panel.el.classList.toggle('hidden', !panel.visible);
     this.updateButtonStates();
     this._syncTerminalBounds();
+    if (side === 'right') this._saveUIState();
   },
 
   _syncTerminalBounds() {
@@ -409,6 +442,7 @@ const App = {
     document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tabName}`));
     this.updateButtonStates();
+    this._saveUIState();
   },
 
   // --- Right panel tab switching ---
@@ -428,6 +462,7 @@ const App = {
     document.querySelectorAll('.rtab-content').forEach(c =>
       c.classList.toggle('active', c.id === `rtab-${tabName}`));
     this.updateButtonStates();
+    this._saveUIState();
 
     // Refresh todo when switching to it (in case briefing updated)
     if (tabName === 'todo' && typeof TodoList !== 'undefined') {

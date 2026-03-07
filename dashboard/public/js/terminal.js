@@ -10,6 +10,7 @@ const Terminal = {
   _history: [],
   _historyIndex: -1,
   _HISTORY_KEY: 'cyberspace-terminal-history',
+  _SESSION_KEY: 'cyberspace-terminal-visible',
   _visible: false,
 
   // ---------- Lifecycle ----------
@@ -53,12 +54,16 @@ const Terminal = {
     document.getElementById('terminal-close').addEventListener('click', () => this.close());
 
     this._print('Cyberspace terminal ready. Type <span class="t-accent">help</span> for commands.', 'info');
+
+    // Restore open state from last session
+    if (sessionStorage.getItem(this._SESSION_KEY) === '1') this.open();
   },
 
   open() {
     if (!this._el) return;
     this._el.classList.remove('hidden');
     this._visible = true;
+    sessionStorage.setItem(this._SESSION_KEY, '1');
     requestAnimationFrame(() => this._input.focus());
   },
 
@@ -66,6 +71,7 @@ const Terminal = {
     if (!this._el) return;
     this._el.classList.add('hidden');
     this._visible = false;
+    sessionStorage.setItem(this._SESSION_KEY, '0');
   },
 
   toggle() {

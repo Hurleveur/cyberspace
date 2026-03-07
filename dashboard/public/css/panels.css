@@ -381,7 +381,7 @@
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.briefing-today-btn.hidden { display: none !important; }
+.briefing-today-btn.hidden { visibility: hidden; pointer-events: none; }
 #briefing-date {
   font-size: 12px;
   color: var(--text);
