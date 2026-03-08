@@ -1,16 +1,22 @@
 require('dotenv').config();
 
 const express = require('express');
-const http = require('http');
+const http    = require('http');
+const https   = require('https');
 const { WebSocketServer } = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
-const fsp = require('fs').promises;
+const fsp  = require('fs').promises;
+const fs   = require('fs');
+const { randomUUID } = require('crypto');
 
 const fm = require('./lib/fileManager');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
 
-const PORT = process.env.PORT || 3000;
+const PORT       = process.env.PORT || 3000;
+const CERT_DIR   = path.join(__dirname, 'certs');
+const CERT_FILE  = path.join(CERT_DIR, 'cert.pem');
+const KEY_FILE   = path.join(CERT_DIR, 'key.pem');
 const FEED_REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 // --- Express app ---
@@ -196,6 +202,193 @@ app.get('/api/feeds/test', async (req, res) => {
   }
 });
 
+// --- Projects API ---
+
+const PROJECTS_FILE = path.join(__dirname, 'data', 'projects.json');
+
+async function readProjects() {
+  try {
+    const data = await fsp.readFile(PROJECTS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+async function writeProjects(projects) {
+  await fsp.mkdir(path.dirname(PROJECTS_FILE), { recursive: true });
+  await fsp.writeFile(PROJECTS_FILE, JSON.stringify(projects, null, 2), 'utf-8');
+}
+
+function stripHtml(s) {
+  return String(s || '').replace(/<[^>]*>/g, '').trim();
+}
+
+function detectUrlType(url) {
+  const hash = url.includes('#') ? url.split('#')[1] : url;
+  if (/\/embed\//.test(hash)) return 'embed';
+  if (/\/view\//.test(hash))  return 'view';
+  if (/\/edit\//.test(hash))  return 'edit';
+  return 'unknown';
+}
+
+function validateProjectInput(body) {
+  const { name, cryptpadUrl, description, members, color } = body || {};
+
+  const cleanName = stripHtml(name || '').slice(0, 64);
+  if (!cleanName) return { error: 'Project name is required.' };
+
+  const cleanUrl = String(cryptpadUrl || '').trim();
+  if (!cleanUrl) return { error: 'CryptPad URL is required.' };
+  if (!/^https:\/\/cryptpad\.fr\//.test(cleanUrl))
+    return { error: 'URL must be a CryptPad link (https://cryptpad.fr/...).' };
+
+  const urlType = detectUrlType(cleanUrl);
+
+  const cleanDesc = description ? stripHtml(description).slice(0, 256) : null;
+
+  const rawMembers = Array.isArray(members)
+    ? members
+    : typeof members === 'string'
+      ? members.split(',')
+      : [];
+  const cleanMembers = rawMembers
+    .map(m => stripHtml(m).slice(0, 32))
+    .filter(Boolean)
+    .slice(0, 20);
+
+  const allowedColors = ['#00ff41', '#00bfff', '#ff6b35', '#e74c3c', '#f1c40f', '#9b59b6'];
+  const cleanColor = allowedColors.includes(color) ? color : '#00ff41';
+
+  return {
+    data: {
+      name: cleanName,
+      cryptpadUrl: cleanUrl,
+      urlType,
+      description: cleanDesc,
+      members: cleanMembers,
+      color: cleanColor,
+    },
+  };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// GET /api/projects
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projects = await readProjects();
+    res.json(projects);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/projects
+app.post('/api/projects', async (req, res) => {
+  try {
+    const validated = validateProjectInput(req.body);
+    if (validated.error) return res.status(400).json({ error: validated.error });
+
+    const projects = await readProjects();
+    const now = new Date().toISOString();
+    const project = { id: randomUUID(), ...validated.data, createdAt: now, updatedAt: now };
+    projects.push(project);
+    await writeProjects(projects);
+    broadcast({ type: 'projects_updated' });
+    res.status(201).json(project);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/projects/:id
+app.put('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid project ID.' });
+
+    const validated = validateProjectInput(req.body);
+    if (validated.error) return res.status(400).json({ error: validated.error });
+
+    const projects = await readProjects();
+    const idx = projects.findIndex(p => p.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'Project not found.' });
+
+    projects[idx] = { ...projects[idx], ...validated.data, updatedAt: new Date().toISOString() };
+    await writeProjects(projects);
+    broadcast({ type: 'projects_updated' });
+    res.json(projects[idx]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/projects/check-embed?url=...
+// Makes a server-side HEAD request to the given CryptPad URL (base, no hash)
+// and returns the iframe security headers so the client can explain embed failures.
+app.get('/api/projects/check-embed', async (req, res) => {
+  const rawUrl = String(req.query.url || '').trim();
+  // Strict SSRF guard — only allow cryptpad.fr
+  if (!rawUrl || !/^https:\/\/cryptpad\.fr\/[a-zA-Z0-9/_-]*$/.test(rawUrl.split('#')[0])) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  const baseUrl = rawUrl.split('#')[0]; // hash is never sent in HTTP requests
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 6000);
+    const response = await fetch(baseUrl, {
+      method: 'HEAD',
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 CyberspaceBot/1.0' },
+    });
+    clearTimeout(tid);
+
+    const xfo = response.headers.get('x-frame-options') || null;
+    const csp = response.headers.get('content-security-policy') || null;
+    const frameAncestors = csp
+      ? (csp.match(/frame-ancestors\s+([^;]+)/)?.[1]?.trim() || null)
+      : null;
+
+    // Does the CSP allow any https:// origin to embed? ('https:' wildcard)
+    const httpsAllowed = frameAncestors ? /\bhttps:\b/.test(frameAncestors) : false;
+
+    // canEmbed is true only if there are no frame restrictions
+    const blocked = xfo
+      ? (xfo.toUpperCase() === 'DENY' || xfo.toUpperCase() === 'SAMEORIGIN')
+      : (frameAncestors && !frameAncestors.includes('*') && !httpsAllowed && !frameAncestors.match(/\bhttp:\/\/localhost/));
+
+    res.json({
+      canEmbed: !blocked,
+      httpsOnly: !blocked ? false : httpsAllowed,
+      xFrameOptions: xfo,
+      frameAncestors,
+      statusCode: response.status,
+    });
+  } catch (err) {
+    res.json({ canEmbed: false, error: err.name === 'AbortError' ? 'Request timed out' : err.message });
+  }
+});
+
+// DELETE /api/projects/:id
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid project ID.' });
+
+    const projects = await readProjects();
+    const idx = projects.findIndex(p => p.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'Project not found.' });
+
+    projects.splice(idx, 1);
+    await writeProjects(projects);
+    broadcast({ type: 'projects_updated' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Feedback API ---
 
 // POST /api/feedback  (body = { text: "..." })
@@ -214,11 +407,22 @@ app.post('/api/feedback', async (req, res) => {
   }
 });
 
-// --- HTTP server + WebSocket ---
+// --- Server + WebSocket (HTTPS when certs exist, HTTP otherwise) ---
 
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+let tlsOptions = null;
+try {
+  if (fs.existsSync(CERT_FILE) && fs.existsSync(KEY_FILE)) {
+    tlsOptions = {
+      cert: fs.readFileSync(CERT_FILE),
+      key:  fs.readFileSync(KEY_FILE),
+    };
+  }
+} catch (err) {
+  console.warn('[https] Could not load TLS certificates:', err.message);
+}
 
+const server  = tlsOptions ? https.createServer(tlsOptions, app) : http.createServer(app);
+const wss     = new WebSocketServer({ server });
 const clients = new Set();
 
 wss.on('connection', (ws) => {
@@ -311,8 +515,13 @@ async function refreshFeedsQuietly() {
 // --- Start ---
 
 server.listen(PORT, () => {
+  const scheme = tlsOptions ? 'https' : 'http';
   console.log(`\n  Cyberspace Dashboard`);
-  console.log(`  http://localhost:${PORT}\n`);
+  console.log(`  ${scheme}://localhost:${PORT}`);
+  if (!tlsOptions) {
+    console.log(`  (run setup-https.ps1 once to enable HTTPS and CryptPad embeds)`);
+  }
+  console.log();
 
   // Initial feed fetch
   refreshFeedsQuietly();

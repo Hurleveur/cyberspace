@@ -101,6 +101,7 @@ const App = {
     { key: 'B', action: 'Open Briefing panel' },
     { key: 'E', action: 'Toggle Events panel' },
     { key: 'T', action: 'Toggle Task board' },
+    { key: 'P', action: 'Toggle Projects panel' },
     { key: 'S', action: 'Open Settings' },
     { key: 'Ctrl+K', action: 'Command palette / > commands' },
     { key: 'Ctrl+F', action: 'Search active panel' },
@@ -241,6 +242,14 @@ const App = {
         this.switchRightTab('todo');
       }
     });
+    document.getElementById('btn-projects').addEventListener('click', () => {
+      if (this.panels.right.visible && this.currentRightTab === 'projects') {
+        this.togglePanel('right');
+      } else {
+        this.showPanel('right');
+        this.switchRightTab('projects');
+      }
+    });
     document.getElementById('btn-terminal').addEventListener('click', () => {
       if (typeof Terminal !== 'undefined' && typeof Terminal.toggle === 'function') Terminal.toggle();
     });
@@ -353,6 +362,8 @@ const App = {
       this.panels.right.visible && this.currentRightTab === 'events');
     document.getElementById('btn-todo').classList.toggle('active',
       this.panels.right.visible && this.currentRightTab === 'todo');
+    document.getElementById('btn-projects').classList.toggle('active',
+      this.panels.right.visible && this.currentRightTab === 'projects');
   },
 
   syncLinksButton() {
@@ -469,6 +480,10 @@ const App = {
     // Refresh todo when switching to it (in case briefing updated)
     if (tabName === 'todo' && typeof TodoList !== 'undefined') {
       TodoList.refresh();
+    }
+    // Init/refresh projects panel when switching to it
+    if (tabName === 'projects' && typeof Projects !== 'undefined') {
+      Projects.init();
     }
   },
 
@@ -616,6 +631,17 @@ const App = {
           } else {
             this.showPanel('right');
             this.switchRightTab('todo');
+          }
+          break;
+        case 'p':
+        case 'P':
+          if (hasShift) break;
+          e.preventDefault();
+          if (this.panels.right.visible && this.currentRightTab === 'projects') {
+            this.togglePanel('right');
+          } else {
+            this.showPanel('right');
+            this.switchRightTab('projects');
           }
           break;
         case 's':

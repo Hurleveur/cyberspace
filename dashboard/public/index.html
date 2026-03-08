@@ -69,6 +69,9 @@
       <button class="header-btn" id="btn-todo" title="Tasks (T)">
         <span class="btn-icon">☑</span>
       </button>
+      <button class="header-btn" id="btn-projects" title="Projects (P)">
+        <span class="btn-icon">&#128194;</span>
+      </button>
       <button class="header-btn" id="btn-terminal" title="Terminal (/)">
         <span class="btn-icon">&#62;_</span>
       </button>
@@ -150,6 +153,7 @@
         Events <span id="events-tab-badge" class="tab-badge zero">0</span>
       </button>
       <button class="right-panel-tab" data-rtab="todo">Tasks</button>
+      <button class="right-panel-tab" data-rtab="projects">Projects</button>
       <button class="panel-close" data-panel="right-panel">&times;</button>
     </div>
 
@@ -271,6 +275,12 @@
 
       </div>
     </div>
+
+    <!-- Projects tab -->
+    <div id="rtab-projects" class="rtab-content">
+      <!-- Populated by projects.js -->
+    </div>
+
   </aside>
 
   <!-- Settings Overlay -->
@@ -410,6 +420,7 @@
   <script defer src="/js/events.js"></script>
   <script defer src="/js/settings.js"></script>
   <script defer src="/js/todo.js"></script>
+  <script defer src="/js/projects.js"></script>
   <script defer src="/js/palette.js"></script>
   <script defer src="/js/effects.js"></script>
   <script defer src="/js/music.js"></script>

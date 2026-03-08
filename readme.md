@@ -48,6 +48,9 @@ cyberspace/
 │       ├── events.md      ← Weekly event radar (Mondays only)
 │       └── markers.json   ← Geocoded map markers for the dashboard
 │
+├── docs/
+│   └── cryptpad-projects.md  ← CryptPad Kanban integration guide
+│
 └── dashboard/             ← Local Node.js dashboard (served on localhost)
 ```
 
@@ -85,6 +88,14 @@ The system maintains two auto-managed logs to avoid repetition:
 - **`seen-events.md`** — events shown in the radar are suppressed in future runs unless: registration/deadline is within 48h, significant new info, the entry is over 3 weeks old, or the event is within 7 days.
 
 Both files are updated automatically at the end of each run. Don't edit them manually unless you want to force a story or event to reappear.
+
+---
+
+## Projects & Collaboration
+
+The dashboard includes a **Projects panel** (press `P` or click the 🗂 button) that embeds CryptPad Kanban boards directly alongside the intelligence feed. You can manage multiple boards with a project switcher, store project metadata (name, members, URLs) on the server so the whole team sees the same list, and collaborate in real time — CryptPad handles the encrypted task data, the dashboard provides the scaffolding around it.
+
+See **[docs/cryptpad-projects.md](docs/cryptpad-projects.md)** for full setup instructions, including how to get your CryptPad board URLs, add projects, share access with collaborators, and troubleshoot iframe embedding issues.
 
 ---
 
