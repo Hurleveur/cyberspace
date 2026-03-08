@@ -150,7 +150,8 @@ const Terminal = {
 
   _CMDS: ['events', 'feeds', 'briefing', 'map', 'config', 'status', 'threat',
           'unread', 'search', 'feedback', 'mark-read', 'refresh', 'clear',
-          'help', 'shortcuts', 'theme', 'crt', 'vignette', 'effects', 'intercept'],
+          'help', 'shortcuts', 'theme', 'crt', 'vignette', 'effects', 'intercept',
+          'export', 'import'],
 
   _tabComplete() {
     const val = this._input.value;
@@ -219,6 +220,8 @@ const Terminal = {
       case 'vignette': return this._cmdVignette();
       case 'effects':  return this._cmdEffects();
       case 'intercept': return this._cmdIntercept(args[0]);
+      case 'export':    return this._cmdExport();
+      case 'import':    return this._cmdImport(flags.includes('replace') ? 'replace' : 'merge');
       default:
         this._print(`Unknown command: <span class="t-accent">${this._escape(cmd)}</span>. Type <span class="t-accent">help</span> for a list.`, 'error');
     }
@@ -602,6 +605,42 @@ const Terminal = {
     this._print('Usage: <span class="t-accent">intercept</span> &nbsp;or&nbsp; <span class="t-accent">intercept reset</span>', 'info');
   },
 
+  async _cmdExport() {
+    this._print('Gathering data for export…', 'info');
+    const result = await DataIO.export();
+    if (result.ok) {
+      const c = result.counts;
+      this._print('Export downloaded ✓', 'success');
+      this._print(`  tasks: <span class="t-accent">${c.tasks}</span>  links: <span class="t-accent">${c.links}</span>  bookmarks: <span class="t-accent">${c.bookmarks}</span>  read: <span class="t-accent">${c.readItems}</span>`, 'output');
+      this._print(`  events: <span class="t-accent">${c.events}</span>  briefing dates: <span class="t-accent">${c.briefingDates}</span>  projects: <span class="t-accent">${c.projects}</span>`, 'output');
+    } else {
+      this._print(`Export failed: ${this._escape(result.error)}`, 'error');
+    }
+  },
+
+  async _cmdImport(mode) {
+    this._print(`Opening file picker — import mode: <span class="t-accent">${mode}</span>`, 'info');
+    if (mode === 'replace') {
+      this._print('⚠ Replace mode: current data will be overwritten.', 'error');
+    }
+    const result = await DataIO.importFromFile(mode);
+    if (result.cancelled) {
+      this._print('Import cancelled.', 'info');
+      return;
+    }
+    if (!result.ok) {
+      this._print(`Import failed: ${this._escape(result.error || 'unknown error')}`, 'error');
+      return;
+    }
+    const c = result.counts;
+    this._print(`Import complete (${result.mode}) ✓`, 'success');
+    this._print(`  tasks: <span class="t-accent">${c.tasks}</span>  links: <span class="t-accent">${c.links}</span>  bookmarks: <span class="t-accent">${c.bookmarks}</span>  read: <span class="t-accent">${c.readItems}</span>`, 'output');
+    this._print(`  events: <span class="t-accent">${c.events}</span>  briefing dates: <span class="t-accent">${c.briefingDates}</span>  projects: <span class="t-accent">${c.projects}</span>`, 'output');
+    if (result.serverResult && !result.serverResult.ok) {
+      this._print(`Server import warning: ${this._escape(result.serverResult.error || '')}`, 'error');
+    }
+  },
+
   _cmdHelp(sub) {
     const HELP = {
       events:    'events [--priority|--date|--cost]   Open events panel with optional sort',
@@ -616,8 +655,8 @@ const Terminal = {
       feedback:  'feedback <text>                      Append to feedback.md',
       'mark-read':'mark-read                           Mark all visible items as read',
       refresh:   'refresh [feeds]                      Force re-fetch feeds',
-      intercept: 'intercept [reset]                    Show intercepted transmission / reset seen',
-      clear:     'clear                                Clear terminal output',
+      intercept: 'intercept [reset]                    Show intercepted transmission / reset seen',      export:    'export                               Download backup of all data to JSON file',
+      import:    'import [--replace]                   Import data from backup file (merge by default)',      clear:     'clear                                Clear terminal output',
       shortcuts: 'shortcuts                            Open keyboard shortcuts overlay',
       theme:     'theme <green|amber|cyan>             Switch accent color',
       crt:       'crt                                  Toggle CRT scanline overlay',
@@ -637,7 +676,7 @@ const Terminal = {
       this._print('<span class="t-dim">INFORMATION</span>', 'info');
       ['status', 'threat', 'unread', 'search'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('<span class="t-dim">ACTIONS</span>', 'info');
-      ['feedback', 'mark-read', 'refresh', 'intercept', 'theme', 'shortcuts', 'clear', 'help'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
+      ['feedback', 'mark-read', 'refresh', 'intercept', 'export', 'import', 'theme', 'shortcuts', 'clear', 'help'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('<span class="t-dim">VISUAL</span>', 'info');
       ['crt', 'vignette', 'effects'].forEach(c => this._print(`  ${HELP[c]}`, 'output'));
       this._print('────────────────────────────────────────────', 'info');

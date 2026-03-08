@@ -26,6 +26,28 @@ const Settings = {
       });
     });
 
+    // Export / Import buttons
+    document.getElementById('settings-export-btn').addEventListener('click', async () => {
+      const result = await DataIO.export();
+      if (result.ok) {
+        const c = result.counts;
+        App.toast(`Backup downloaded — ${c.tasks} tasks, ${c.links} links, ${c.readItems} read items, ${c.projects} projects`, 'success');
+      } else {
+        App.toast(`Export failed: ${result.error}`, 'error');
+      }
+    });
+
+    document.getElementById('settings-import-btn').addEventListener('click', async () => {
+      const result = await DataIO.importFromFile('merge');
+      if (result.cancelled) return;
+      if (result.ok) {
+        const c = result.counts;
+        App.toast(`Imported — ${c.tasks} tasks, ${c.links} links, ${c.projects} projects`, 'success');
+      } else {
+        App.toast(`Import failed: ${result.error}`, 'error');
+      }
+    });
+
     // Edit toggle
     document.getElementById('settings-edit-btn').addEventListener('click', () => {
       this.editing = !this.editing;

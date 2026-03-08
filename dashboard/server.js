@@ -389,6 +389,59 @@ app.delete('/api/projects/:id', async (req, res) => {
   }
 });
 
+// --- Data Export / Import API ---
+
+// GET /api/data/export — server-side data snapshot for backup
+app.get('/api/data/export', async (req, res) => {
+  try {
+    const projects = await readProjects();
+    res.json({ projects });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/data/import — restore server-side data from backup
+// body: { projects: [...], mode: 'merge' | 'replace' }
+app.post('/api/data/import', async (req, res) => {
+  try {
+    const rawProjects = req.body?.projects;
+    const mode = /^replace$/i.test(String(req.body?.mode || '')) ? 'replace' : 'merge';
+
+    if (!Array.isArray(rawProjects)) {
+      return res.json({ ok: true, projectsImported: 0 });
+    }
+
+    // Validate and sanitize every project through the existing input validator
+    const validated = [];
+    for (const p of rawProjects) {
+      const result = validateProjectInput(p);
+      if (!result.error) {
+        validated.push({
+          id:        UUID_RE.test(p.id) ? p.id : randomUUID(),
+          ...result.data,
+          createdAt: (typeof p.createdAt === 'string' && p.createdAt) ? p.createdAt : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (mode === 'replace') {
+      await writeProjects(validated);
+    } else {
+      const existing    = await readProjects();
+      const existingIds = new Set(existing.map(p => p.id));
+      const toAdd       = validated.filter(p => !existingIds.has(p.id));
+      await writeProjects([...existing, ...toAdd]);
+    }
+
+    broadcast({ type: 'projects_updated' });
+    res.json({ ok: true, projectsImported: validated.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Feedback API ---
 
 // POST /api/feedback  (body = { text: "..." })
