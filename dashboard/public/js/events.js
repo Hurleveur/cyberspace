@@ -19,7 +19,8 @@ const Events = {
     document.getElementById('events-filter-urgency').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-filter-cost').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-filter-score').addEventListener('change', () => this.applyFilters());
-    document.getElementById('events-filter-decided').addEventListener('change', () => this.applyFilters());
+    document.getElementById('events-filter-accepted').addEventListener('change', () => this.applyFilters());
+    document.getElementById('events-filter-skipped').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-sort-date').addEventListener('click', () => this.sortByDate());
   },
 
@@ -192,15 +193,14 @@ const Events = {
     const urgency = document.getElementById('events-filter-urgency').value;
     const cost = document.getElementById('events-filter-cost').value;
     const minScore = parseInt(document.getElementById('events-filter-score').value) || 0;
-    const hideDecided = document.getElementById('events-filter-decided').checked;
+    const hideAccepted = document.getElementById('events-filter-accepted').checked;
+    const hideSkipped = document.getElementById('events-filter-skipped').checked;
 
     this.filteredEvents = this.events.filter(event => {
-      // Hide accepted/skipped filter
-      if (hideDecided) {
-        const isAccepted = localStorage.getItem(`event-accepted-${event.id}`);
-        const isSkipped = localStorage.getItem(`event-skipped-${event.id}`);
-        if (isAccepted || isSkipped) return false;
-      }
+      const isAccepted = localStorage.getItem(`event-accepted-${event.id}`);
+      const isSkipped = localStorage.getItem(`event-skipped-${event.id}`);
+      if (hideAccepted && isAccepted) return false;
+      if (hideSkipped && isSkipped) return false;
 
       // Score filter
       if (event.score < minScore) return false;
@@ -311,6 +311,9 @@ const Events = {
     container.querySelectorAll('.event-btn-gcal').forEach(el => {
       el.addEventListener('click', (e) => { e.stopPropagation(); });
     });
+    container.querySelectorAll('.event-btn-undo').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); this.undoEvent(btn.dataset.id); });
+    });
   },
 
   renderDetail(event, isAccepted, isSkipped) {
@@ -347,9 +350,19 @@ const Events = {
         </div>
       `;
     } else if (isAccepted) {
-      html += `<div style="margin-top:8px;color:var(--accent);font-size:11px;">Accepted</div>`;
+      html += `
+        <div class="event-decided-row">
+          <span class="event-decided-label accepted">✓ Accepted</span>
+          <button class="event-btn-undo" data-id="${event.id}" data-action="undo-accepted">change mind</button>
+        </div>
+      `;
     } else {
-      html += `<div style="margin-top:8px;color:var(--text-dim);font-size:11px;">Skipped</div>`;
+      html += `
+        <div class="event-decided-row">
+          <span class="event-decided-label skipped">✕ Skipped</span>
+          <button class="event-btn-undo" data-id="${event.id}" data-action="undo-skipped">change mind</button>
+        </div>
+      `;
     }
 
     return html;
@@ -404,6 +417,15 @@ const Events = {
       if (typeof MapView !== 'undefined') MapView.removeMarker(id);
     }
     App.toast(`✓ Accepted — ${event.name.slice(0, 30)}`, 'briefing');
+  },
+
+  undoEvent(id) {
+    localStorage.removeItem(`event-accepted-${id}`);
+    localStorage.removeItem(`event-skipped-${id}`);
+    this.render();
+    App.updateUnreadCount();
+    const event = this.events.find(e => e.id === id);
+    if (event && typeof MapView !== 'undefined') MapView.addOrUpdateMarker?.(id);
   },
 
   async skipEvent(id) {
