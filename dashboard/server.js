@@ -13,7 +13,8 @@ const { randomUUID } = require('crypto');
 const fm = require('./lib/fileManager');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
 
-const PORT       = process.env.PORT || 3000;
+const HTTP_PORT  = process.env.HTTP_PORT  || 3000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 4444;
 const CERT_DIR   = path.join(__dirname, 'certs');
 const CERT_FILE  = path.join(CERT_DIR, 'cert.pem');
 const KEY_FILE   = path.join(CERT_DIR, 'key.pem');
@@ -474,7 +475,8 @@ try {
   console.warn('[https] Could not load TLS certificates:', err.message);
 }
 
-const server  = tlsOptions ? https.createServer(tlsOptions, app) : http.createServer(app);
+const serverPort = tlsOptions ? HTTPS_PORT : HTTP_PORT;
+const server     = tlsOptions ? https.createServer(tlsOptions, app) : http.createServer(app);
 const wss     = new WebSocketServer({ server });
 const clients = new Set();
 
@@ -565,12 +567,23 @@ async function refreshFeedsQuietly() {
   }
 }
 
+// --- HTTP → HTTPS redirect server (only active when HTTPS is on) ---
+
+let redirectServer = null;
+if (tlsOptions) {
+  redirectServer = http.createServer((req, res) => {
+    const host = (req.headers.host || `localhost:${HTTPS_PORT}`).replace(/:\d+$/, '');
+    res.writeHead(301, { Location: `https://${host}:${HTTPS_PORT}${req.url}` });
+    res.end();
+  });
+}
+
 // --- Start ---
 
-server.listen(PORT, () => {
+server.listen(serverPort, () => {
   const scheme = tlsOptions ? 'https' : 'http';
   console.log(`\n  Cyberspace Dashboard`);
-  console.log(`  ${scheme}://localhost:${PORT}`);
+  console.log(`  ${scheme}://localhost:${serverPort}`);
   if (!tlsOptions) {
     console.log(`  (run setup-https.ps1 once to enable HTTPS and CryptPad embeds)`);
   }
@@ -583,6 +596,12 @@ server.listen(PORT, () => {
   feedRefreshTimer = setInterval(refreshFeedsQuietly, FEED_REFRESH_INTERVAL_MS);
 });
 
+if (redirectServer) {
+  redirectServer.listen(HTTP_PORT, () => {
+    console.log(`  http://localhost:${HTTP_PORT}  →  redirects to https://localhost:${HTTPS_PORT}\n`);
+  });
+}
+
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\nShutting down...');
@@ -590,5 +609,6 @@ process.on('SIGINT', () => {
   clearInterval(heartbeatInterval);
   watcher.close();
   wss.close();
+  if (redirectServer) redirectServer.close();
   server.close(() => process.exit(0));
 });

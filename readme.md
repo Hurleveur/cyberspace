@@ -9,7 +9,7 @@ If you have suggestions, feel free.
 # How to start it
 
 Start it by starting dashboard/server.js or use the install-service.js to set it up to autostart on windows. On linux you can use pm2.
-The dashboard will be available at http://localhost:3000/ by default.
+The dashboard will be available at `http://localhost:3000` by default (or `https://localhost:4444` if HTTPS is set up — see the Dashboard section below).
 
 ---
 
@@ -104,6 +104,19 @@ See **[docs/cryptpad-projects.md](docs/cryptpad-projects.md)** for full setup in
 A local web dashboard renders the reports at `http://localhost:3000`. It reads `markers.json` from the latest report folder and plots them on an interactive dark-mode map. The dashboard auto-updates when a new report is written.
 
 To start the dashboard: run `npm start` inside the `dashboard/` directory. If you've set up PM2, it starts automatically on login.
+
+### HTTPS
+
+The dashboard supports HTTPS for embedding CryptPad documents, which require a secure origin. Run `setup-https.ps1` once (as administrator) to generate a self-signed certificate and import it into the Windows trust store.
+
+When certificates are present the server starts two listeners:
+
+| Port | Protocol | Role |
+|------|----------|------|
+| `:3000` | HTTP | Redirects to HTTPS |
+| `:4444` | HTTPS | Main dashboard |
+
+Visiting `http://localhost:3000` will automatically redirect you to `https://localhost:4444`. Without certificates the server runs plain HTTP on `:3000` only, exactly as before. To temporarily force HTTP mode, rename `dashboard/certs/` to `dashboard/certs.bak/` and restart.
 
 ---
 
