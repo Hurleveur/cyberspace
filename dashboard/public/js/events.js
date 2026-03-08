@@ -36,14 +36,17 @@ const Events = {
         container.innerHTML = '<div class="empty-state">No event reports available yet.</div>';
         return;
       }
-      const { dates } = await res.json();
+      const { dates, filesByDate } = await res.json();
       if (!dates || dates.length === 0) {
         container.innerHTML = '<div class="empty-state">No event reports available yet.</div>';
         return;
       }
 
-      // Fetch every events.md that exists across all report dates (parallel)
-      const fetchResults = await Promise.all(dates.map(async (date) => {
+      // Use the filesByDate manifest to only fetch dates that actually have events.md
+      const datesWithEvents = filesByDate
+        ? dates.filter(d => filesByDate[d]?.['events.md'])
+        : dates;
+      const fetchResults = await Promise.all(datesWithEvents.map(async (date) => {
         const evRes = await fetch(`/api/file?path=reports/${date}/events.md`);
         if (evRes.ok) {
           const markdown = await evRes.text();
@@ -80,6 +83,7 @@ const Events = {
       if (typeof App !== 'undefined') {
         App.eventsSourceDate = this.sourceDate;
         App.eventsSourceDates = this.eventDates;
+        App.filesByDate = filesByDate || {};
       }
 
       if (this.events.length === 0) {

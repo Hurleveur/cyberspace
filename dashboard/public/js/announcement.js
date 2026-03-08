@@ -1,66 +1,61 @@
 /**
  * Announcement — intercepts transmissions found in reports/YYYY-MM-DD/announcement.md.
- * Shows as a dismissable alert bar; clicking it opens the full transmission overlay.
- * Dismissal is persisted per date in localStorage.
+ * Loads ALL announcements from all report dates and keeps them accessible at all times.
+ * Shows a dismissable alert bar for unseen transmissions; the header icon and overlay
+ * remain available regardless of which briefing date is currently selected.
  */
 const Announcement = {
   STORAGE_KEY: 'cyberspace-announcements-seen',
-  _date: null,
-  _meta: null,
-  _body: null,
+
+  // All announcements sorted oldest-first: [{ date, meta, body }, ...]
+  _all: [],
+  _currentIndex: 0,
+
+  // Overlay state
   _typing: false,
   _typeTimeout: null,
   _escHandler: null,
+  _scrollHandler: null,
+
+  // Convenience getters for the currently-displayed announcement
+  get _date() { return this._all[this._currentIndex]?.date || null; },
+  get _meta()  { return this._all[this._currentIndex]?.meta  || null; },
+  get _body()  { return this._all[this._currentIndex]?.body  || ''; },
 
   async init() {
     try {
-      const resp = await fetch('/api/reports/announcement');
+      const resp = await fetch('/api/reports/announcements');
       if (!resp.ok) return;
-      const { date, content } = await resp.json();
+      const { announcements } = await resp.json();
 
-      if (this._getSeen().includes(date)) return;
+      this._all = (announcements || []).map(({ date, content }) => {
+        const { meta, body } = this._parseFrontmatter(content);
+        return { date, meta, body };
+      });
 
-      const { meta, body } = this._parseFrontmatter(content);
-      this._date = date;
-      this._meta = meta;
-      this._body = body;
+      if (this._all.length === 0) return;
+
+      // Always expose the header icon when there are any announcements
       this._showHeaderIcon();
+
+      // Auto-pop the alert bar for the most recent unseen announcement (if any)
+      const seen = this._getSeen();
+      // Search newest-first for the first unseen one
+      for (let i = this._all.length - 1; i >= 0; i--) {
+        if (!seen.includes(this._all[i].date)) {
+          this._currentIndex = i;
+          this._showBar();
+          break;
+        }
+      }
     } catch (_) {
       // Announcements are optional — fail silently
     }
   },
 
-  // Load announcement for a specific report date (called when switching briefing dates)
-  async initForDate(date) {
-    try {
-      const resp = await fetch(`/api/reports/announcement?date=${encodeURIComponent(date)}`);
-      if (!resp.ok) {
-        // No announcement for this date — hide any existing icon
-        this._hideHeaderIcon();
-        this._date = null;
-        return;
-      }
-      const { date: resDate, content } = await resp.json();
-
-      if (this._getSeen().includes(resDate)) {
-        // Already acknowledged — keep icon hidden
-        this._hideHeaderIcon();
-        this._date = resDate;
-        const { meta, body } = this._parseFrontmatter(content);
-        this._meta = meta;
-        this._body = body;
-        return;
-      }
-
-      const { meta, body } = this._parseFrontmatter(content);
-      this._date = resDate;
-      this._meta = meta;
-      this._body = body;
-      this._showHeaderIcon();
-    } catch (_) {
-      this._hideHeaderIcon();
-    }
-  },
+  // Called when switching briefing dates — announcements are global, so do nothing
+  // (kept for API compatibility; the icon stays visible regardless)
+  initForDate(_date) {},
 
   // ── Frontmatter ──────────────────────────────────────────────────────────────
 
@@ -97,8 +92,12 @@ const Announcement = {
     document.body.classList.add('has-intercept-bar');
     bar.classList.remove('hidden');
 
-    inner.addEventListener('click', () => this._openOverlay());
-    dismissBtn.addEventListener('click', (e) => {
+    // Replace buttons to clear stale listeners
+    const freshInner   = inner.cloneNode(true);   inner.replaceWith(freshInner);
+    const freshDismiss = dismissBtn.cloneNode(true); dismissBtn.replaceWith(freshDismiss);
+
+    freshInner.addEventListener('click', () => this._openOverlay());
+    freshDismiss.addEventListener('click', (e) => {
       e.stopPropagation();
       this._dismissBar();
     });
@@ -112,24 +111,51 @@ const Announcement = {
       bar.classList.add('hidden');
       bar.classList.remove('intercept-bar-closing');
     }, 300);
-    // Don't mark as seen — show header icon so it's still accessible
+    // Icon stays visible — user can still open the overlay
     this._showHeaderIcon();
   },
 
   // ── Overlay ───────────────────────────────────────────────────────────────────
 
-  _openOverlay() {
-    const overlay  = document.getElementById('announcement-overlay');
+  _renderOverlay() {
     const titleEl  = document.getElementById('announcement-title');
     const dateEl   = document.getElementById('announcement-date');
     const authorEl = document.getElementById('announcement-author');
     const textEl   = document.getElementById('announcement-text');
+    const navEl    = document.getElementById('announcement-nav');
 
     titleEl.textContent  = this._meta.title;
     dateEl.textContent   = `DATE: ${this._meta.date || this._date}`;
     authorEl.textContent = `AUTHOR: ${this._meta.author.toUpperCase()}`;
     textEl.textContent   = '';
 
+    // Update nav counter (shown only when there are multiple announcements)
+    if (navEl) {
+      if (this._all.length > 1) {
+        const counter = navEl.querySelector('.announcement-nav-counter');
+        const prevBtn = navEl.querySelector('.announcement-nav-prev');
+        const nextBtn = navEl.querySelector('.announcement-nav-next');
+        if (counter) counter.textContent = `TRANSMISSION ${this._currentIndex + 1} / ${this._all.length}`;
+        if (prevBtn) prevBtn.disabled = this._currentIndex === 0;
+        if (nextBtn) nextBtn.disabled = this._currentIndex === this._all.length - 1;
+        navEl.classList.remove('hidden');
+      } else {
+        navEl.classList.add('hidden');
+      }
+    }
+
+    // Scroll hint
+    const hint = document.getElementById('announcement-scroll-hint');
+    if (hint) hint.classList.add('hidden');
+
+    this._startTypewriter(textEl, this._body);
+  },
+
+  _openOverlay() {
+    // Default to latest unseen, or last if all seen
+    if (this._all.length === 0) return;
+
+    const overlay = document.getElementById('announcement-overlay');
     overlay.classList.remove('hidden', 'announcement-closing');
 
     // Replace buttons to clear stale listeners
@@ -143,10 +169,22 @@ const Announcement = {
     oldDismiss.replaceWith(freshDismiss);
     freshDismiss.addEventListener('click', () => this._acknowledgeOverlay());
 
-    const oldSkip   = document.getElementById('announcement-skip');
+    const oldSkip = document.getElementById('announcement-skip');
     const freshSkip = oldSkip.cloneNode(true);
     oldSkip.replaceWith(freshSkip);
-    freshSkip.addEventListener('click', () => this._skipTypewriter(textEl));
+    freshSkip.addEventListener('click', () => {
+      const textEl = document.getElementById('announcement-text');
+      this._skipTypewriter(textEl);
+    });
+
+    // Nav prev/next
+    const navEl = document.getElementById('announcement-nav');
+    if (navEl) {
+      const freshNav = navEl.cloneNode(true);
+      navEl.replaceWith(freshNav);
+      freshNav.querySelector('.announcement-nav-prev')?.addEventListener('click', () => this._navigateTo(this._currentIndex - 1));
+      freshNav.querySelector('.announcement-nav-next')?.addEventListener('click', () => this._navigateTo(this._currentIndex + 1));
+    }
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) this._closeOverlay();
@@ -155,14 +193,33 @@ const Announcement = {
     this._escHandler = (e) => { if (e.key === 'Escape') this._closeOverlay(); };
     document.addEventListener('keydown', this._escHandler);
 
-    // Scroll hint: update on body scroll
     const bodyEl = overlay.querySelector('.announcement-body');
-    const hint   = document.getElementById('announcement-scroll-hint');
-    if (hint) hint.classList.add('hidden');
     this._scrollHandler = () => this._updateScrollHint(bodyEl);
     bodyEl.addEventListener('scroll', this._scrollHandler);
 
-    this._startTypewriter(textEl, this._body);
+    this._renderOverlay();
+  },
+
+  _navigateTo(index) {
+    if (index < 0 || index >= this._all.length) return;
+    this._typing = false;
+    clearTimeout(this._typeTimeout);
+    this._currentIndex = index;
+
+    // Re-bind nav since we cloned the element; just re-render
+    const navEl = document.getElementById('announcement-nav');
+    if (navEl) {
+      const freshNav = navEl.cloneNode(true);
+      navEl.replaceWith(freshNav);
+      freshNav.querySelector('.announcement-nav-prev')?.addEventListener('click', () => this._navigateTo(this._currentIndex - 1));
+      freshNav.querySelector('.announcement-nav-next')?.addEventListener('click', () => this._navigateTo(this._currentIndex + 1));
+    }
+
+    // Reset scroll hint
+    const bodyEl = document.querySelector('.announcement-body');
+    if (bodyEl) bodyEl.scrollTop = 0;
+
+    this._renderOverlay();
   },
 
   _closeOverlay() {
@@ -190,7 +247,10 @@ const Announcement = {
   _acknowledgeOverlay() {
     this._markSeen(this._date);
     if (typeof LevelSystem !== 'undefined') LevelSystem.reward('intercept', this._date);
-    this._hideHeaderIcon();
+    // Recalculate: if all seen, hide icon; otherwise keep it
+    const seen = this._getSeen();
+    const anyUnseen = this._all.some(a => !seen.includes(a.date));
+    if (!anyUnseen) this._hideHeaderIcon();
     this._closeOverlay();
   },
 
@@ -200,8 +260,18 @@ const Announcement = {
     const btn = document.getElementById('intercept-btn');
     if (!btn) return;
     btn.classList.remove('hidden');
-    btn.title = `Intercepted transmission: ${this._meta?.title || 'TRANSMISSION'} — click to read`;
-    btn.onclick = () => this._openOverlay();
+    const total  = this._all.length;
+    const seen   = this._getSeen();
+    const unseen = this._all.filter(a => !seen.includes(a.date)).length;
+    btn.title = unseen > 0
+      ? `${unseen} new transmission${unseen > 1 ? 's' : ''} — click to read`
+      : `${total} transmission${total !== 1 ? 's' : ''} — click to review`;
+    btn.onclick = () => {
+      // Open to the first unseen, or last if all seen
+      const firstUnseen = this._all.findIndex(a => !this._getSeen().includes(a.date));
+      this._currentIndex = firstUnseen >= 0 ? firstUnseen : this._all.length - 1;
+      this._openOverlay();
+    };
   },
 
   _hideHeaderIcon() {
@@ -228,18 +298,18 @@ const Announcement = {
 
     this._showSkip(true);
 
+    const bodyEl = container.parentElement; // .announcement-body
     const step = () => {
       if (!this._typing) return;
       if (i < body.length) {
         textNode.appendData(body[i++]);
-        container.scrollTop = container.scrollHeight;
+        // Check every 20 chars so hint appears as soon as the body fills up
+        if (i % 20 === 0 && bodyEl) this._updateScrollHint(bodyEl);
         this._typeTimeout = setTimeout(step, delay);
       } else {
         cursor.remove();
         this._typing = false;
         this._showSkip(false);
-        // Typewriter landed at bottom — hint hidden; user can scroll up and back down
-        const bodyEl = document.querySelector('.announcement-body');
         if (bodyEl) this._updateScrollHint(bodyEl);
       }
     };
@@ -258,7 +328,8 @@ const Announcement = {
     const bodyEl = document.querySelector('.announcement-body');
     if (bodyEl) {
       bodyEl.scrollTop = 0;
-      this._updateScrollHint(bodyEl);
+      // Defer so the browser has computed the new scrollHeight before we check
+      requestAnimationFrame(() => this._updateScrollHint(bodyEl));
     }
   },
 

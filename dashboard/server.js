@@ -58,10 +58,22 @@ app.post('/api/file/append', async (req, res) => {
 
 // --- Reports API ---
 
-// GET /api/reports — list all report dates
+// GET /api/reports — list all report dates, plus a per-date file manifest
+// filesByDate lets clients skip fetching optional files that don't exist,
+// avoiding unnecessary 404 console errors.
 app.get('/api/reports', async (req, res) => {
   try {
-    res.json(await fm.listReportDates());
+    const { dates } = await fm.listReportDates();
+    const OPTIONAL_FILES = ['events.md', 'markers.json', 'announcement.md'];
+    const filesByDate = {};
+    await Promise.all(dates.map(async (date) => {
+      const checks = await Promise.all(OPTIONAL_FILES.map(async (f) => {
+        const r = await fm.readFile(`reports/${date}/${f}`);
+        return [f, !r.error];
+      }));
+      filesByDate[date] = Object.fromEntries(checks);
+    }));
+    res.json({ dates, filesByDate });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Internal server error' });
   }
@@ -93,6 +105,23 @@ app.get('/api/reports/announcement', async (req, res) => {
     const result = await fm.readFile(`reports/${date}/announcement.md`);
     if (result.error) return res.status(404).json({ error: 'No announcement for this report' });
     res.json({ date, content: result.content });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// GET /api/reports/announcements — all announcement.md files across all report dates, sorted oldest-first
+app.get('/api/reports/announcements', async (req, res) => {
+  try {
+    const { dates } = await fm.listReportDates();
+    // dates is newest-first; we want oldest-first for numbered display
+    const sorted = [...dates].reverse();
+    const results = [];
+    for (const d of sorted) {
+      const result = await fm.readFile(`reports/${d}/announcement.md`);
+      if (!result.error) results.push({ date: d, content: result.content });
+    }
+    res.json({ announcements: results });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Internal server error' });
   }

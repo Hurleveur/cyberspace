@@ -1349,17 +1349,58 @@ html, body {
   color: #6a4555;
 }
 
-.announcement-body {
+.announcement-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+  border-bottom: 1px solid #140e1a;
+  background: #07060c;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.announcement-nav.hidden { display: none; }
+.announcement-nav-counter {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #4a2e50;
+  font-family: var(--font-mono);
+}
+.announcement-nav-prev,
+.announcement-nav-next {
+  background: none;
+  border: 1px solid #2a1830;
+  color: #6a4555;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.announcement-nav-prev:hover:not(:disabled),
+.announcement-nav-next:hover:not(:disabled) {
+  color: #c080a0;
+  border-color: #5a2a50;
+}
+.announcement-nav-prev:disabled,
+.announcement-nav-next:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+
   flex: 1;
   overflow-y: auto;
   padding: 22px 24px;
   position: relative;
   z-index: 1;
 }
-.announcement-body::-webkit-scrollbar { width: 4px; }
-.announcement-body::-webkit-scrollbar-track { background: #07060c; }
-.announcement-body::-webkit-scrollbar-thumb { background: #2a1830; border-radius: 2px; }
-.announcement-body::-webkit-scrollbar-thumb:hover { background: #44285a; }
+.announcement-body::-webkit-scrollbar { width: 8px; }
+.announcement-body::-webkit-scrollbar-track { background: #0e0b15; border-left: 1px solid #1a1020; }
+.announcement-body::-webkit-scrollbar-thumb { background: #5a2545; border-radius: 3px; border: 1px solid #3a1530; }
+.announcement-body::-webkit-scrollbar-thumb:hover { background: #7a3560; }
 
 .announcement-text {
   font-size: 13px;
@@ -1466,16 +1507,17 @@ html, body {
 .announcement-scroll-hint.hidden { opacity: 0; }
 .announcement-scroll-hint::after {
   content: '▼  scroll';
-  color: #905060;
-  font-size: 9px;
+  color: #c06880;
+  font-size: 12px;
+  font-weight: 700;
   font-family: var(--font-mono);
   letter-spacing: 3px;
   text-transform: uppercase;
   animation: scroll-hint-bounce 1.6s ease infinite;
 }
 @keyframes scroll-hint-bounce {
-  0%, 100% { transform: translateY(0);   opacity: 0.45; }
-  50%       { transform: translateY(5px); opacity: 1; }
+  0%, 100% { transform: translateY(0);   opacity: 0.65; }
+  50%       { transform: translateY(6px); opacity: 1; }
 }
 
 /* === Intercept Alert Bar === */
@@ -1777,6 +1819,22 @@ html, body {
 .announcement-meta-date,
 .announcement-author {
   color: #883333;
+}
+
+.announcement-nav {
+  border-bottom-color: #180000;
+  background: #060001;
+}
+.announcement-nav-counter { color: #5a1111; }
+.announcement-nav-prev,
+.announcement-nav-next {
+  border-color: #3a0000;
+  color: #883333;
+}
+.announcement-nav-prev:hover:not(:disabled),
+.announcement-nav-next:hover:not(:disabled) {
+  color: #cc4444;
+  border-color: #660000;
 }
 
 .announcement-body {

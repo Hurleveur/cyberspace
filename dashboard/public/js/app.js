@@ -93,6 +93,8 @@ const App = {
   eventsSourceDate: null,
   // All dates that have an events.md file (populated by Events.load())
   eventsSourceDates: null,
+  // Per-date file manifest from /api/reports — used to skip fetches for missing optional files
+  filesByDate: {},
 
   shortcuts: [
     { key: 'F', action: 'Open Feeds panel' },

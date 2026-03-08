@@ -117,6 +117,9 @@ const MapView = {
 
   async loadMarkersForDate(date) {
     try {
+      // Skip fetch if the manifest says markers.json doesn't exist for this date
+      if (typeof App !== 'undefined' && App.filesByDate &&
+          App.filesByDate[date] && App.filesByDate[date]['markers.json'] === false) return;
       const res = await fetch(`/api/file?path=reports/${date}/markers.json`);
       if (!res.ok) return;
       const text = await res.text();
@@ -140,13 +143,18 @@ const MapView = {
 
     // Load news-date markers
     if (newsDate) {
-      try {
-        const res = await fetch(`/api/file?path=reports/${newsDate}/markers.json`);
-        if (res.ok) {
-          newsMarkers = JSON.parse(await res.text());
+      // Skip if manifest confirms markers.json doesn't exist for this date
+      const hasMarkers = !( typeof App !== 'undefined' && App.filesByDate &&
+        App.filesByDate[newsDate] && App.filesByDate[newsDate]['markers.json'] === false);
+      if (hasMarkers) {
+        try {
+          const res = await fetch(`/api/file?path=reports/${newsDate}/markers.json`);
+          if (res.ok) {
+            newsMarkers = JSON.parse(await res.text());
+          }
+        } catch (err) {
+          console.warn('[map] Could not load markers.json for', newsDate, err.message);
         }
-      } catch (err) {
-        console.warn('[map] Could not load markers.json for', newsDate, err.message);
       }
     }
 
@@ -161,6 +169,9 @@ const MapView = {
 
     for (const evDate of datesArr) {
       if (!evDate || evDate === newsDate) continue; // news markers already loaded above
+      // Skip if manifest confirms markers.json doesn't exist for this date
+      if (typeof App !== 'undefined' && App.filesByDate &&
+          App.filesByDate[evDate] && App.filesByDate[evDate]['markers.json'] === false) continue;
       try {
         const res = await fetch(`/api/file?path=reports/${evDate}/markers.json`);
         if (res.ok) {

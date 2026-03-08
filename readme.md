@@ -1,44 +1,28 @@
 # Cyberspace Intelligence System
 
-A personal intelligence agent that runs every morning at 10am, scans the web for cybersecurity and AI news, and delivers a curated daily briefing + weekly event radar — tailored to your interests, deduplicated against past reports, and rendered on a local dashboard.
+A personal intelligence agent that runs every morning at 10am, scans the web for cybersecurity and AI news, and delivers a curated daily briefing + weekly event radar — tailored to your interests, deduplicated against past reports, and rendered on a local dashboard. No personal information should ever leave your computer, but you should trust the AI running the briefs.
 
-The briefs I post are naturally tailored to my interest, which is why this project is invite only so far and not ready for forks yet, I'm still working on it.
-If you have suggestions, feel free, and also do read those briefs please.
+I'm currently making the briefs tailored to my interest, which is why this project is invite only so far and not ready for forks yet.
+If you have suggestions, feel free.
+
+
+# How to start it
+
+Start it by starting dashboard/server.js or use the install-service.js to set it up to autostart on windows. On linux you can use pm2.
+The dashboard will be available at http://localhost:3000/ by default.
 
 ---
 
 ## What it does
 
-Every day at 10am, Claude reads your config files, runs a focused set of web searches, and writes two reports:
+You can find the claude cowork prompt I use (with sonnet 4.6) in docs/claude-cowork.md
+
+Claude reads your config files when the task is scheduled, runs a focused set of web searches, and writes two reports:
 
 - **Daily Briefing** — cybersecurity and AI news filtered and scored against your interests. Covers active threats, breaches, CVEs, APT campaigns, AI security, and your personal tech stack. Includes an action items list and threat level assessment.
-- **Event Radar** (Mondays only) — upcoming events in Brussels, Belgium, and Benelux scored for relevance. Checks against your Google Calendar to skip conflicts and events you've already added.
+- **Event Radar** (Mondays only) — upcoming events in Brussels, Belgium, and Benelux scored for relevance. Checks against your Google Calendar to skip conflicts and events you've already added - this is NOT pushed to the github for you guys.
 
 Both reports are saved to `reports/YYYY-MM-DD/` along with a `markers.json` file that feeds the local dashboard map.
-
----
-
-## How to run it
-
-The system runs automatically via a scheduled task at 10am every day. To trigger a manual run in Claude Cowork, use this prompt:
-
-```
-Run today's Cyberspace Intelligence briefing. Follow the instructions in CLAUDE.md exactly.
-```
-
-If you want to run just the news without the event scan:
-
-```
-Run the daily briefing (news only, skip event discovery). Follow CLAUDE.md.
-```
-
-To process feedback you've written and see the config changes applied:
-
-```
-Process my feedback.md and run today's Cyberspace briefing. Follow CLAUDE.md.
-```
-
----
 
 ## File structure
 
