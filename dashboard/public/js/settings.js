@@ -456,7 +456,8 @@ const Settings = {
       const xp = LevelSystem.getXP();
       const { level, xpInLevel, xpNeeded } = LevelSystem.getLevelProgress(xp);
       const title = LevelSystem.getTitle(level);
-      return `<div class="system-hint" style="margin-top:4px">Level ${level} &mdash; ${title} &middot; ${xpInLevel}/${xpNeeded} XP (${xp} total)</div>`;
+      const desc  = LevelSystem.getDescription(level);
+      return `<div class="system-hint" style="margin-top:4px">Level ${level} &mdash; ${title} &middot; ${xpInLevel}/${xpNeeded} XP (${xp} total)<br><span style="opacity:0.6;font-style:italic">${desc}</span></div>`;
     })();
 
     const swatches = themes.map(t => `

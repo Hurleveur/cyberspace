@@ -53,16 +53,35 @@ const LevelSystem = {
   },
 
   // ─── Tier titles ─────────────────────────────────────────────────────────
+  // Each entry: [minLevel, title, flavour description]
 
   TITLES: [
-    [0,   'Lurker'],
-    [1,   'Script Kiddie'],
-    [3,   'Operator'],
-    [5,   'Infiltrator'],
-    [8,   'Analyst'],
-    [11,  'Pen Tester'],
-    [16,  'Red Teamer'],
-    [21,  'Zero Day'],
+    [0,   'Ghost',                    'no footprint. no trace. just signal.'],
+    [1,   'Script Kiddie',            'copy–paste and pray it runs.'],
+    [2,   'OSINT Trainee',            'learning to look without being seen.'],
+    [3,   'Recon Operative',          'mapping the terrain before the breach.'],
+    [4,   'Social Engineer',          'trust is the vulnerability.'],
+    [5,   'OSINT Analyst',            'open source intel. closed mouth.'],
+    [6,   'Bug Bounty Hunter',        'legally dangerous.'],
+    [7,   'Vulnerability Researcher', 'finding what others overlooked.'],
+    [8,   'Exploit Developer',        'turning bugs into weapons.'],
+    [9,   'Penetration Tester',       'breaking in with permission.'],
+    [10,  'Red Teamer',               'you are the threat actor now.'],
+    [11,  'Purple Teamer',            'where offense meets defense.'],
+    [12,  'Blue Teamer',              'holding the line.'],
+    [13,  'SOC Analyst',              'watching the watchers.'],
+    [14,  'Incident Responder',       'already on fire. stay calm.'],
+    [15,  'Malware Analyst',          'dissecting the weapon.'],
+    [16,  'Reverse Engineer',         'no source code, no problem.'],
+    [17,  'Threat Hunter',            'hunting what the alerts missed.'],
+    [18,  'CTI Analyst',              'naming the adversary.'],
+    [19,  'APT Tracker',              'following nation-states through the noise.'],
+    [20,  'Zero-Day Researcher',      'finding what nobody knows exists.'],
+    [21,  'Exploit Broker',           'the market for silence.'],
+    [22,  'Adversary Emulator',       'you think like they do.'],
+    [23,  'Shadow Operator',          'no attribution. no trail. just results.'],
+    [24,  'The Architect',            'you designed the kill chain.'],
+    [25,  'Cyberspace',               'you are the infrastructure.'],
   ],
 
   // ─── State accessors ─────────────────────────────────────────────────────
@@ -126,6 +145,14 @@ const LevelSystem = {
       if (level >= minLevel) title = name;
     }
     return title;
+  },
+
+  getDescription(level) {
+    let desc = this.TITLES[0][2] || '';
+    for (const [minLevel, , description] of this.TITLES) {
+      if (level >= minLevel) desc = description;
+    }
+    return desc;
   },
 
   // ─── Audio ─────────────────────────────────────────────────────────────────
@@ -245,18 +272,21 @@ const LevelSystem = {
     const xp = this.getXP();
     const { level, xpInLevel, xpNeeded, percent } = this.getLevelProgress(xp);
     const title = this.getTitle(level);
+    const desc  = this.getDescription(level);
 
     const levelEl  = widget.querySelector('#level-number');
     const titleEl  = widget.querySelector('#level-title');
+    const descEl   = widget.querySelector('#level-desc');
     const barFill  = widget.querySelector('#level-bar-fill');
     const xpLabel  = widget.querySelector('#level-xp-label');
 
     if (levelEl)  levelEl.textContent  = `LVL ${level}`;
     if (titleEl)  titleEl.textContent  = title;
+    if (descEl)   descEl.textContent   = `${desc} · ${xp} xp total`;
     if (barFill)  barFill.style.width  = `${percent}%`;
-    if (xpLabel)  xpLabel.textContent  = `${xpInLevel}/${xpNeeded}`;
+    if (xpLabel)  xpLabel.textContent  = `${xpInLevel}/${xpNeeded} xp`;
 
-    widget.title = `${title} · ${xp} total XP`;
+    widget.title = '';
     widget.classList.remove('hidden');
   },
 

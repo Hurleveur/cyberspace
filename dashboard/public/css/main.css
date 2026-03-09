@@ -207,11 +207,14 @@ html, body {
 }
 
 .threat-sparkline {
-  width: 96px;
   height: 18px;
   display: inline-flex;
   align-items: center;
   opacity: 0.9;
+  flex-shrink: 0;
+}
+.threat-sparkline:empty {
+  display: none;
 }
 .threat-sparkline svg {
   width: 100%;
@@ -606,6 +609,7 @@ html, body {
   font-family: var(--font-mono);
   cursor: default;
   user-select: none;
+  position: relative;
 }
 .level-badge {
   color: var(--accent);
@@ -638,6 +642,28 @@ html, body {
   font-size: 10px;
   letter-spacing: 0.02em;
   opacity: 0.85;
+}
+.level-desc {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-left: 2px solid var(--accent);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 100;
+}
+.level-widget:hover .level-desc {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* === Keyboard shortcut hints === */

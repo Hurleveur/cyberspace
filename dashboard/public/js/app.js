@@ -406,12 +406,13 @@ const App = {
     }));
     const scores = results.filter(s => s !== null);
 
-    if (scores.length === 0) {
+    if (scores.length === 0 || scores.every(s => s === scores[0])) {
       host.innerHTML = '';
       return;
     }
 
-    const w = 96;
+    const pointSpacing = 14;
+    const w = scores.length > 1 ? (scores.length - 1) * pointSpacing : pointSpacing;
     const h = 18;
     const step = scores.length > 1 ? w / (scores.length - 1) : w;
     const y = (s) => h - ((s - 1) / 3) * (h - 2) - 1;
