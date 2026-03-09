@@ -27,5 +27,4 @@ desktop.ini
 .claude/
 
 # Audio assets (large binary files — add individually if needed)
-dashboard/public/audio/
 dashboard/daemon
