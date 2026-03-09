@@ -107,7 +107,13 @@ Replace `{date}` with yesterday's date (e.g. "March 2 2026").
 1. Search all primary sources listed in `events.md`.
 2. Focus first on Brussels, then Belgium, then Benelux.
 3. Score each event using the relevance matrix in `events.md`.
-4. Filter against `seen-events.md` — skip already-shown events unless a re-include trigger applies.
+4. Filter against `seen-events.md` — once an event has been shown, **never show it again** unless:
+   - ✅ Accepted / "In calendar": **always skip**, no exceptions.
+   - ❌ Skipped: only re-include if an explicit trigger is written in the trigger column.
+   - — (undecided): only re-include if a registration/early-bird deadline is within 48h,
+     OR if an explicit trigger is written in the trigger column.
+   **No automatic proximity bumps, no "within 7 days" re-surfacing, no age-based triggers.**
+   Seen once = done. The trigger column exists for manual exceptions only.
 5. Check Google Calendar: skip events already in the calendar. Flag conflicts.
    Also scan past calendar events to understand Alex's real-world interests and patterns.
 6. Keep only events scoring 6/10 or above. Cap at 10 events — prioritise soonest.
@@ -397,6 +403,50 @@ Per-event format (defined in `events.md`):
 **Why this matters:** 1–2 sentences tied to specific interests
 **Deadline:** Date ⏰ (if <48h)
 ```
+
+---
+
+## ⚠️ Dashboard Compatibility — CRITICAL
+
+The dashboard parser (`dashboard/public/js/events.js`) reads `events.md` with a strict regex.
+**Violating any of these rules causes events to display as "Date TBD · Location TBD" with empty stars.**
+
+### 1. Field names must be exact
+
+The parser looks for these exact bold labels. Do not substitute synonyms:
+
+| Required field | ❌ Do NOT use |
+|----------------|--------------|
+| `**When:**` | `**Date:**`, `**Time:**` |
+| `**Where:**` | `**Location:**`, `**Venue:**` |
+| `**Why this matters:**` | `**Why attend:**`, `**Why:**` |
+| `**Relevance:**` | `**Score:**`, `**Rating:**` |
+
+Stars are parsed from the `★` characters in the `**Relevance:**` field. Format must be `★★★☆☆ (X/10)`.
+
+### 2. Line endings must be LF (Unix), not CRLF (Windows)
+
+The regex terminator `(?:\n|$)` does **not** match `\r\n`. Always write `events.md` using a
+method that produces LF-only output. The safest method:
+
+```python
+# Write events.md in binary mode with explicit LF endings
+with open(path, 'wb') as f:
+    f.write(content.encode('utf-8'))
+# where 'content' uses \n line endings (Python string literals default to this)
+```
+
+Do NOT use the Write file tool directly for events.md — it may produce CRLF on Windows hosts.
+
+### 3. No unverified event data
+
+Never include an event entry with:
+- Venue listed as "TBC", "TBD", "venue unknown", or similar
+- Cost listed as "estimated", "expected", "assumed", or similar
+- Date listed as "TBD", "?", or an approximate guess
+
+If a field is unknown, **omit the event entirely** until confirmed information is available.
+Add a note in `seen-events.md` with a re-include trigger explaining what needs to be confirmed.
 
 ---
 
