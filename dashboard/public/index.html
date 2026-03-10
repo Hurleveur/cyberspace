@@ -70,9 +70,6 @@
       <button class="header-btn" id="btn-todo" title="Tasks (T)">
         <span class="btn-icon">☑</span>
       </button>
-      <button class="header-btn" id="btn-projects" title="Projects (P)">
-        <span class="btn-icon">&#128194;</span>
-      </button>
       <button class="header-btn" id="btn-terminal" title="Terminal (/)">
         <span class="btn-icon">&#62;_</span>
       </button>
@@ -154,7 +151,6 @@
         Events <span id="events-tab-badge" class="tab-badge zero">0</span>
       </button>
       <button class="right-panel-tab" data-rtab="todo">Tasks</button>
-      <button class="right-panel-tab" data-rtab="projects">Projects</button>
       <button class="panel-close" data-panel="right-panel">&times;</button>
     </div>
 
@@ -181,9 +177,12 @@
           <input type="checkbox" id="events-filter-accepted"> Hide accepted
         </label>
         <label class="events-toggle" title="Hide skipped events">
-          <input type="checkbox" id="events-filter-skipped"> Hide skipped
+          <input type="checkbox" id="events-filter-skipped" checked> Hide skipped
         </label>
-        <button id="events-sort-date" class="events-sort-btn" title="Sort by date">Date ↕</button>
+        <label class="events-toggle" title="Hide past events">
+          <input type="checkbox" id="events-filter-past" checked> Hide past
+        </label>
+        <button id="events-sort-date" class="events-sort-btn" title="Sort by date">Date ↑</button>
       </div>
       <div id="events-list" class="events-list">
         <div class="empty-state">Loading events...</div>
@@ -263,7 +262,7 @@
         </div>
 
         <!-- My Links section -->
-        <div class="todo-section todo-section-last">
+        <div class="todo-section">
           <div class="todo-section-header">My Links</div>
           <div class="todo-add-row">
             <input type="text" id="todo-link-input" placeholder="Add a URL and press Enter..." />
@@ -274,12 +273,15 @@
           </div>
         </div>
 
-      </div>
-    </div>
+        <!-- Projects section (embedded at bottom of tasks) -->
+        <div class="todo-section todo-section-last" id="todo-section-projects">
+          <div class="todo-section-header">&#128194; Projects</div>
+          <div id="rtab-projects">
+            <!-- Populated by projects.js -->
+          </div>
+        </div>
 
-    <!-- Projects tab -->
-    <div id="rtab-projects" class="rtab-content">
-      <!-- Populated by projects.js -->
+      </div>
     </div>
 
   </aside>

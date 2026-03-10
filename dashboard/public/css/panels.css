@@ -548,6 +548,22 @@
   border-bottom: none;
 }
 
+/* Projects embedded inside the todo panel — needs a fixed height so the
+   iframe and flex-based layout have a defined parent to fill. */
+#todo-section-projects {
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+}
+#todo-section-projects #rtab-projects {
+  flex: 1;
+  min-height: 460px;
+  position: relative;
+}
+#todo-section-projects .projects-panel {
+  height: 460px;
+}
+
 .todo-section-header {
   padding: 10px 14px 6px;
   font-size: 10px;

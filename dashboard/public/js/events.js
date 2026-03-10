@@ -21,6 +21,7 @@ const Events = {
     document.getElementById('events-filter-score').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-filter-accepted').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-filter-skipped').addEventListener('change', () => this.applyFilters());
+    document.getElementById('events-filter-past').addEventListener('change', () => this.applyFilters());
     document.getElementById('events-sort-date').addEventListener('click', () => this.sortByDate());
   },
 
@@ -195,12 +196,26 @@ const Events = {
     const minScore = parseInt(document.getElementById('events-filter-score').value) || 0;
     const hideAccepted = document.getElementById('events-filter-accepted').checked;
     const hideSkipped = document.getElementById('events-filter-skipped').checked;
+    const hidePast = document.getElementById('events-filter-past').checked;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     this.filteredEvents = this.events.filter(event => {
       const isAccepted = localStorage.getItem(`event-accepted-${event.id}`);
       const isSkipped = localStorage.getItem(`event-skipped-${event.id}`);
       if (hideAccepted && isAccepted) return false;
       if (hideSkipped && isSkipped) return false;
+
+      // Past-event filter — hide if the event end date is before today
+      if (hidePast) {
+        const parsed = this.parseEventDateTime(event.when);
+        if (parsed) {
+          const end = new Date(parsed.end);
+          end.setHours(0, 0, 0, 0);
+          if (end < today) return false;
+        }
+      }
 
       // Score filter
       if (event.score < minScore) return false;
@@ -226,6 +241,16 @@ const Events = {
       return true;
     });
 
+    // Always apply the current sort direction (default: chronological ascending)
+    const parseDate = (ev) => {
+      const parsed = this.parseEventDateTime(ev.when);
+      return parsed ? parsed.start.getTime() : Infinity;
+    };
+    this.filteredEvents.sort((a, b) => {
+      const da = parseDate(a), db = parseDate(b);
+      return this.dateSortAsc ? da - db : db - da;
+    });
+
     this.render();
   },
 
@@ -235,20 +260,12 @@ const Events = {
     this.render();
   },
 
-  /** Sort filteredEvents by event date. Toggles ascending/descending on each click. */
+  /** Toggle date sort direction and re-filter (sort is applied inside applyFilters). */
   sortByDate() {
-    const parseDate = (ev) => {
-      const parsed = this.parseEventDateTime(ev.when);
-      return parsed ? parsed.start.getTime() : Infinity;
-    };
-    this.filteredEvents.sort((a, b) => {
-      const da = parseDate(a), db = parseDate(b);
-      return this.dateSortAsc ? da - db : db - da;
-    });
     this.dateSortAsc = !this.dateSortAsc;
     const btn = document.getElementById('events-sort-date');
-    if (btn) btn.textContent = this.dateSortAsc ? 'Date ↕' : 'Date ↕';
-    this.render();
+    if (btn) btn.textContent = this.dateSortAsc ? 'Date ↑' : 'Date ↓';
+    this.applyFilters();
   },
 
   render() {

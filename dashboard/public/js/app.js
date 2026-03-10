@@ -242,12 +242,17 @@ const App = {
         this.switchRightTab('todo');
       }
     });
-    document.getElementById('btn-projects').addEventListener('click', () => {
-      if (this.panels.right.visible && this.currentRightTab === 'projects') {
+    document.getElementById('btn-projects')?.addEventListener('click', () => {
+      if (this.panels.right.visible && this.currentRightTab === 'todo') {
         this.togglePanel('right');
       } else {
         this.showPanel('right');
-        this.switchRightTab('projects');
+        this.switchRightTab('todo');
+        Projects.init();
+        setTimeout(() => {
+          const el = document.getElementById('todo-section-projects');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
       }
     });
     document.getElementById('btn-terminal').addEventListener('click', () => {
@@ -362,8 +367,8 @@ const App = {
       this.panels.right.visible && this.currentRightTab === 'events');
     document.getElementById('btn-todo').classList.toggle('active',
       this.panels.right.visible && this.currentRightTab === 'todo');
-    document.getElementById('btn-projects').classList.toggle('active',
-      this.panels.right.visible && this.currentRightTab === 'projects');
+    document.getElementById('btn-projects')?.classList.toggle('active',
+      this.panels.right.visible && this.currentRightTab === 'todo');
   },
 
   syncLinksButton() {
@@ -482,8 +487,8 @@ const App = {
     if (tabName === 'todo' && typeof TodoList !== 'undefined') {
       TodoList.refresh();
     }
-    // Init/refresh projects panel when switching to it
-    if (tabName === 'projects' && typeof Projects !== 'undefined') {
+    // Init/refresh projects panel when switching to todo (projects is embedded there)
+    if (tabName === 'todo' && typeof Projects !== 'undefined') {
       Projects.init();
     }
   },
@@ -638,11 +643,16 @@ const App = {
         case 'P':
           if (hasShift) break;
           e.preventDefault();
-          if (this.panels.right.visible && this.currentRightTab === 'projects') {
+          if (this.panels.right.visible && this.currentRightTab === 'todo') {
             this.togglePanel('right');
           } else {
             this.showPanel('right');
-            this.switchRightTab('projects');
+            this.switchRightTab('todo');
+            Projects.init();
+            setTimeout(() => {
+              const el = document.getElementById('todo-section-projects');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
           }
           break;
         case 's':

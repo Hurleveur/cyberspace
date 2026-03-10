@@ -6,6 +6,8 @@ interests.md
 feedback.md
 news.md
 events.md
+rss.md
+seen-events.md
 
 # Environment / secrets
 dashboard/.env
