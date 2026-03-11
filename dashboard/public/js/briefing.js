@@ -312,6 +312,8 @@ const Briefing = {
 
   setMarkers(markers) {
     this.markersData = markers || [];
+    this._refreshStoryControls();
+    if (typeof App !== 'undefined') App.updateUnreadCount();
   },
 
   scrollToMarker(markerId) {
@@ -522,6 +524,23 @@ const Briefing = {
 
     // Click anywhere in a story block → mark corresponding marker as read
     this._bindStoryReadTracking(container);
+
+    // Attach read-indicator dots and map buttons to every story heading.
+    // If markers are loaded later, setMarkers() will rebuild these controls.
+    this._refreshStoryControls(container);
+  },
+
+  _refreshStoryControls(container) {
+    const root = container || document.getElementById('briefing-content');
+    const md = root?.querySelector('.markdown-body');
+    if (!md) return;
+
+    // Rebuild controls from scratch so updates to markers/date never leave stale UI.
+    md.querySelectorAll('.story-read-dot, .story-map-btn').forEach(el => el.remove());
+    md.querySelectorAll('.story-controls-row').forEach(el => el.remove());
+    md.querySelectorAll('h3[data-story-id], h4[data-story-id]').forEach(h => h.removeAttribute('data-story-id'));
+
+    this._attachStoryControls(root);
   },
 
   /**
@@ -814,9 +833,14 @@ const Briefing = {
   },
 
   getUnreadCount() {
-    // Count unread map markers from the latest report (events have their own badge)
-    if (typeof MapView === 'undefined' || !MapView.markers || MapView.markers.length === 0) return 0;
-    return MapView.markers.filter(m => m.data.type !== 'event' && !ReadTracker.isRead(m.data.id)).length;
+    // Count unread story elements currently rendered in the briefing panel.
+    const md = document.querySelector('#briefing-content .markdown-body');
+    if (!md) return 0;
+    const ids = [...md.querySelectorAll('h3[data-story-id], h4[data-story-id]')]
+      .map(h => h.dataset.storyId)
+      .filter(Boolean);
+    if (ids.length === 0) return 0;
+    return ids.filter(id => !ReadTracker.isRead(id)).length;
   },
 
   navigate(direction) {
@@ -875,5 +899,110 @@ const Briefing = {
   /** Return the currently viewed date. */
   getCurrentDate() {
     return this.dates[this.currentIndex] || null;
+  },
+
+  // ── Story read indicators & map buttons ──────────────────────────────────
+
+  /**
+   * For each h3/h4 story heading:
+   * - Prepend a read-state dot (click to mark read)
+   * - Append a map button (if the story has a matching marker)
+   */
+  _attachStoryControls(container) {
+    const md = container.querySelector('.markdown-body');
+    if (!md) return;
+
+    const headings = [...md.querySelectorAll('h3, h4')];
+    headings.forEach((h) => {
+      // Collect all elements belonging to this story
+      const storyEls = [h];
+      let sib = h.nextElementSibling;
+      while (sib && !/^H[2-4]$/.test(sib.tagName)) {
+        storyEls.push(sib);
+        sib = sib.nextElementSibling;
+      }
+
+      const hText = h.textContent.replace(/●○/g, '').toLowerCase().trim();
+      const marker = this._findMarkerForHeading(hText, storyEls);
+  const priority = marker?.priority || this._inferStoryPriority(storyEls);
+  const storyId = marker?.id || this._buildUnmappedStoryId(h.textContent);
+
+      h.dataset.storyId = storyId;
+
+      // Add controls in a dedicated row immediately under the title.
+      const row = document.createElement('div');
+      row.className = 'story-controls-row';
+
+      // Add map pointer chip only for stories that are represented on the map.
+      if (marker) {
+        const mapBtn = document.createElement('button');
+        mapBtn.className = 'story-map-btn';
+        mapBtn.title = marker.location_label ? `Open on map · ${marker.location_label}` : 'Open on map';
+        mapBtn.textContent = marker.location_label ? `📍 ${marker.location_label}` : '📍 Map';
+        mapBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          MapView.flyToMarker(storyId);
+        });
+        row.appendChild(mapBtn);
+      }
+
+      // Read-state dot at end of the controls row.
+      const dot = document.createElement('span');
+      dot.className = 'story-read-dot';
+      dot.dataset.storyId = storyId;
+      dot.dataset.priority = priority;
+      dot.classList.add(`story-read-${priority}`);
+      dot.title = `Mark as read (${priority})`;
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!ReadTracker.isRead(storyId)) {
+          ReadTracker.markRead(storyId);
+          if (marker) MapView.markMarkerRead(storyId);
+          this.refreshStoryIndicators(container);
+          App.updateUnreadCount();
+        }
+      });
+      row.appendChild(dot);
+      this._updateStoryDot(dot, storyId);
+
+      h.insertAdjacentElement('afterend', row);
+    });
+  },
+
+  _inferStoryPriority(storyEls) {
+    const text = storyEls.map(e => e.textContent || '').join(' ').toLowerCase();
+    if (text.includes('priority:') || text.includes('priority')) {
+      if (text.includes('critical') || text.includes('🔴')) return 'critical';
+      if (text.includes('high') || text.includes('🟠')) return 'high';
+      if (text.includes('medium') || text.includes('🟡')) return 'medium';
+      if (text.includes('low') || text.includes('🟢')) return 'low';
+    }
+    return 'medium';
+  },
+
+  _buildUnmappedStoryId(title) {
+    const date = this.getCurrentDate() || 'unknown-date';
+    const clean = (title || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    let hash = 0;
+    for (let i = 0; i < clean.length; i++) {
+      hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+      hash |= 0;
+    }
+    return `briefing-only-${date}-${Math.abs(hash)}`;
+  },
+
+  _updateStoryDot(dot, storyId) {
+    const isRead = ReadTracker.isRead(storyId);
+    dot.classList.toggle('read', isRead);
+    dot.title = isRead ? 'Read' : 'Mark as read';
+  },
+
+  /** Refresh all read-indicator dots in the currently rendered briefing. */
+  refreshStoryIndicators(container) {
+    const md = (container || document.querySelector('#briefing-content'))?.querySelector('.markdown-body');
+    if (!md) return;
+    md.querySelectorAll('.story-read-dot[data-story-id]').forEach(dot => {
+      this._updateStoryDot(dot, dot.dataset.storyId);
+    });
   },
 };

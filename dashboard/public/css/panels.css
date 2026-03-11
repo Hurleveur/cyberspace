@@ -754,6 +754,83 @@
   border-top: 2px solid var(--accent) !important;
 }
 
+/* === Story read-indicator dots in the briefing panel === */
+
+.story-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.story-read-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  margin-left: 0;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s, transform 0.15s;
+  opacity: 0.9;
+}
+.story-read-dot.story-read-critical { background: var(--threat-critical, #ff3a3a); }
+.story-read-dot.story-read-high     { background: var(--threat-high, #ff8c00); }
+.story-read-dot.story-read-medium   { background: var(--threat-medium, #e6c300); }
+.story-read-dot.story-read-low      { background: #4bc06f; }
+.story-read-dot:hover {
+  transform: scale(1.35);
+  opacity: 1;
+}
+.story-read-dot.read {
+  background: var(--text-dim);
+  opacity: 0.35;
+  cursor: default;
+}
+.story-read-dot.read:hover {
+  transform: none;
+}
+
+/* Map button on briefing story headings */
+.story-map-btn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 3px 6px;
+  margin-left: 10px;
+  cursor: pointer;
+  border-radius: 999px;
+  vertical-align: middle;
+  opacity: 0.95;
+  transition: opacity 0.15s, color 0.12s, border-color 0.12s, background 0.12s;
+}
+.story-map-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 1;
+}
+
+/* Flash animation for map markers (applied to the SVG path element by Leaflet) */
+@keyframes markerFlash {
+  0%, 100% { opacity: 0.9; }
+  33%       { opacity: 0.15; }
+  66%       { opacity: 0.9; }
+}
+.marker-flash {
+  animation: markerFlash 0.45s ease 3;
+}
+
 /* === Events === */
 .events-toolbar {
   display: flex;

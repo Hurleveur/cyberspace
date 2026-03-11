@@ -388,6 +388,7 @@ const MapView = {
       ReadTracker.markRead(item.id);
       marker.setStyle({ opacity: 0.3, fillOpacity: 0.15, weight: 1 });
       App.updateUnreadCount();
+      if (typeof Briefing !== 'undefined') Briefing.refreshStoryIndicators();
       App.showInPanel(item.id, item.type || 'news');
     });
 
@@ -416,6 +417,21 @@ const MapView = {
       el.classList.remove('marker-unread', 'marker-critical');
     }
     App.updateUnreadCount();
+    if (typeof Briefing !== 'undefined') Briefing.refreshStoryIndicators();
+  },
+
+  /** Pan and zoom the map to a marker, then briefly flash it. */
+  flyToMarker(id) {
+    const entry = this.markers.find(m => m.data.id === id);
+    if (!entry || !this.map) return;
+    const { lat, lng } = entry.data;
+    if (lat == null || lng == null) return;
+    this.map.flyTo([lat, lng], Math.max(this.map.getZoom(), 5), { animate: true, duration: 0.7 });
+    const el = entry.marker.getElement?.();
+    if (el) {
+      el.classList.add('marker-flash');
+      setTimeout(() => el.classList.remove('marker-flash'), 1800);
+    }
   },
 
   /** Remove a marker from the map by its data ID. */
