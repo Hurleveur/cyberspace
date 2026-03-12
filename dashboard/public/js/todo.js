@@ -183,14 +183,6 @@ const TodoList = {
     catch { return {}; }
   },
 
-  // ─── Briefing action checkbox state (shared with briefing panel) ──────────
-
-  getBriefingChecks() {
-    if (!this.briefingDate) return {};
-    try { return JSON.parse(localStorage.getItem(`checkboxes-${this.briefingDate}`) || '{}'); }
-    catch { return {}; }
-  },
-
   saveBriefingChecks(checks) {
     if (!this.briefingDate) return;
     localStorage.setItem(`checkboxes-${this.briefingDate}`, JSON.stringify(checks));
