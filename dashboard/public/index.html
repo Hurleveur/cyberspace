@@ -193,27 +193,6 @@
     <div id="rtab-todo" class="rtab-content">
       <div class="todo-panel">
 
-        <!-- Notion sync status bar -->
-        <div class="todo-sync-bar">
-          <span id="notion-sync-status"></span>
-          <button id="notion-config-toggle" class="todo-sync-config-btn" title="Configure Notion integration">⚙</button>
-        </div>
-
-        <!-- Notion config panel (collapsed by default) -->
-        <div id="notion-config-panel" class="notion-config hidden">
-          <div class="notion-config-inner">
-            <label class="notion-config-label">Integration Token</label>
-            <input type="password" id="notion-token-input" placeholder="secret_..." autocomplete="off">
-            <label class="notion-config-label">Database ID</label>
-            <input type="text" id="notion-dbid-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
-            <div class="notion-config-actions">
-              <button id="notion-save-btn">Save</button>
-              <a href="/api/file?path=setup.md" target="_blank" class="notion-config-link">Setup guide ↗</a>
-            </div>
-            <div id="notion-config-msg" class="notion-config-msg"></div>
-          </div>
-        </div>
-
         <!-- Briefing Actions section -->
         <div class="todo-section">
           <div class="todo-section-header">

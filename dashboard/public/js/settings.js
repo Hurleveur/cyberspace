@@ -5,6 +5,7 @@
 const Settings = {
   currentFile: 'interests.md',
   editing: false,
+  PROJECTS_KANBAN_KEY: 'cyberspace-projects-kanban-enabled',
 
   init() {
     this.loadTheme();
@@ -431,6 +432,14 @@ const Settings = {
 
   // ── System Tab ──
 
+  isProjectsKanbanEnabled() {
+    return localStorage.getItem(this.PROJECTS_KANBAN_KEY) !== 'off';
+  },
+
+  setProjectsKanbanEnabled(enabled) {
+    localStorage.setItem(this.PROJECTS_KANBAN_KEY, enabled ? 'on' : 'off');
+  },
+
   loadSystemTab() {
     const view = document.getElementById('settings-view');
     const current = localStorage.getItem('cyberspace-theme') || 'green';
@@ -451,6 +460,7 @@ const Settings = {
     const matrixEnabled = localStorage.getItem('cyberspace-matrix') !== 'off';
     const feedInterval = parseInt(localStorage.getItem('cyberspace-feed-interval') || '15');
     const levelingEnabled = typeof LevelSystem !== 'undefined' ? LevelSystem.isEnabled() : false;
+    const projectsKanbanEnabled = this.isProjectsKanbanEnabled();
     const levelingInfo = (() => {
       if (!levelingEnabled || typeof LevelSystem === 'undefined') return '';
       const xp = LevelSystem.getXP();
@@ -501,6 +511,14 @@ const Settings = {
           </label>
           <div class="system-hint">Earn XP by reading feeds, accepting events and completing tasks.</div>
           ${levelingInfo}
+        </div>
+        <div class="system-section">
+          <div class="system-section-title">Tasks</div>
+          <label class="system-toggle-row">
+            <span class="system-info-label">Projects Kanban</span>
+            <button id="projects-kanban-toggle-btn" class="system-toggle-btn ${projectsKanbanEnabled ? 'on' : 'off'}">${projectsKanbanEnabled ? 'ON' : 'OFF'}</button>
+          </label>
+          <div class="system-hint">Shows or hides the embedded CryptPad Kanban board at the bottom of the Tasks panel.</div>
         </div>
         <div class="system-section">
           <div class="system-section-title">System Info</div>
@@ -563,6 +581,19 @@ const Settings = {
           // Refresh to show / hide level stats
           this.loadSystemTab();
         }
+      });
+    }
+
+    const projectsKanbanBtn = view.querySelector('#projects-kanban-toggle-btn');
+    if (projectsKanbanBtn) {
+      projectsKanbanBtn.addEventListener('click', () => {
+        const on = !this.isProjectsKanbanEnabled();
+        this.setProjectsKanbanEnabled(on);
+        if (typeof TodoList !== 'undefined') TodoList.syncProjectsVisibility();
+        if (typeof App !== 'undefined') {
+          App.toast(on ? 'Projects Kanban enabled' : 'Projects Kanban disabled', 'info');
+        }
+        this.loadSystemTab();
       });
     }
   },

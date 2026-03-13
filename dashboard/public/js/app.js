@@ -183,6 +183,10 @@ const App = {
     this._restoreUIState();
   },
 
+  isProjectsKanbanEnabled() {
+    return typeof Settings === 'undefined' || Settings.isProjectsKanbanEnabled();
+  },
+
   _saveUIState() {
     sessionStorage.setItem(this.SESSION_KEYS.rightVisible, this.panels.right.visible ? '1' : '0');
     sessionStorage.setItem(this.SESSION_KEYS.rightTab, this.currentRightTab);
@@ -243,12 +247,15 @@ const App = {
       }
     });
     document.getElementById('btn-projects')?.addEventListener('click', () => {
+      if (!this.isProjectsKanbanEnabled()) {
+        this.toast('Projects Kanban is disabled in Settings', 'info');
+        return;
+      }
       if (this.panels.right.visible && this.currentRightTab === 'todo') {
         this.togglePanel('right');
       } else {
         this.showPanel('right');
         this.switchRightTab('todo');
-        Projects.init();
         setTimeout(() => {
           const el = document.getElementById('todo-section-projects');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -487,10 +494,6 @@ const App = {
     if (tabName === 'todo' && typeof TodoList !== 'undefined') {
       TodoList.refresh();
     }
-    // Init/refresh projects panel when switching to todo (projects is embedded there)
-    if (tabName === 'todo' && typeof Projects !== 'undefined') {
-      Projects.init();
-    }
   },
 
   // --- Feedback box ---
@@ -643,12 +646,15 @@ const App = {
         case 'P':
           if (hasShift) break;
           e.preventDefault();
+          if (!this.isProjectsKanbanEnabled()) {
+            this.toast('Projects Kanban is disabled in Settings', 'info');
+            break;
+          }
           if (this.panels.right.visible && this.currentRightTab === 'todo') {
             this.togglePanel('right');
           } else {
             this.showPanel('right');
             this.switchRightTab('todo');
-            Projects.init();
             setTimeout(() => {
               const el = document.getElementById('todo-section-projects');
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });

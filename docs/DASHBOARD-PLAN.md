@@ -794,7 +794,7 @@ live WebSocket updates when new reports drop.
 
 ---
 
-### Phase 2 — Interactive Intelligence (make it useful)
+### Phase 2 — Interactive Int    elligence (make it useful)
 
 > Goal: Calendar integration, report history navigation, and deeper
 > event management. The dashboard becomes your daily command center.

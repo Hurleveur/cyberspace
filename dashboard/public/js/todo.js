@@ -1,18 +1,3 @@
-/** NotionSync is handled externally via Notion MCP. This is a no-op stub. */
-const NotionSync = {
-  configured: false,
-  _CONFIG_CACHE_KEY: 'cyberspace-notion-configured',
-  init() {},
-  _renderStatus() {},
-  onTaskCreated() {},
-  onTaskUpdated() {},
-  onTaskDeleted() {},
-  onLinkCreated() {},
-  onLinkDeleted() {},
-  onFurtherReadingHidden() {},
-  onBriefingDateChanged() {},
-};
-
 /**
  * TodoList — persisted task list with four sections:
  *   1. Briefing Actions  — auto-extracted from today's briefing (shared checkbox state)
@@ -35,8 +20,6 @@ const TodoList = {
     await this.loadBriefingContentForDate(App.activeDate || (Briefing.dates && Briefing.dates[0]));
     this.renderMyTasks();
     this.renderMyLinks();
-    // Fire-and-forget: never block panel render on Notion connectivity
-    NotionSync.init();
   },
 
   bindEvents() {
@@ -66,6 +49,22 @@ const TodoList = {
       if (e.key === 'Enter') { e.preventDefault(); this.addLink(); }
     });
     linkBtn.addEventListener('click', () => this.addLink());
+  },
+
+  isProjectsKanbanEnabled() {
+    return typeof Settings === 'undefined' || Settings.isProjectsKanbanEnabled();
+  },
+
+  syncProjectsVisibility() {
+    const section = document.getElementById('todo-section-projects');
+    if (!section) return;
+
+    const enabled = this.isProjectsKanbanEnabled();
+    section.classList.toggle('hidden', !enabled);
+
+    if (enabled && typeof Projects !== 'undefined') {
+      Projects.init();
+    }
   },
 
   // ─── Briefing content (actions + further reading) ────────────────────────
@@ -102,9 +101,7 @@ const TodoList = {
 
     this.renderBriefingActions();
     this.renderFurtherReading();
-
-    // Push new further reading items to Notion (non-blocking)
-    if (date) NotionSync.onBriefingDateChanged(date, this.furtherReadingItems);
+    this.syncProjectsVisibility();
   },
 
   /** Legacy wrapper — still used internally. */
@@ -259,8 +256,6 @@ const TodoList = {
     hidden.add(url);
     localStorage.setItem(`briefing-further-hidden-${this.briefingDate}`, JSON.stringify([...hidden]));
     this.renderFurtherReading();
-    const item = this.furtherReadingItems.find(i => i.url === url);
-    if (item) NotionSync.onFurtherReadingHidden(this.briefingDate, item);
   },
 
   renderFurtherReading() {
@@ -336,7 +331,6 @@ const TodoList = {
     if (tagsEl)     tagsEl.value = '';
 
     this.renderMyTasks();
-    NotionSync.onTaskCreated(task);
   },
 
   toggleTask(id) {
@@ -349,7 +343,6 @@ const TodoList = {
         LevelSystem.reward('task', String(id));
       }
       this.renderMyTasks();
-      NotionSync.onTaskUpdated(id);
     }
   },
 
@@ -358,7 +351,6 @@ const TodoList = {
     const task = tasks.find(t => t.id === id);
     this.saveTasks(tasks.filter(t => t.id !== id));
     this.renderMyTasks();
-    if (task?.notionId) NotionSync.onTaskDeleted(task.notionId);
   },
 
   renderMyTasks() {
@@ -375,10 +367,6 @@ const TodoList = {
     const soon  = new Date(today); soon.setDate(soon.getDate() + 3);
 
     container.innerHTML = tasks.map(task => {
-      // Notion sync indicator
-      const syncState = NotionSync.configured ? (task.notionId ? 'synced' : 'pending') : '';
-      const syncIcon  = NotionSync.configured ? (task.notionId ? '&#10003;' : '&#8635;') : '';
-
       // Priority badge
       const priClass = task.priority ? `todo-priority-${task.priority.toLowerCase()}` : '';
       const priBadge = task.priority
@@ -406,9 +394,6 @@ const TodoList = {
       const metaRow = hasMeta
         ? `<div class="todo-item-meta">${priBadge}${tagBadges}${dueBadge}${assigneeBadge}</div>` : '';
 
-      const syncEl = NotionSync.configured
-        ? `<span class="todo-sync-state ${syncState}" title="${syncState === 'synced' ? 'Synced with Notion' : 'Pending sync'}">${syncIcon}</span>` : '';
-
       return `<div class="todo-item${task.done ? ' todo-done' : ''}" data-id="${task.id}" draggable="true">
         <span class="todo-drag-handle" title="Drag to reorder">&#8959;</span>
         <input type="checkbox" class="todo-checkbox my-task-cb"
@@ -417,7 +402,6 @@ const TodoList = {
           <span class="todo-text">${this.escHtml(task.text)}</span>
           ${metaRow}
         </div>
-        ${syncEl}
         <button class="todo-delete-btn" data-id="${task.id}" title="Remove">&#215;</button>
       </div>`;
     }).join('');
@@ -454,15 +438,12 @@ const TodoList = {
     this.saveLinks(links);
     input.value = '';
     this.renderMyLinks();
-    NotionSync.onLinkCreated(link);
   },
 
   deleteLink(id) {
     const links = this.getLinks();
-    const link = links.find(l => l.id === id);
-    this.saveLinks(links.filter(l => l.id !== id));
+    this.saveLinks(this.getLinks().filter(l => l.id !== id));
     this.renderMyLinks();
-    if (link?.notionId) NotionSync.onLinkDeleted(link.notionId);
   },
 
   renderMyLinks() {
@@ -599,6 +580,7 @@ const TodoList = {
     } else {
       this.renderBriefingActions();
       this.renderFurtherReading();
+      this.syncProjectsVisibility();
     }
   },
 };
