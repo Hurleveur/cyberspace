@@ -5,7 +5,7 @@ const RssParser = require('rss-parser');
 
 const { PROJECT_ROOT } = require('./fileManager');
 
-const RSS_CONFIG_PATH = path.join(PROJECT_ROOT, 'rss.md');
+const RSS_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'rss.md');
 const CACHE_TTL_MS = 15 * 60 * 1000;       // 15 minutes — in-memory freshness
 const ITEM_MAX_AGE_MS = 7 * 24 * 3600000;  // 7 days — disk persistence TTL
 const DISK_CACHE_PATH = path.join(__dirname, '..', 'data', 'feed-cache.json');
@@ -57,7 +57,7 @@ function stableId(url, title) {
 }
 
 /**
- * Parse rss.md to extract feed URLs with their category and priority.
+ * Parse config/rss.md to extract feed URLs with their category and priority.
  */
 function parseRssConfig() {
   let content;
@@ -180,7 +180,7 @@ async function fetchAllFeeds(forceRefresh = false) {
 
   const feedConfigs = parseRssConfig();
   if (feedConfigs.length === 0) {
-    return { items: [], errors: [{ url: RSS_CONFIG_PATH, message: 'No feeds configured in rss.md' }], fetchedAt: Date.now(), fromCache: false };
+    return { items: [], errors: [{ url: RSS_CONFIG_PATH, message: 'No feeds configured in config/rss.md' }], fetchedAt: Date.now(), fromCache: false };
   }
 
   // Fetch all feeds in parallel

@@ -3,7 +3,7 @@
  * Pencil icon toggles raw textarea editing.
  */
 const Settings = {
-  currentFile: 'interests.md',
+  currentFile: 'config/interests.md',
   editing: false,
   PROJECTS_KANBAN_KEY: 'cyberspace-projects-kanban-enabled',
 
@@ -103,7 +103,7 @@ const Settings = {
     }
 
     // RSS feeds get a visual manager unless raw editing is active
-    if (this.currentFile === 'rss.md' && !this.editing) {
+    if (this.currentFile === 'config/rss.md' && !this.editing) {
       await this.loadRssVisual();
       return;
     }
@@ -152,14 +152,14 @@ const Settings = {
   async loadRssVisual() {
     const view = document.getElementById('settings-view');
     try {
-      const res = await fetch('/api/file?path=rss.md');
-      if (!res.ok) throw new Error('rss.md not found');
+      const res = await fetch('/api/file?path=config/rss.md');
+      if (!res.ok) throw new Error('config/rss.md not found');
       const content = await res.text();
       view.dataset.raw = content;
       const feeds = this.parseRssMd(content);
       this.renderRssVisual(feeds);
     } catch (err) {
-      view.innerHTML = `<div class="empty-state">Could not load rss.md: ${err.message}</div>`;
+      view.innerHTML = `<div class="empty-state">Could not load config/rss.md: ${err.message}</div>`;
     }
   },
 
@@ -298,8 +298,8 @@ const Settings = {
 
   async editFeed(oldUrl, newUrl, newPriority) {
     try {
-      const res = await fetch('/api/file?path=rss.md');
-      if (!res.ok) throw new Error('Could not read rss.md');
+      const res = await fetch('/api/file?path=config/rss.md');
+      if (!res.ok) throw new Error('Could not read config/rss.md');
       const content = await res.text();
 
       let replaced = false;
@@ -313,7 +313,7 @@ const Settings = {
 
       if (!replaced) throw new Error('Feed not found');
 
-      await fetch('/api/file?path=rss.md', {
+      await fetch('/api/file?path=config/rss.md', {
         method: 'PUT',
         headers: { 'Content-Type': 'text/plain' },
         body: updated.join('\n'),
@@ -348,8 +348,8 @@ const Settings = {
   async addFeed(url, category, priority) {
     const statusEl = document.getElementById('rss-add-status');
     try {
-      const res = await fetch('/api/file?path=rss.md');
-      if (!res.ok) throw new Error('Could not read rss.md');
+      const res = await fetch('/api/file?path=config/rss.md');
+      if (!res.ok) throw new Error('Could not read config/rss.md');
       const content = await res.text();
       const lines = content.split('\n');
 
@@ -368,7 +368,7 @@ const Settings = {
         lines.push('', `## ${category}`, `- ${url} [${priority}]`, '');
       }
 
-      await fetch('/api/file?path=rss.md', {
+      await fetch('/api/file?path=config/rss.md', {
         method: 'PUT',
         headers: { 'Content-Type': 'text/plain' },
         body: lines.join('\n'),
@@ -383,8 +383,8 @@ const Settings = {
 
   async removeFeed(url) {
     try {
-      const res = await fetch('/api/file?path=rss.md');
-      if (!res.ok) throw new Error('Could not read rss.md');
+      const res = await fetch('/api/file?path=config/rss.md');
+      if (!res.ok) throw new Error('Could not read config/rss.md');
       const content = await res.text();
       const lines = content.split('\n');
 
@@ -408,7 +408,7 @@ const Settings = {
         }
       }
 
-      await fetch('/api/file?path=rss.md', {
+      await fetch('/api/file?path=config/rss.md', {
         method: 'PUT',
         headers: { 'Content-Type': 'text/plain' },
         body: cleaned.join('\n'),
@@ -618,9 +618,9 @@ const Settings = {
   showView() {
     document.getElementById('settings-view').classList.remove('hidden');
     document.getElementById('settings-edit').classList.add('hidden');
-    // seen-events.md and __system are auto-maintained — hide raw editor button
+    // config/seen-events.md and __system are auto-maintained — hide raw editor button
     document.getElementById('settings-edit-btn').style.display =
-      (this.currentFile === 'seen-events.md' || this.currentFile === '__system') ? 'none' : '';
+      (this.currentFile === 'config/seen-events.md' || this.currentFile === '__system') ? 'none' : '';
   },
 
   showEditor() {

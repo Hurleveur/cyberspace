@@ -16,9 +16,29 @@ const MapView = {
   GEO_CACHE_KEY: 'cyberspace-geocache',
   LINKS_KEY: 'cyberspace-marker-links',
 
-  init() {
+  async init() {
+    const defaultCenter = [20, 0];
+    let mapCenter = defaultCenter;
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) {
+        const cfg = await res.json();
+        const center = cfg && Array.isArray(cfg.mapCenter) ? cfg.mapCenter : null;
+        if (
+          center &&
+          center.length === 2 &&
+          Number.isFinite(center[0]) &&
+          Number.isFinite(center[1])
+        ) {
+          mapCenter = center;
+        }
+      }
+    } catch {
+      mapCenter = defaultCenter;
+    }
+
     this.map = L.map('map', {
-      center: [50.85, 4.35], // Brussels
+      center: mapCenter,
       zoom: 4,
       minZoom: 3,
       maxZoom: 14,

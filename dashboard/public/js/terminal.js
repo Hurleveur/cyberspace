@@ -319,7 +319,7 @@ const Terminal = {
   },
 
   _cmdConfig(args) {
-    const FILES = { interests: 'interests.md', news: 'news.md', events: 'events.md', rss: 'rss.md', feedback: 'feedback.md' };
+    const FILES = { interests: 'config/interests.md', news: 'config/news.md', events: 'config/events.md', rss: 'config/rss.md', feedback: 'config/feedback.md' };
     if (!args[0]) {
       this._print('Config files:', 'info');
       for (const [key, file] of Object.entries(FILES)) {
@@ -335,13 +335,13 @@ const Terminal = {
       return;
     }
     // Map to settings tab
-    const tabMap = { 'interests.md': 'Interests', 'news.md': 'News', 'events.md': 'Events', 'rss.md': 'RSS Feeds', 'feedback.md': null };
+    const tabMap = { 'config/interests.md': 'Interests', 'config/news.md': 'News', 'config/events.md': 'Events', 'config/rss.md': 'RSS Feeds', 'config/feedback.md': null };
     Settings.open();
     if (tabMap[file]) {
       const tab = Array.from(document.querySelectorAll('.settings-tab')).find(t => t.textContent.trim() === tabMap[file]);
       if (tab) tab.click();
     } else {
-      // feedback.md — just open settings
+      // config/feedback.md — just open settings
     }
     this._print(`Settings panel open → <span class="t-accent">${file}</span>`, 'success');
   },
@@ -482,7 +482,7 @@ const Terminal = {
         body: JSON.stringify({ text }),
       });
       if (resp.ok) {
-        this._print('Feedback appended to feedback.md ✓', 'success');
+        this._print('Feedback appended to config/feedback.md ✓', 'success');
       } else {
         this._print('Failed to save feedback — server error.', 'error');
       }
@@ -652,7 +652,7 @@ const Terminal = {
       threat:    'threat                               Current threat level',
       unread:    'unread                               Unread counts by source',
       search:    'search <query>                       Search briefing + feeds + events',
-      feedback:  'feedback <text>                      Append to feedback.md',
+      feedback:  'feedback <text>                      Append to config/feedback.md',
       'mark-read':'mark-read                           Mark all visible items as read',
       refresh:   'refresh [feeds]                      Force re-fetch feeds',
       intercept: 'intercept [reset]                    Show intercepted transmission / reset seen',      export:    'export                               Download backup of all data to JSON file',

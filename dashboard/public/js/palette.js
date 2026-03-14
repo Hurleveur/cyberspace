@@ -243,7 +243,7 @@ const Palette = {
     { id: 'theme',        label: 'theme <green|amber|cyan>',  icon: '🎨', desc: 'Switch accent colour scheme' },
     { id: 'status',       label: 'status',                    icon: '📊', desc: 'Show system status summary' },
     { id: 'threat',       label: 'threat',                    icon: '🔴', desc: 'Show current threat level' },
-    { id: 'feedback',     label: 'feedback <text>',           icon: '💬', desc: 'Append text to feedback.md' },
+    { id: 'feedback',     label: 'feedback <text>',           icon: '💬', desc: 'Append text to config/feedback.md' },
     { id: 'mark-read',    label: 'mark-read',                 icon: '✓',  desc: 'Mark all current items as read' },
     { id: 'refresh',      label: 'refresh feeds',             icon: '↻',  desc: 'Force re-fetch all RSS feeds' },
     { id: 'unread',       label: 'unread',                    icon: '🔔', desc: 'Show unread counts by source' },
@@ -358,9 +358,9 @@ const Palette = {
         container.innerHTML = `<div class="palette-cmd-hint">⌘ Command mode</div><div class="palette-cmd-output">Usage: feedback &lt;text&gt;\nType your feedback after the command.</div>`;
         return;
       }
-      fetch('/api/file?path=feedback.md')
+      fetch('/api/file?path=config/feedback.md')
         .then(r => r.ok ? r.text() : '')
-        .then(existing => fetch('/api/file?path=feedback.md', {
+        .then(existing => fetch('/api/file?path=config/feedback.md', {
           method: 'PUT',
           headers: { 'Content-Type': 'text/plain' },
           body: existing + '\n- ' + args + '\n',

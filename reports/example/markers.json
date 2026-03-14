@@ -1,0 +1,109 @@
+[
+  {
+    "id": "news-cve-2026-20127",
+    "type": "news",
+    "priority": "critical",
+    "category": "active-threats",
+    "title": "Cisco SD-WAN Zero-Day Exploited Since 2023",
+    "summary": "CVE-2026-20127 (CVSS 10.0) authentication bypass in Cisco SD-WAN. CISA issued Emergency Directive ED 26-03.",
+    "source_url": "https://www.cisa.gov/news-events/alerts/2026/02/10/cisa-adds-six-known-exploited-vulnerabilities-catalog",
+    "location_label": "United States",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "news-ms-patch-feb26",
+    "type": "news",
+    "priority": "critical",
+    "category": "active-threats",
+    "title": "Microsoft Patches 59 Flaws Including Six Zero-Days",
+    "summary": "Six actively exploited zero-days patched in February Patch Tuesday. CISA KEV deadline March 3.",
+    "source_url": "https://thehackernews.com/2026/02/microsoft-patches-59-vulnerabilities.html",
+    "lat": 47.64,
+    "lng": -122.13,
+    "location_label": "Redmond, United States",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "news-fortigate-ai-compromise",
+    "type": "news",
+    "priority": "critical",
+    "category": "active-threats",
+    "title": "AI-Assisted Actor Compromises 600+ FortiGate Devices in 55 Countries",
+    "summary": "Threat actor used commercial AI tools to breach FortiGate devices in 55 countries. Milestone case of AI-lowered attack barrier.",
+    "source_url": "https://thehackernews.com/2026/02/ai-assisted-threat-actor-compromises.html",
+    "location_label": "Global",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "news-apple-zero-day",
+    "type": "news",
+    "priority": "high",
+    "category": "active-threats",
+    "title": "Apple Patches Sophisticated Zero-Day in Targeted Spyware Attacks",
+    "summary": "CVE-2026-20700 memory buffer overflow. Possible commercial spyware involvement.",
+    "source_url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+    "lat": 37.33,
+    "lng": -122.03,
+    "location_label": "Cupertino, United States",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "news-scarcruft-apt37",
+    "type": "news",
+    "priority": "high",
+    "category": "threat-actors",
+    "title": "ScarCruft (APT37) Deploys New Toolkit for Air-Gapped Networks",
+    "summary": "North Korea's APT37 launched Ruby Jumper campaign with USB-based air-gap bridging malware.",
+    "source_url": "https://www.bleepingcomputer.com/news/security/apt37-hackers-use-new-malware-to-breach-air-gapped-networks/",
+    "location_label": "North Korea",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "news-crowdstrike-ai-report",
+    "type": "news",
+    "priority": "high",
+    "category": "ai-security",
+    "title": "CrowdStrike Reports 89% Increase in AI-Enabled Adversary Activity",
+    "summary": "2026 Global Threat Report shows rapid rise in AI-powered attacks and social engineering.",
+    "source_url": "https://www.infosecurity-magazine.com/news/ai-powered-cyberattacks-up/",
+    "lat": 30.27,
+    "lng": -97.74,
+    "location_label": "Austin, United States",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "news-darktrace-threat-report",
+    "type": "news",
+    "priority": "high",
+    "category": "ai-security",
+    "title": "Darktrace: Shift to AI-Enabled Credential Abuse",
+    "summary": "Fundamental shift from exploit-driven to credential-based intrusions. AI enabling adaptive attacks.",
+    "source_url": "https://industrialcyber.co/news/darktrace-annual-threat-report-2026-finds-shift-from-exploit-driven-breaches-to-faster-ai-enabled-credential-abuse/",
+    "location_label": "United Kingdom",
+    "date": "2026-03-01"
+  },
+  {
+    "id": "event-troopers26",
+    "type": "event",
+    "priority": "high",
+    "category": "event",
+    "title": "TROOPERS26",
+    "summary": "Top-tier technical security conference in Heidelberg.",
+    "source_url": "https://troopers.de/",
+    "lat": 49.4,
+    "lng": 8.69,
+    "location_label": "Heidelberg, Germany",
+    "date": "2026-06-22"
+  },
+  {
+    "id": "event-def-con-group",
+    "type": "event",
+    "priority": "high",
+    "category": "event",
+    "title": "DEF CON Group Monthly Meetup",
+    "summary": "Local DEF CON group meetup with technical talks and community networking.",
+    "source_url": "https://defcon.org/html/defcon-groups/dc-groups-index.html",
+    "location_label": "Your City",
+    "date": "2026-03-15"
+  }
+]

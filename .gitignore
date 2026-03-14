@@ -1,17 +1,23 @@
 # Dependencies
 dashboard/node_modules/
 
-# Personal / sensitive config (contains profile data, preferences, personal feedback)
-interests.md
-feedback.md
-news.md
-events.md
-rss.md
-seen-events.md
+# Personal / sensitive config files (contains profile data, preferences, personal feedback)
+# These live in config/ — copy the .example.md files and fill them in, they are NOT committed
+config/interests.md
+config/news.md
+config/events.md
+config/rss.md
+config/feedback.md
+config/seen-events.md
+config/previous-news.md
+
+# Personal reports (your actual daily briefings — private)
+reports/20*
 
 # Environment / secrets
 dashboard/.env
 dashboard/data/
+dashboard/certs/
 
 # OS files
 .DS_Store

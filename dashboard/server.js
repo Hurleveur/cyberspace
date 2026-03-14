@@ -20,11 +20,29 @@ const CERT_FILE  = path.join(CERT_DIR, 'cert.pem');
 const KEY_FILE   = path.join(CERT_DIR, 'key.pem');
 const FEED_REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
+const DEFAULT_MAP_CENTER = [20, 0];
+
+function parseMapCenter(raw) {
+  if (!raw || typeof raw !== 'string') return DEFAULT_MAP_CENTER;
+  const parts = raw.split(',').map((part) => Number(part.trim()));
+  if (parts.length !== 2) return DEFAULT_MAP_CENTER;
+  const [lat, lng] = parts;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return DEFAULT_MAP_CENTER;
+  if (lat < -85 || lat > 85 || lng < -180 || lng > 180) return DEFAULT_MAP_CENTER;
+  return [lat, lng];
+}
+
+const MAP_CENTER = parseMapCenter(process.env.MAP_CENTER);
+
 // --- Express app ---
 const app = express();
 app.use(express.json());
 app.use(express.text());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/api/config', (req, res) => {
+  res.json({ mapCenter: MAP_CENTER });
+});
 
 // --- File API ---
 
@@ -453,7 +471,7 @@ app.post('/api/feedback', async (req, res) => {
 
     const timestamp = new Date().toISOString().split('T')[0];
     const entry = `\n- [${timestamp}] ${text.trim()}\n`;
-    const result = await fm.appendFile('feedback.md', entry);
+    const result = await fm.appendFile('config/feedback.md', entry);
     if (result.error) return res.status(result.status || 500).json({ error: result.error });
     res.json({ ok: true });
   } catch (err) {
@@ -542,9 +560,9 @@ watcher.on('all', (event, filePath) => {
     if (['add', 'change'].includes(event)) {
       broadcast({ type: 'file_changed', file: rel, action: event === 'add' ? 'created' : 'modified' });
 
-      // rss.md changed → force-refresh feeds immediately
-      if (rel === 'rss.md') {
-        console.log('[feeds] rss.md changed — triggering feed refresh');
+      // config/rss.md changed → force-refresh feeds immediately
+      if (rel === 'config/rss.md') {
+        console.log('[feeds] config/rss.md changed — triggering feed refresh');
         refreshFeedsQuietly();
       }
     }
