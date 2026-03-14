@@ -85,6 +85,7 @@ Each item belongs to exactly one category. Define the categories that matter for
 - Verify extraordinary claims across 2+ sources.
 - Own words — never copy-paste article text.
 - Action bias: end summaries with what to do or watch, not just what happened.
+- Balance stack-specific alerts with the biggest global stories of the day.
 - LinkedIn-worthy flag: truly major global impact only. Max 1–2 per day.
 
 ---
