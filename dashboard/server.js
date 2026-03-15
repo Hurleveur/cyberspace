@@ -1,5 +1,24 @@
 require('dotenv').config();
 
+// --- Auth (production only) ---
+// Set AUTH_TOKEN in Vercel environment variables. If unset, auth is skipped (local dev).
+const AUTH_TOKEN = process.env.AUTH_TOKEN || null;
+
+function requireAuth(req, res, next) {
+  if (!AUTH_TOKEN) return next();
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : String(req.query.token || '');
+  if (token !== AUTH_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+}
+
+// Config files require auth even for reads (personal profile data)
+function requireAuthForConfig(req, res, next) {
+  const p = String(req.query.path || '');
+  if (!AUTH_TOKEN || !p.startsWith('config/')) return next();
+  return requireAuth(req, res, next);
+}
+
 const express = require('express');
 const http    = require('http');
 const https   = require('https');
@@ -13,7 +32,7 @@ const { randomUUID } = require('crypto');
 const fm = require('./lib/fileManager');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
 
-const HTTP_PORT  = process.env.HTTP_PORT  || 3000;
+const HTTP_PORT  = process.env.HTTP_PORT  || process.env.PORT || 3000;
 const HTTPS_PORT = process.env.HTTPS_PORT || 4444;
 const CERT_DIR   = path.join(__dirname, 'certs');
 const CERT_FILE  = path.join(CERT_DIR, 'cert.pem');
@@ -47,7 +66,7 @@ app.get('/api/config', (req, res) => {
 // --- File API ---
 
 // GET /api/file?path=relative/path.md
-app.get('/api/file', async (req, res) => {
+app.get('/api/file', requireAuthForConfig, async (req, res) => {
   try {
     const result = await fm.readFile(req.query.path);
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
@@ -58,7 +77,7 @@ app.get('/api/file', async (req, res) => {
 });
 
 // PUT /api/file?path=relative/path.md  (body = raw text)
-app.put('/api/file', async (req, res) => {
+app.put('/api/file', requireAuth, async (req, res) => {
   try {
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     const result = await fm.writeFile(req.query.path, content);
@@ -70,7 +89,7 @@ app.put('/api/file', async (req, res) => {
 });
 
 // POST /api/file/append?path=relative/path.md  (body = raw text)
-app.post('/api/file/append', async (req, res) => {
+app.post('/api/file/append', requireAuth, async (req, res) => {
   try {
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     const result = await fm.appendFile(req.query.path, content);
@@ -165,7 +184,7 @@ app.get('/api/feeds', async (req, res) => {
 });
 
 // POST /api/feeds/refresh — force re-fetch
-app.post('/api/feeds/refresh', async (req, res) => {
+app.post('/api/feeds/refresh', requireAuth, async (req, res) => {
   try {
     const result = await fetchAllFeeds(true);
     // Notify WebSocket clients
@@ -304,7 +323,7 @@ app.get('/api/projects', async (req, res) => {
 });
 
 // POST /api/projects
-app.post('/api/projects', async (req, res) => {
+app.post('/api/projects', requireAuth, async (req, res) => {
   try {
     const validated = validateProjectInput(req.body);
     if (validated.error) return res.status(400).json({ error: validated.error });
@@ -322,7 +341,7 @@ app.post('/api/projects', async (req, res) => {
 });
 
 // PUT /api/projects/:id
-app.put('/api/projects/:id', async (req, res) => {
+app.put('/api/projects/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid project ID.' });
@@ -390,7 +409,7 @@ app.get('/api/projects/check-embed', async (req, res) => {
 });
 
 // DELETE /api/projects/:id
-app.delete('/api/projects/:id', async (req, res) => {
+app.delete('/api/projects/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid project ID.' });
@@ -422,7 +441,7 @@ app.get('/api/data/export', async (req, res) => {
 
 // POST /api/data/import — restore server-side data from backup
 // body: { projects: [...], mode: 'merge' | 'replace' }
-app.post('/api/data/import', async (req, res) => {
+app.post('/api/data/import', requireAuth, async (req, res) => {
   try {
     const rawProjects = req.body?.projects;
     const mode = /^replace$/i.test(String(req.body?.mode || '')) ? 'replace' : 'merge';
@@ -464,7 +483,7 @@ app.post('/api/data/import', async (req, res) => {
 // --- Feedback API ---
 
 // POST /api/feedback  (body = { text: "..." })
-app.post('/api/feedback', async (req, res) => {
+app.post('/api/feedback', requireAuth, async (req, res) => {
   try {
     const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
     if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
@@ -598,35 +617,41 @@ if (tlsOptions) {
 
 // --- Start ---
 
-server.listen(serverPort, () => {
-  const scheme = tlsOptions ? 'https' : 'http';
-  console.log(`\n  Cyberspace Dashboard`);
-  console.log(`  ${scheme}://localhost:${serverPort}`);
-  if (!tlsOptions) {
-    console.log(`  (run setup-https.ps1 once to enable HTTPS and CryptPad embeds)`);
-  }
-  console.log();
+if (require.main === module) {
+  // Local dev: start the server directly
+  server.listen(serverPort, () => {
+    const scheme = tlsOptions ? 'https' : 'http';
+    console.log(`\n  Cyberspace Dashboard`);
+    console.log(`  ${scheme}://localhost:${serverPort}`);
+    if (!tlsOptions) {
+      console.log(`  (run setup-https.ps1 once to enable HTTPS and CryptPad embeds)`);
+    }
+    console.log();
 
-  // Initial feed fetch
-  refreshFeedsQuietly();
+    // Initial feed fetch
+    refreshFeedsQuietly();
 
-  // Schedule periodic refresh
-  feedRefreshTimer = setInterval(refreshFeedsQuietly, FEED_REFRESH_INTERVAL_MS);
-});
-
-if (redirectServer) {
-  redirectServer.listen(HTTP_PORT, () => {
-    console.log(`  http://localhost:${HTTP_PORT}  →  redirects to https://localhost:${HTTPS_PORT}\n`);
+    // Schedule periodic refresh
+    feedRefreshTimer = setInterval(refreshFeedsQuietly, FEED_REFRESH_INTERVAL_MS);
   });
-}
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\nShutting down...');
-  clearInterval(feedRefreshTimer);
-  clearInterval(heartbeatInterval);
-  watcher.close();
-  wss.close();
-  if (redirectServer) redirectServer.close();
-  server.close(() => process.exit(0));
-});
+  if (redirectServer) {
+    redirectServer.listen(HTTP_PORT, () => {
+      console.log(`  http://localhost:${HTTP_PORT}  →  redirects to https://localhost:${HTTPS_PORT}\n`);
+    });
+  }
+
+  // Graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('\nShutting down...');
+    clearInterval(feedRefreshTimer);
+    clearInterval(heartbeatInterval);
+    watcher.close();
+    wss.close();
+    if (redirectServer) redirectServer.close();
+    server.close(() => process.exit(0));
+  });
+} else {
+  // Serverless export (Vercel) — platform handles listening
+  module.exports = app;
+}
