@@ -143,7 +143,7 @@ const Events = {
   },
 
   extractField(text, fieldName) {
-    const regex = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+?)(?:\\n|$)`, 'i');
+    const regex = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*([^\\r\\n]+)`, 'i');
     const match = text.match(regex);
     return match ? match[1].trim() : '';
   },
