@@ -25,11 +25,23 @@ const Announcement = {
 
   async init() {
     try {
-      const resp = await fetch('/api/reports/announcements');
-      if (!resp.ok) return;
-      const { announcements } = await resp.json();
+      let announcements = [];
 
-      this._all = (announcements || []).map(({ date, content }) => {
+      const resp = await fetch('/api/reports/announcements');
+      if (resp.ok) {
+        const data = await resp.json();
+        announcements = data.announcements || [];
+      }
+
+      // Fall back to example announcement if none found
+      if (announcements.length === 0) {
+        const exRes = await fetch('/api/file?path=reports/example/announcement.md');
+        if (exRes.ok) {
+          announcements = [{ date: 'example', content: await exRes.text() }];
+        }
+      }
+
+      this._all = announcements.map(({ date, content }) => {
         const { meta, body } = this._parseFrontmatter(content);
         return {
           id: this._buildAnnouncementId(date, meta),

@@ -37,9 +37,7 @@ const Briefing = {
       }
       this.updateNav();
     } else {
-      document.getElementById('briefing-content').innerHTML =
-        '<div class="empty-state">No briefings yet.<br>Run the intelligence system to generate your first report.</div>';
-      document.getElementById('briefing-date').textContent = 'No reports';
+      await this.loadBriefing('example');
     }
   },
 
@@ -453,7 +451,7 @@ const Briefing = {
 
   async loadBriefing(date) {
     const container = document.getElementById('briefing-content');
-    document.getElementById('briefing-date').textContent = date;
+    document.getElementById('briefing-date').textContent = date === 'example' ? 'Example' : date;
     this.renderSkeleton(container);
 
     try {

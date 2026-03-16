@@ -128,11 +128,23 @@ const MapView = {
   async loadLatestMarkers() {
     try {
       const res = await fetch('/api/reports/latest');
-      if (!res.ok) return;
-      const { date } = await res.json();
-      await this.loadMarkersForDate(date);
+      if (res.ok) {
+        const { date } = await res.json();
+        await this.loadMarkersForDate(date);
+        return;
+      }
     } catch (err) {
       console.warn('[map] No markers available:', err.message);
+    }
+    // Fall back to example markers
+    try {
+      const exRes = await fetch('/api/file?path=reports/example/markers.json');
+      if (exRes.ok) {
+        const data = JSON.parse(await exRes.text());
+        this.plotMarkers(data);
+      }
+    } catch (err) {
+      console.warn('[map] Could not load example markers:', err.message);
     }
   },
 

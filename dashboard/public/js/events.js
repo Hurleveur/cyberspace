@@ -33,34 +33,43 @@ const Events = {
   async load() {
     const container = document.getElementById('events-list');
     try {
+      let filesByDate = {};
+      let allEventsByDate = [];
+
       const res = await fetch('/api/reports');
-      if (!res.ok) {
-        container.innerHTML = '<div class="empty-state">No event reports available yet.</div>';
-        return;
-      }
-      const { dates, filesByDate } = await res.json();
-      if (!dates || dates.length === 0) {
-        container.innerHTML = '<div class="empty-state">No event reports available yet.</div>';
-        return;
-      }
+      if (res.ok) {
+        const data = await res.json();
+        const { dates, filesByDate: fbd } = data;
+        filesByDate = fbd || {};
 
-      // Use the filesByDate manifest to only fetch dates that actually have events.md
-      const datesWithEvents = filesByDate
-        ? dates.filter(d => filesByDate[d]?.['events.md'])
-        : dates;
-      const fetchResults = await Promise.all(datesWithEvents.map(async (date) => {
-        const evRes = await fetch(`/api/file?path=reports/${date}/events.md`);
-        if (evRes.ok) {
-          const markdown = await evRes.text();
-          return { date, events: this.parseEvents(markdown) };
+        if (dates && dates.length > 0) {
+          // Use the filesByDate manifest to only fetch dates that actually have events.md
+          const datesWithEvents = fbd
+            ? dates.filter(d => fbd[d]?.['events.md'])
+            : dates;
+          const fetchResults = await Promise.all(datesWithEvents.map(async (date) => {
+            const evRes = await fetch(`/api/file?path=reports/${date}/events.md`);
+            if (evRes.ok) {
+              const markdown = await evRes.text();
+              return { date, events: this.parseEvents(markdown) };
+            }
+            return null;
+          }));
+          allEventsByDate = fetchResults.filter(Boolean);
         }
-        return null;
-      }));
-      const allEventsByDate = fetchResults.filter(Boolean);
+      }
 
+      // No real events found — fall back to example data
       if (allEventsByDate.length === 0) {
-        container.innerHTML = '<div class="empty-state">No event radar found in any report.</div>';
-        return;
+        const exRes = await fetch('/api/file?path=reports/example/events.md');
+        if (exRes.ok) {
+          const markdown = await exRes.text();
+          allEventsByDate = [{ date: 'example', events: this.parseEvents(markdown) }];
+          filesByDate = { example: { 'events.md': true } };
+        } else {
+          container.innerHTML = '<div class="empty-state">No event radar found in any report.</div>';
+          return;
+        }
       }
 
       // Merge: newest-first (dates array is already sorted newest-first).

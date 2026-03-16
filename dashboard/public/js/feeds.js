@@ -29,6 +29,15 @@ const Feeds = {
       if (!res.ok) throw new Error('Failed to load feeds');
       const data = await res.json();
       this.items = data.items || [];
+
+      // No items yet (feeds not configured or cache cold) — load example data
+      if (this.items.length === 0) {
+        const exRes = await fetch('/api/file?path=reports/example/feeds.json');
+        if (exRes.ok) {
+          this.items = await exRes.json();
+        }
+      }
+
       this.buildCategories();
       this.applyFilters();
     } catch (err) {
