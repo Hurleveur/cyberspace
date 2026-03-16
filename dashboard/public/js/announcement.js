@@ -18,6 +18,7 @@ const Announcement = {
   _scrollHandler: null,
 
   // Convenience getters for the currently-displayed announcement
+  get _current() { return this._all[this._currentIndex] || null; },
   get _date() { return this._all[this._currentIndex]?.date || null; },
   get _meta()  { return this._all[this._currentIndex]?.meta  || null; },
   get _body()  { return this._all[this._currentIndex]?.body  || ''; },
@@ -30,7 +31,12 @@ const Announcement = {
 
       this._all = (announcements || []).map(({ date, content }) => {
         const { meta, body } = this._parseFrontmatter(content);
-        return { date, meta, body };
+        return {
+          id: this._buildAnnouncementId(date, meta),
+          date,
+          meta,
+          body,
+        };
       });
 
       if (this._all.length === 0) return;
@@ -39,10 +45,10 @@ const Announcement = {
       this._showHeaderIcon();
 
       // Auto-pop the alert bar for the most recent unseen announcement (if any)
-      const seen = this._getSeen();
+      const seen = this._getSeenSet();
       // Search newest-first for the first unseen one
       for (let i = this._all.length - 1; i >= 0; i--) {
-        if (!seen.includes(this._all[i].date)) {
+        if (!this._isSeen(this._all[i], seen)) {
           this._currentIndex = i;
           this._showBar();
           break;
@@ -75,6 +81,19 @@ const Announcement = {
       else if (key === 'date')   meta.date   = val;
     }
     return { meta, body: match[2].trim() };
+  },
+
+  _buildAnnouncementId(date, meta) {
+    const title  = String(meta?.title  || '').trim().toLowerCase();
+    const author = String(meta?.author || '').trim().toLowerCase();
+    const aDate  = String(meta?.date   || '').trim();
+    return `${date}::${aDate}::${title}::${author}`;
+  },
+
+  _isSeen(announcement, seenSet) {
+    if (!announcement) return true;
+    // Backward compatibility: older entries were date-only strings.
+    return seenSet.has(announcement.id) || seenSet.has(announcement.date);
   },
 
   // ── Alert Bar ─────────────────────────────────────────────────────────────────
@@ -245,11 +264,11 @@ const Announcement = {
   },
 
   _acknowledgeOverlay() {
-    this._markSeen(this._date);
+    this._markSeen(this._current);
     if (typeof LevelSystem !== 'undefined') LevelSystem.reward('intercept', this._date);
     // Recalculate: if all seen, hide icon; otherwise keep it
-    const seen = this._getSeen();
-    const anyUnseen = this._all.some(a => !seen.includes(a.date));
+    const seen = this._getSeenSet();
+    const anyUnseen = this._all.some(a => !this._isSeen(a, seen));
     if (!anyUnseen) this._hideHeaderIcon();
     this._closeOverlay();
   },
@@ -261,14 +280,14 @@ const Announcement = {
     if (!btn) return;
     btn.classList.remove('hidden');
     const total  = this._all.length;
-    const seen   = this._getSeen();
-    const unseen = this._all.filter(a => !seen.includes(a.date)).length;
+    const seen   = this._getSeenSet();
+    const unseen = this._all.filter(a => !this._isSeen(a, seen)).length;
     btn.title = unseen > 0
       ? `${unseen} new transmission${unseen > 1 ? 's' : ''} — click to read`
       : `${total} transmission${total !== 1 ? 's' : ''} — click to review`;
     btn.onclick = () => {
       // Open to the first unseen, or last if all seen
-      const firstUnseen = this._all.findIndex(a => !this._getSeen().includes(a.date));
+      const firstUnseen = this._all.findIndex(a => !this._isSeen(a, this._getSeenSet()));
       this._currentIndex = firstUnseen >= 0 ? firstUnseen : this._all.length - 1;
       this._openOverlay();
     };
@@ -348,17 +367,32 @@ const Announcement = {
 
   // ── Persistence ───────────────────────────────────────────────────────────────
 
-  _markSeen(date) {
+  _markSeen(value) {
     const seen = this._getSeen();
-    if (seen.includes(date)) return;
-    seen.push(date);
-    if (seen.length > 30) seen.shift();
-    try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(seen)); } catch (_) {}
+    const keys = [];
+
+    if (value && typeof value === 'object') {
+      if (value.id) keys.push(value.id);
+      if (value.date) keys.push(value.date);
+    } else if (typeof value === 'string' && value) {
+      keys.push(value);
+    }
+
+    if (keys.length === 0) return;
+
+    const merged = [...new Set([...seen, ...keys])];
+    if (merged.length > 60) merged.splice(0, merged.length - 60);
+    try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(merged)); } catch (_) {}
+  },
+
+  _getSeenSet() {
+    return new Set(this._getSeen());
   },
 
   _getSeen() {
     try {
-      return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+      const parsed = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
     } catch (_) {
       return [];
     }

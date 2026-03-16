@@ -12,7 +12,8 @@ config/seen-events.md
 config/previous-news.md
 
 # Personal reports (your actual daily briefings — private)
-reports/20*
+/reports/*
+!/reports/example/
 
 # Environment / secrets
 dashboard/.env
