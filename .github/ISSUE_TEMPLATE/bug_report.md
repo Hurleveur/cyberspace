@@ -25,3 +25,6 @@ Paste any error messages, malformed report sections, or dashboard console errors
 
 **Additional context**
 Anything else that might help — e.g. did it work before a recent change?
+
+**Before submitting**
+Please read [CONTRIBUTING.md](../../CONTRIBUTING.md) — especially the privacy section.

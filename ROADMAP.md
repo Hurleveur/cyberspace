@@ -4,6 +4,8 @@ Expected improvements and open contribution areas. This document is intentionall
 high-level — implementation details are left to contributors.
 Currently the dashboard only works locally and gives a preview online.
 
+If you're willing to work on this project I'm more than willing to talk about it and direct you in issues, a call or IRL.
+
 ---
 
 ## Vercel / Cloud Deployment
