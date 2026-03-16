@@ -4,6 +4,14 @@ All notable changes to the Cyberspace Intelligence System are documented here.
 
 ---
 
+## [Post-2.0 patches] — 2026-03-14 to 2026-03-16
+
+- Fixed `events.js` date parsing regression
+- Added Vercel deployment config (`vercel.json`)
+- Refined `.gitignore` and fixed announcement re-appearing on every run
+
+---
+
 ## [2.0] — 2026-03-14 — Open Source Release
 
 First public release. All changes in this version are preparation for open source.
@@ -33,9 +41,28 @@ First public release. All changes in this version are preparation for open sourc
 
 ---
 
-## [1.0–1.6] — Early development
+## [1.5] — Late dashboard development
 
-Initial development history is not included in the public repository.
+- Levelling system with XP and rank progression
+- Notion integration added then removed in favour of Notion MCP
+- Announcement system for first-run detection
+- Import/export feature for data portability
+- CryptPad integration for collaborative project tracking
+- Autostart service configuration (`install-service.js`)
+- Display state persisted across refreshes
+- HTTPS redirect and self-signed cert setup (`setup-https.ps1`, port 4444)
+- Nominatim client-side geocoding for unlocated map markers
+- Phase 4 visual effects and glow animations completed
+
+---
+
+## [1.4] — Dashboard v1
+
+Initial dashboard implementation across three development phases:
+
+- **Phase 1** — Core map with WebSocket live updates, marker rendering, briefing panel, keyboard shortcuts
+- **Phase 2** — News feed viewer, event radar panel, panel toggle shortcuts (F / B / Escape)
+- **Phase 3** — Tasks panel (briefing actions, further reading, todos), RSS feed persistence and bookmarks, seen-events tab, inline RSS editor, feedback toast notifications, help overlay, radar favicon
 
 ---
 
