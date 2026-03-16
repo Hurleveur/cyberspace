@@ -2,6 +2,54 @@
 
 Expected improvements and open contribution areas. This document is intentionally
 high-level — implementation details are left to contributors.
+Currently the dashboard only works locally and gives a preview online.
+
+---
+
+## Vercel / Cloud Deployment
+
+The current Vercel setup is a minimal shim: auth-gated writes, serverless export,
+and a `vercel.json`. The following items are needed for a fully production-grade
+cloud deployment.
+
+### Persistent Storage Backend
+The dashboard reads and writes local files (`config/`, `reports/`, `dashboard/data/`).
+On Vercel, the file system is read-only and ephemeral — writes don't survive between
+function invocations. A persistent backend is required for any write operation to
+work in production. Recommended approach: use the local agent to push reports to a
+private GitHub repository, and have the dashboard read from the GitHub Contents API.
+For projects/feed cache: Vercel KV (Redis) or a small Postgres (Neon/Supabase).
+
+### Replace WebSockets with Polling
+The live-update mechanism uses `ws` + `chokidar` — both require a persistent
+long-lived server process that doesn't exist in serverless. Replace with a simple
+client-side polling loop (`setInterval` calling `/api/reports/latest` every 30s)
+and remove the WebSocket and file-watcher code from the server.
+
+### Vercel Cron for Feed Refresh
+The 15-minute RSS refresh `setInterval` dies with each serverless function invocation.
+Replace with a Vercel Cron Job (`"crons"` in `vercel.json`) hitting
+`POST /api/feeds/refresh` on a schedule. Requires the feed cache to be stored in
+persistent storage (see above).
+
+### Self-Host Fonts and Client Dependencies
+`index.html` loads JetBrains Mono from Google Fonts (privacy leak — every visit
+pings Google with the visitor's IP) and loads Leaflet/marked.js from public CDNs
+(supply-chain risk). Move all three into `dashboard/public/vendor/` and update
+the `<script>`/`<link>` tags. Font files: download WOFF2, add `@font-face` in CSS.
+
+### Security Headers
+Add a `"headers"` block to `vercel.json` with `Content-Security-Policy`,
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+no-referrer`, and `Permissions-Policy`. The CSP should lock down `script-src` to
+`'self'` plus any self-hosted vendor paths (removes CDN entries once fonts/libs
+are self-hosted).
+
+### Dashboard Auth UI
+Currently auth requires manually passing `Authorization: Bearer <token>` in every
+API call. The settings panel and terminal feedback command will silently fail for
+unauthenticated sessions. Add a simple login overlay (token entry form, stored in
+`sessionStorage`) so the dashboard is usable without manual header injection.
 
 ---
 
@@ -64,53 +112,6 @@ are config files present?).
 On startup, check that all required config files exist and contain expected
 sections. Surface clear errors if a file is missing or misconfigured, rather
 than failing silently on the first scheduled run.
-
----
-
-## Vercel / Cloud Deployment
-
-The current Vercel setup is a minimal shim: auth-gated writes, serverless export,
-and a `vercel.json`. The following items are needed for a fully production-grade
-cloud deployment.
-
-### Persistent Storage Backend
-The dashboard reads and writes local files (`config/`, `reports/`, `dashboard/data/`).
-On Vercel, the file system is read-only and ephemeral — writes don't survive between
-function invocations. A persistent backend is required for any write operation to
-work in production. Recommended approach: use the local agent to push reports to a
-private GitHub repository, and have the dashboard read from the GitHub Contents API.
-For projects/feed cache: Vercel KV (Redis) or a small Postgres (Neon/Supabase).
-
-### Replace WebSockets with Polling
-The live-update mechanism uses `ws` + `chokidar` — both require a persistent
-long-lived server process that doesn't exist in serverless. Replace with a simple
-client-side polling loop (`setInterval` calling `/api/reports/latest` every 30s)
-and remove the WebSocket and file-watcher code from the server.
-
-### Vercel Cron for Feed Refresh
-The 15-minute RSS refresh `setInterval` dies with each serverless function invocation.
-Replace with a Vercel Cron Job (`"crons"` in `vercel.json`) hitting
-`POST /api/feeds/refresh` on a schedule. Requires the feed cache to be stored in
-persistent storage (see above).
-
-### Self-Host Fonts and Client Dependencies
-`index.html` loads JetBrains Mono from Google Fonts (privacy leak — every visit
-pings Google with the visitor's IP) and loads Leaflet/marked.js from public CDNs
-(supply-chain risk). Move all three into `dashboard/public/vendor/` and update
-the `<script>`/`<link>` tags. Font files: download WOFF2, add `@font-face` in CSS.
-
-### Security Headers
-Add a `"headers"` block to `vercel.json` with `Content-Security-Policy`,
-`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
-no-referrer`, and `Permissions-Policy`. The CSP should lock down `script-src` to
-`'self'` plus any self-hosted vendor paths (removes CDN entries once fonts/libs
-are self-hosted).
-
-### Dashboard Auth UI
-Currently auth requires manually passing `Authorization: Bearer <token>` in every
-API call. The settings panel and terminal feedback command will silently fail for
-unauthenticated sessions. Add a simple login overlay (token entry form, stored in
-`sessionStorage`) so the dashboard is usable without manual header injection.
 
 ---
 
