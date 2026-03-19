@@ -754,6 +754,14 @@ const Briefing = {
       section.appendChild(inner);
       h2.classList.add('expanded');
 
+      // Color-code h2 based on leading threat-level emoji
+      const h2Text = h2.textContent || '';
+      if (/🔴/.test(h2Text)) h2.classList.add('section-critical');
+      else if (/🟠/.test(h2Text)) h2.classList.add('section-high');
+      else if (/🟡/.test(h2Text)) h2.classList.add('section-medium');
+      else if (/🟢/.test(h2Text)) h2.classList.add('section-low');
+      else if (/📅|🗓|⚡/.test(h2Text)) h2.classList.add('section-event');
+
       let el = h2.nextElementSibling;
       const elements = [];
       while (el && el.tagName !== 'H2' && !(el.tagName === 'HR' && el.nextElementSibling?.tagName === 'H2')) {

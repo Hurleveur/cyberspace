@@ -455,6 +455,10 @@
   cursor: pointer;
   user-select: none;
   padding: 4px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
   transition: color 0.15s;
 }
 .briefing-content .markdown-body h2:hover {
@@ -937,12 +941,14 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
+  border-left: 3px solid transparent;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.1s, border-left-color 0.15s;
 }
 .event-item:hover {
   background: var(--bg-hover);
+  border-left-color: var(--event-color);
 }
 
 .event-stars {
@@ -2001,13 +2007,36 @@
 
 /* ── Briefing hacker touches ──────────────────────────────────────────── */
 .briefing-content .markdown-body h2 {
-  border-left: 2px solid transparent;
-  padding-left: 6px;
-  transition: border-color 0.15s, text-shadow 0.15s;
+  border-left: 3px solid var(--accent-dim);
+  padding-left: 8px;
+  transition: border-color 0.15s, color 0.15s, text-shadow 0.15s;
 }
 .briefing-content .markdown-body h2:hover {
   border-left-color: var(--accent);
+  color: var(--text-bright);
   text-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* Section-level color coding — class added by briefing.js based on leading emoji */
+.briefing-content .markdown-body h2.section-critical {
+  border-left-color: var(--threat-critical);
+  color: var(--threat-critical);
+}
+.briefing-content .markdown-body h2.section-high {
+  border-left-color: var(--threat-high);
+  color: var(--threat-high);
+}
+.briefing-content .markdown-body h2.section-medium {
+  border-left-color: var(--threat-medium);
+  color: var(--threat-medium);
+}
+.briefing-content .markdown-body h2.section-low {
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+.briefing-content .markdown-body h2.section-event {
+  border-left-color: var(--event-color);
+  color: var(--event-color);
 }
 .briefing-content .markdown-body h3,
 .briefing-content .markdown-body h4 {

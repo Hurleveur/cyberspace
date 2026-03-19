@@ -1,8 +1,11 @@
 ---
 title: "System Online — Cyberspace Intelligence v1.0"
 type: system
-date: 2026-02-28
+author: Hurleveur
+date: 2026-03-19
 ---
+
+https://github.com/Hurleveur/cyberspace
 
 ```
 ██████╗██╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗  █████╗  ██████╗███████╗
@@ -19,11 +22,10 @@ date: 2026-02-28
 
 ---
 
-You're looking at **Cyberspace** — a personal threat intelligence terminal.
+You're looking at **Cyberspace** — a personal threat intelligence terminal. It combines an rss feed list with more advanced agent research.
 
 Here is the concept:
-Every morning at 10:00 (or one morning out of two because it's a lot of briefing!), my node wakes up, ghosts through the open web, and drops a briefing for you you just have to fetch. And I take all the risks by running it locally. It is based on my preferences so this project is allow list only for now.
-If you have feedback or suggestions, feel free.
+Every morning at 10:00 (or one morning out of two because it's a lot of briefing!), my node wakes up, ghosts through the open web, and drops a briefing for you you just have to fetch.
 
 Right now it doesn't work like that yet, as you've noticed, read until the end if you're interested in contributing to that feature!
 
@@ -38,20 +40,18 @@ It maintains its own memory — past stories are logged and deduplicated so you 
 ## What it tracks
 
 - Active exploits, zero-days, ransomware campaigns in the wild
-- CVEs touching your stack — flagged **CRITICAL** if you're exposed
+- CVEs touching your stack — flagged **CRITICAL** if you're exposed, although I'd recommend using https://vulnerability.circl.lu/user/notifications/create for that.
 - APT activity, nation-state operations, threat actor campaigns
 - AI attacks and defenses — the intersection that actually matters
-- Events worth showing up to (Brussels → Belgium → Benelux first)
+- Events worth showing up to, near you and according to your preferences, once a week
 
 ## How to tune it
 
-Write anything in `feedback.md`, or by using the dialog button in the bottom right — plain language, no syntax required. Preferences, corrections, things to add or drop. On the next run it reads your notes, rewrites its own config files, applies the changes in the same run, and clears the file. Your preferences propagate automatically.
+Using the dialog button in the bottom right to give feedback for the next run. Preferences, corrections, things to add or drop. On the next run it reads your notes, rewrites its own config files, applies the changes in the same run, and clears the file. Your preferences propagate automatically.
 
 ## How to run it manually
 
-In Claude Cowork:
-
-> *"Run today's Cyberspace Intelligence briefing. Follow CLAUDE.md exactly."*
+In Claude Cowork, first copy paste the docs/claude-cowork.md file, customize your preferences by asking the AI to onboard you to this project and setup the /config fully, then let it run every wherever you want.
 
 ---
 
@@ -62,12 +62,12 @@ The dashboard you're reading this on works fully **when self-hosted**. The onlin
 - **Write operations don't persist** — Vercel's file system is read-only and ephemeral, so config changes, feedback submissions, and new reports won't survive between requests. A proper persistent backend (e.g. GitHub Contents API for reports, Vercel KV for cache) is needed.
 - **Live updates are broken** — the real-time feed relies on WebSockets and a file watcher, neither of which work in a serverless environment. Needs replacing with a polling approach.
 - **Feed refresh dies on cold start** — the RSS refresh interval resets with every function invocation. Needs a Vercel Cron Job.
-- **Auth is manual** — no login UI exists yet, so the settings panel and feedback command silently fail for unauthenticated sessions.
+- **No Auth** - no session yet, the same for everyone, no subscription to a feed yet
 
 If any of this sounds like your kind of problem, the source is on GitHub — contributions are very welcome. The roadmap has the full breakdown of what's needed.
 
-**[github.com/Hurleveur/cyberspace](https://github.com/Hurleveur/cyberspace)**
+https://github.com/Hurleveur/cyberspace
 
 ---
 
-*Briefing #001 · System v1.0 · 28 Feb 2026 · The streak starts now.*
+*Briefing #001 · System v2.0 · 19 March 2026 · The streak starts now.*
