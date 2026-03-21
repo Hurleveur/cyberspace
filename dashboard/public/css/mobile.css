@@ -1,0 +1,369 @@
+/* === Mobile Responsive Overrides === */
+/* Cyberspace Dashboard — phone & tablet compatibility */
+
+/* ─── Tablet (≤1024px) ─── */
+@media (max-width: 1024px) {
+  :root {
+    --panel-width: 340px;
+  }
+
+  .header-left {
+    gap: 10px;
+  }
+
+  .logo {
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+
+  #level-widget {
+    display: none;
+  }
+
+  .music-bar-inline {
+    display: none;
+  }
+
+  .threat-sparkline {
+    display: none;
+  }
+}
+
+/* ─── Phone (≤768px) ─── */
+@media (max-width: 768px) {
+  :root {
+    --panel-width: 100vw;
+  }
+
+  /* --- Header --- */
+  #header {
+    padding: 0 8px;
+    height: 44px;
+    flex-wrap: nowrap;
+  }
+
+  .header-left {
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .logo {
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+
+  .threat-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    gap: 4px;
+  }
+
+  .threat-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .streak-badge {
+    display: none;
+  }
+
+  #level-widget,
+  .music-bar-inline,
+  .threat-sparkline {
+    display: none;
+  }
+
+  .header-center {
+    padding: 0 4px;
+  }
+
+  .unread-badge {
+    font-size: 10px;
+  }
+
+  .intercept-btn {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  .header-right {
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .header-btn {
+    padding: 6px;
+    font-size: 14px;
+    min-width: 32px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-badge {
+    font-size: 8px;
+    min-width: 12px;
+    height: 12px;
+    line-height: 12px;
+  }
+
+  /* --- Panels: full-width overlays --- */
+  .panel {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .panel-left {
+    left: 0;
+    right: 0;
+  }
+
+  .panel-right {
+    left: 0;
+    right: 0;
+  }
+
+  /* --- Terminal: full width --- */
+  .terminal-panel {
+    left: 0 !important;
+    right: 0 !important;
+  }
+
+  .terminal-hint {
+    display: none;
+  }
+
+  .terminal-input {
+    font-size: 14px;
+  }
+
+  /* --- Feed toolbar --- */
+  .feeds-toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .feeds-toolbar select {
+    min-width: 80px;
+    font-size: 11px;
+  }
+
+  .feeds-toolbar input {
+    min-width: 80px;
+  }
+
+  .feeds-unread-toggle {
+    font-size: 10px;
+  }
+
+  /* --- Feed items: more touch-friendly --- */
+  .feed-item {
+    padding: 10px 10px;
+  }
+
+  .feed-title {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .feed-meta {
+    font-size: 10px;
+  }
+
+  /* --- Events toolbar --- */
+  .events-toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .events-toolbar select {
+    font-size: 10px;
+    padding: 4px 4px;
+  }
+
+  .events-toggle {
+    font-size: 9px;
+  }
+
+  /* --- Event cards --- */
+  .event-card {
+    padding: 10px;
+  }
+
+  /* --- Briefing --- */
+  .briefing-nav {
+    padding: 6px 8px;
+  }
+
+  .briefing-content {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .briefing-search-bar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  /* --- Overlays --- */
+  .overlay-content {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .settings-tabs {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .settings-tab {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+
+  /* --- Announcement --- */
+  .announcement-box {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .announcement-header {
+    padding: 10px 12px 8px;
+  }
+
+  .announcement-classification {
+    font-size: 10px;
+  }
+
+  .announcement-title {
+    font-size: 14px;
+  }
+
+  .announcement-meta {
+    font-size: 9px;
+    padding: 4px 12px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .announcement-text {
+    font-size: 12px;
+    padding: 12px;
+  }
+
+  .announcement-footer {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* --- Shortcuts overlay --- */
+  .shortcuts-content {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .shortcut-grid {
+    grid-template-columns: 70px 1fr;
+    gap: 6px 10px;
+  }
+
+  /* --- Feedback box --- */
+  .feedback-box {
+    width: calc(100vw - 32px);
+    right: 16px;
+    left: 16px;
+    bottom: 70px;
+  }
+
+  .feedback-toggle {
+    bottom: 12px;
+    right: 12px;
+  }
+
+  /* --- Profiler hover card --- */
+  .profiler-card {
+    max-width: 90vw;
+    left: 5vw !important;
+    right: 5vw !important;
+  }
+
+  /* --- Connection status --- */
+  .connection-status {
+    font-size: 10px;
+  }
+
+  /* --- Todo panel --- */
+  .todo-add-row {
+    flex-wrap: wrap;
+  }
+
+  .todo-add-row input {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .todo-meta-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* --- Map attribution --- */
+  .leaflet-control-attribution {
+    font-size: 8px !important;
+    max-width: 50vw;
+  }
+
+  .leaflet-control-zoom {
+    margin-left: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* --- Touch targets: ensure minimum 44px --- */
+  .panel-close,
+  .panel-tab,
+  .right-panel-tab {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ─── Very small phones (≤380px) ─── */
+@media (max-width: 380px) {
+  .logo {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  .threat-badge {
+    display: none;
+  }
+
+  .header-btn {
+    padding: 4px;
+    min-width: 28px;
+    min-height: 28px;
+  }
+
+  .btn-icon {
+    font-size: 12px;
+  }
+
+  .briefing-content {
+    padding: 8px;
+    font-size: 11px;
+  }
+}

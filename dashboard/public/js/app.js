@@ -348,6 +348,14 @@ const App = {
     const panel = this.panels[side];
     panel.visible = !panel.visible;
     panel.el.classList.toggle('hidden', !panel.visible);
+    // On mobile, close the opposite panel to avoid overlap
+    if (panel.visible && window.innerWidth <= 768) {
+      const other = side === 'left' ? 'right' : 'left';
+      if (this.panels[other].visible) {
+        this.panels[other].visible = false;
+        this.panels[other].el.classList.add('hidden');
+      }
+    }
     this.updateButtonStates();
     this._syncTerminalBounds();
     if (side === 'right') this._saveUIState();
