@@ -417,7 +417,7 @@ const MapView = {
     marker.data = item;
 
     marker.on('click', () => {
-      ReadTracker.markRead(item.id);
+      ReadTracker.markRead(item.id, 'briefing');
       marker.setStyle({ opacity: 0.3, fillOpacity: 0.15, weight: 1 });
       App.updateUnreadCount();
       if (typeof Briefing !== 'undefined') Briefing.refreshStoryIndicators();
@@ -441,7 +441,7 @@ const MapView = {
   markMarkerRead(id) {
     const entry = this.markers.find(m => m.data.id === id);
     if (!entry) return;
-    ReadTracker.markRead(id);
+    ReadTracker.markRead(id, 'briefing');
     entry.marker.setStyle({ opacity: 0.3, fillOpacity: 0.15, weight: 1 });
     // Remove pulsing CSS classes
     const el = entry.marker.getElement?.();

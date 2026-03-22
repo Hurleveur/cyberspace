@@ -3,10 +3,11 @@
  *
  * XP rewards (each action is deduped by a string ID so re-renders never
  * award XP twice):
- *   feed   +10  reading / expanding a feed item
- *   action +20  completing a briefing action-item checkbox
- *   task   +15  completing a custom user task
- *   event  +50  accepting an event
+ *   feed      +5/+10/+15  reading / expanding a feed item (LOW/MEDIUM/HIGH)
+ *   briefing  +10/+20/+30 viewing a briefing story (always 2× feed at same priority)
+ *   action    +20         completing a briefing action-item checkbox
+ *   task      +15         completing a custom user task
+ *   event     +50         accepting an event
  *
  * Level formula: cumulative threshold = 50·N·(N+1)
  *   → level 1 at 100 XP, level 2 at 300, level 3 at 600, …
@@ -32,9 +33,16 @@ const LevelSystem = {
   // ─── XP per action type ─────────────────────────────────────────────────
 
   XP_VALUES: {
-    feed:        10, // default / MEDIUM
-    'feed:HIGH':  25,
-    'feed:LOW':    5,
+    feed:            10, // MEDIUM (default)
+    'feed:CRITICAL': 15,
+    'feed:HIGH':     15,
+    'feed:MEDIUM':   10,
+    'feed:LOW':       5,
+    briefing:            20, // 2× feed MEDIUM
+    'briefing:CRITICAL':  30, // 2× feed CRITICAL
+    'briefing:HIGH':      30, // 2× feed HIGH
+    'briefing:MEDIUM':    20, // 2× feed MEDIUM
+    'briefing:LOW':       10, // 2× feed LOW
     action: 20,
     task:   15,
     event:  50,
@@ -46,8 +54,20 @@ const LevelSystem = {
     if (type === 'feed' && typeof Feeds !== 'undefined' && Feeds.items) {
       const item = Feeds.items.find(i => i.id === id);
       const p = item?.priority?.toUpperCase();
-      if (p === 'HIGH') return this.XP_VALUES['feed:HIGH'];
-      if (p === 'LOW')  return this.XP_VALUES['feed:LOW'];
+      if (p && this.XP_VALUES[`feed:${p}`] != null) return this.XP_VALUES[`feed:${p}`];
+    }
+    if (type === 'briefing') {
+      // Look up priority from map markers or briefing DOM
+      let p;
+      if (typeof MapView !== 'undefined' && MapView.markers) {
+        const marker = MapView.markers.find(m => m.data?.id === id);
+        p = marker?.data?.priority?.toUpperCase();
+      }
+      if (!p) {
+        const dot = document.querySelector(`.story-read-dot[data-story-id="${id}"]`);
+        p = dot?.dataset?.priority?.toUpperCase();
+      }
+      if (p && this.XP_VALUES[`briefing:${p}`] != null) return this.XP_VALUES[`briefing:${p}`];
     }
     return this.XP_VALUES[type] || 0;
   },
@@ -303,12 +323,17 @@ const LevelSystem = {
     const rewarded = this.getRewarded();
     let gained = 0;
 
-    // Previously read feed items
+    // Previously read items (feeds vs briefing stories)
     try {
       const reads = JSON.parse(localStorage.getItem('cyberspace-read-items') || '{}');
+      const feedIds = new Set(
+        (typeof Feeds !== 'undefined' && Feeds.items) ? Feeds.items.map(i => i.id) : []
+      );
       for (const id of Object.keys(reads)) {
-        const k = `feed:${id}`;
-        if (!rewarded[k]) { rewarded[k] = 1; gained += this.XP_VALUES.feed; }
+        const isFeed = feedIds.has(id) || id.startsWith('rss-');
+        const type = isFeed ? 'feed' : 'briefing';
+        const k = `${type}:${id}`;
+        if (!rewarded[k]) { rewarded[k] = 1; gained += this.XP_VALUES[type]; }
       }
     } catch {}
 

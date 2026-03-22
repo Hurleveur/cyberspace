@@ -46,13 +46,13 @@ const ReadTracker = {
     return !!this._getAll()[id];
   },
 
-  markRead(id) {
+  markRead(id, rewardType = 'feed') {
     const all = this._getAll();
     const wasRead = !!all[id];
     all[id] = Date.now();
     localStorage.setItem(this.KEY, JSON.stringify(all));
     if (!wasRead && typeof LevelSystem !== 'undefined') {
-      LevelSystem.reward('feed', id);
+      LevelSystem.reward(rewardType, id);
     }
   },
 

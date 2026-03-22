@@ -962,7 +962,7 @@ const Briefing = {
       dot.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!ReadTracker.isRead(storyId)) {
-          ReadTracker.markRead(storyId);
+          ReadTracker.markRead(storyId, 'briefing');
           if (marker) MapView.markMarkerRead(storyId);
           this.refreshStoryIndicators(container);
           App.updateUnreadCount();
