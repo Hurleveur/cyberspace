@@ -1,7 +1,17 @@
 {
   "version": 2,
   "builds": [
-    { "src": "dashboard/server.js", "use": "@vercel/node" }
+    {
+      "src": "dashboard/server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "config/**",
+          "dashboard/public/**",
+          "dashboard/data/**"
+        ]
+      }
+    }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "dashboard/server.js" }

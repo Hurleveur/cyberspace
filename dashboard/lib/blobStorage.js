@@ -50,10 +50,36 @@ async function appendFile(relativePath, content) {
   return writeFile(relativePath, combined);
 }
 
+/**
+ * List report dates by scanning blob keys with the reports/ prefix.
+ * Extracts YYYY-MM-DD date folders from blob pathnames.
+ */
+async function listReportDates() {
+  try {
+    const dates = new Set();
+    let cursor;
+    do {
+      const result = await list({ prefix: PREFIX + 'reports/', cursor });
+      for (const blob of result.blobs) {
+        // pathname: cyberspace/reports/2026-03-07/briefing.md
+        const rel = blob.pathname.slice(PREFIX.length); // reports/2026-03-07/briefing.md
+        const match = rel.match(/^reports\/(\d{4}-\d{2}-\d{2})\//);
+        if (match) dates.add(match[1]);
+      }
+      cursor = result.cursor;
+    } while (cursor);
+
+    return { dates: [...dates].sort().reverse() };
+  } catch (err) {
+    console.error('[blobStorage] listReportDates error:', err.message);
+    return { dates: [] };
+  }
+}
+
 function invalidateCache(relativePath) {
   if (relativePath) {
     _cache.delete(relativePath);
   }
 }
 
-module.exports = { readFile, writeFile, appendFile, invalidateCache };
+module.exports = { readFile, writeFile, appendFile, listReportDates, invalidateCache };

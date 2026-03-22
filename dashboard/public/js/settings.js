@@ -521,6 +521,18 @@ const Settings = {
           <div class="system-hint">Shows or hides the embedded CryptPad Kanban board at the bottom of the Tasks panel.</div>
         </div>
         <div class="system-section">
+          <div class="system-section-title">Auth Token</div>
+          <div class="system-info-grid">
+            <span class="system-info-label">Status</span><span class="system-info-value">${typeof Auth !== 'undefined' && Auth.getToken() ? '✓ Set' : '✗ Not set'}</span>
+          </div>
+          <div class="rss-add-row" style="margin-top:6px">
+            <input id="auth-token-input" type="password" placeholder="Paste AUTH_TOKEN" autocomplete="off" style="flex:1"/>
+            <button id="auth-token-save" class="rss-primary">Save</button>
+            <button id="auth-token-clear">Clear</button>
+          </div>
+          <div class="system-hint">Required on Vercel for editing config files. Visit with ?token=xxx to set automatically.</div>
+        </div>
+        <div class="system-section">
           <div class="system-section-title">System Info</div>
           <div class="system-info-grid">
             <span class="system-info-label">Last briefing</span><span class="system-info-value">${lastBriefing}</span>
@@ -530,6 +542,25 @@ const Settings = {
           </div>
         </div>
       </div>`;
+
+    const authSaveBtn = view.querySelector('#auth-token-save');
+    const authClearBtn = view.querySelector('#auth-token-clear');
+    if (authSaveBtn) {
+      authSaveBtn.addEventListener('click', () => {
+        const val = document.getElementById('auth-token-input').value.trim();
+        if (!val) return;
+        if (typeof Auth !== 'undefined') Auth.setToken(val);
+        if (typeof App !== 'undefined') App.toast('Token saved — reload page to apply', 'success');
+        this.loadSystemTab();
+      });
+    }
+    if (authClearBtn) {
+      authClearBtn.addEventListener('click', () => {
+        if (typeof Auth !== 'undefined') Auth.setToken(null);
+        if (typeof App !== 'undefined') App.toast('Token cleared — reload page to apply', 'info');
+        this.loadSystemTab();
+      });
+    }
 
     view.querySelectorAll('.theme-swatch').forEach(btn => {
       btn.addEventListener('click', () => {

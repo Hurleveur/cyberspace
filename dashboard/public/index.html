@@ -397,6 +397,9 @@
   <!-- Connection status -->
   <div id="connection-status" class="connection-status hidden">Disconnected</div>
 
+  <!-- Auth (must load before any deferred scripts that call fetch) -->
+  <script src="/js/auth.js"></script>
+
   <!-- Scripts (defer enables parallel download + ordered execution) -->
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

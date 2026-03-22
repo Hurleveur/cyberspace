@@ -59,7 +59,7 @@ app.use(express.text());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/config', (req, res) => {
-  res.json({ mapCenter: MAP_CENTER });
+  res.json({ mapCenter: MAP_CENTER, serverless: !!process.env.VERCEL });
 });
 
 // --- File API ---
@@ -167,6 +167,32 @@ app.get('/api/reports/announcements', async (req, res) => {
     res.json({ announcements: results });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// POST /api/reports/sync — upload report files to blob storage (for syncing local → Vercel)
+// Body: { date: "2026-03-07", files: { "briefing.md": "...", "markers.json": "...", ... } }
+app.post('/api/reports/sync', requireAuth, express.json({ limit: '5mb' }), async (req, res) => {
+  try {
+    const { date, files } = req.body;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Invalid or missing date (YYYY-MM-DD)' });
+    }
+    if (!files || typeof files !== 'object') {
+      return res.status(400).json({ error: 'Missing files object' });
+    }
+
+    const results = [];
+    for (const [filename, content] of Object.entries(files)) {
+      if (typeof content !== 'string') continue;
+      const filePath = `reports/${date}/${filename}`;
+      const result = await fm.writeFile(filePath, content);
+      results.push({ file: filename, ok: !result.error, error: result.error });
+    }
+
+    res.json({ date, synced: results });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Sync failed' });
   }
 });
 

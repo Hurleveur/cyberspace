@@ -21,11 +21,11 @@ const blob = IS_VERCEL ? require('./blobStorage') : null;
 // dashboard/data/ directory for local data files
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
 
-// Prefixes that are mutable and need blob storage on Vercel
-const MUTABLE_PREFIXES = ['config/', 'data/'];
+// On Vercel, all dynamic content goes through blob (reports aren't on the filesystem)
+const BLOB_PREFIXES = ['config/', 'data/', 'reports/'];
 
-function isMutable(relativePath) {
-  return IS_VERCEL && MUTABLE_PREFIXES.some(p => relativePath.startsWith(p));
+function usesBlob(relativePath) {
+  return IS_VERCEL && BLOB_PREFIXES.some(p => relativePath.startsWith(p));
 }
 
 /**
@@ -71,7 +71,7 @@ async function appendDataFile(relativePath, content) {
 }
 
 async function readFile(relativePath) {
-  if (isMutable(relativePath)) {
+  if (usesBlob(relativePath)) {
     const result = await blob.readFile(relativePath);
     // Seed from deployed filesystem on first access (blob empty)
     if (result.error && result.status === 404) {
@@ -84,13 +84,13 @@ async function readFile(relativePath) {
 }
 
 async function writeFile(relativePath, content) {
-  if (isMutable(relativePath)) return blob.writeFile(relativePath, content);
+  if (usesBlob(relativePath)) return blob.writeFile(relativePath, content);
   if (isDataPath(relativePath)) return writeDataFile(relativePath, content);
   return fm.writeFile(relativePath, content);
 }
 
 async function appendFile(relativePath, content) {
-  if (isMutable(relativePath)) return blob.appendFile(relativePath, content);
+  if (usesBlob(relativePath)) return blob.appendFile(relativePath, content);
   if (isDataPath(relativePath)) return appendDataFile(relativePath, content);
   return fm.appendFile(relativePath, content);
 }
@@ -100,8 +100,17 @@ function invalidateCache(relativePath) {
   if (blob) blob.invalidateCache(relativePath);
 }
 
-// Reports are read-only on Vercel (committed to git), always use filesystem
-const { listReportDates, latestReportDate, PROJECT_ROOT, resolveSafePath } = fm;
+const { PROJECT_ROOT, resolveSafePath } = fm;
+
+async function listReportDates() {
+  if (IS_VERCEL) return blob.listReportDates();
+  return fm.listReportDates();
+}
+
+async function latestReportDate() {
+  const { dates } = await listReportDates();
+  return dates.length > 0 ? dates[0] : null;
+}
 
 module.exports = {
   PROJECT_ROOT,
