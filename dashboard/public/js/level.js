@@ -3,8 +3,8 @@
  *
  * XP rewards (each action is deduped by a string ID so re-renders never
  * award XP twice):
- *   feed      +5/+10/+15  reading / expanding a feed item (LOW/MEDIUM/HIGH)
- *   briefing  +10/+20/+30 viewing a briefing story (always 2× feed at same priority)
+ *   feed      +5/+10/+15/+25  reading / expanding a feed item (LOW/MEDIUM/HIGH/CRITICAL)
+ *   briefing  +10/+20/+30/+50 viewing a briefing story (2× feed at same priority)
  *   action    +20         completing a briefing action-item checkbox
  *   task      +15         completing a custom user task
  *   event     +50         accepting an event
@@ -34,12 +34,12 @@ const LevelSystem = {
 
   XP_VALUES: {
     feed:            10, // MEDIUM (default)
-    'feed:CRITICAL': 15,
+    'feed:CRITICAL': 25,
     'feed:HIGH':     15,
     'feed:MEDIUM':   10,
     'feed:LOW':       5,
     briefing:            20, // 2× feed MEDIUM
-    'briefing:CRITICAL':  30, // 2× feed CRITICAL
+    'briefing:CRITICAL':  50, // 2× feed CRITICAL
     'briefing:HIGH':      30, // 2× feed HIGH
     'briefing:MEDIUM':    20, // 2× feed MEDIUM
     'briefing:LOW':       10, // 2× feed LOW

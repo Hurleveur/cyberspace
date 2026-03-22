@@ -37,8 +37,18 @@ function isDataPath(relativePath) {
   return relativePath.startsWith('data/');
 }
 
+const RESOLVED_DATA_DIR = path.resolve(DATA_DIR);
+
+function resolveDataPath(relativePath) {
+  const filePath = path.resolve(DATA_DIR, relativePath.slice('data/'.length));
+  // Guard against path traversal (e.g. data/../../etc/passwd)
+  if (!filePath.startsWith(RESOLVED_DATA_DIR + path.sep)) return null;
+  return filePath;
+}
+
 async function readDataFile(relativePath) {
-  const filePath = path.join(DATA_DIR, relativePath.slice('data/'.length));
+  const filePath = resolveDataPath(relativePath);
+  if (!filePath) return { error: 'Forbidden', status: 403 };
   try {
     const content = await fsp.readFile(filePath, 'utf-8');
     return { content };
@@ -49,7 +59,8 @@ async function readDataFile(relativePath) {
 }
 
 async function writeDataFile(relativePath, content) {
-  const filePath = path.join(DATA_DIR, relativePath.slice('data/'.length));
+  const filePath = resolveDataPath(relativePath);
+  if (!filePath) return { error: 'Forbidden', status: 403 };
   try {
     await fsp.mkdir(path.dirname(filePath), { recursive: true });
     await fsp.writeFile(filePath, content, 'utf-8');
@@ -60,7 +71,8 @@ async function writeDataFile(relativePath, content) {
 }
 
 async function appendDataFile(relativePath, content) {
-  const filePath = path.join(DATA_DIR, relativePath.slice('data/'.length));
+  const filePath = resolveDataPath(relativePath);
+  if (!filePath) return { error: 'Forbidden', status: 403 };
   try {
     await fsp.mkdir(path.dirname(filePath), { recursive: true });
     await fsp.appendFile(filePath, content, 'utf-8');

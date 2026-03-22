@@ -1,7 +1,7 @@
 {
   "name": "cyberspace-dashboard",
   "version": "1.0.0",
-  "description": "Local browser dashboard for the Cyberspace Intelligence System",
+  "description": "Browser dashboard for the Cyberspace Intelligence System (local dev + Vercel deployment)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

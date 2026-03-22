@@ -336,6 +336,10 @@ html, body {
   z-index: var(--z-overlay);
 }
 .connection-status.hidden { display: none; }
+.connection-status.preview {
+  background: var(--accent-cyan, #00e5ff);
+  color: #0a0a0a;
+}
 
 /* === Profiler hover card === */
 .profiler-card {

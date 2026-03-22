@@ -2,6 +2,13 @@
  * Vercel Blob storage backend.
  * Same interface shape as fileManager: readFile, writeFile, appendFile.
  * Only loaded when process.env.VERCEL is set.
+ *
+ * @vercel/blob is required here because this module is the production storage
+ * backend for Vercel deployments.  The local/dev path uses the plain filesystem
+ * (fileManager.js / storage.js) and never loads this file.  Cloud blob storage is
+ * necessary on Vercel because the serverless filesystem is ephemeral and read-only
+ * outside /tmp, so all mutable files (config/, data/, reports/) must be persisted
+ * in an external store.
  */
 const { put, list } = require('@vercel/blob');
 
@@ -18,9 +25,10 @@ async function readFile(relativePath) {
 
   try {
     const { blobs } = await list({ prefix: PREFIX + relativePath });
-    if (!blobs.length) return { error: 'Not found', status: 404 };
+    const exact = blobs.find(b => b.pathname === PREFIX + relativePath);
+    if (!exact) return { error: 'Not found', status: 404 };
 
-    const res = await fetch(blobs[0].url);
+    const res = await fetch(exact.url);
     if (!res.ok) return { error: 'Blob fetch failed', status: 502 };
 
     const content = await res.text();
@@ -46,6 +54,10 @@ async function writeFile(relativePath, content) {
 
 async function appendFile(relativePath, content) {
   const existing = await readFile(relativePath);
+  if (existing.error && existing.status !== 404) {
+    // Propagate transient errors (500, 502, etc.) so data is not silently lost.
+    return existing;
+  }
   const combined = (existing.content || '') + content;
   return writeFile(relativePath, combined);
 }
