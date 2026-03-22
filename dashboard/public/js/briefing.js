@@ -499,6 +499,7 @@ const Briefing = {
     let html = marked.parse(this.stripTodoSections(markdown));
     container.innerHTML = `<div class="markdown-body">${html}</div>`;
     this.makeCollapsible(container);
+    this._addCollapseAllBtn(container);
     this.bindCheckboxes(container, date);
     this.bindProfilerHover(container);
 
@@ -754,6 +755,12 @@ const Briefing = {
       section.appendChild(inner);
       h2.classList.add('expanded');
 
+      // Add a visible [+]/[−] toggle indicator
+      const toggle = document.createElement('span');
+      toggle.className = 'briefing-toggle-icon';
+      toggle.textContent = '−';
+      h2.appendChild(toggle);
+
       // Color-code h2 based on leading threat-level emoji
       const h2Text = h2.textContent || '';
       if (/🔴/.test(h2Text)) h2.classList.add('section-critical');
@@ -779,8 +786,31 @@ const Briefing = {
       h2.addEventListener('click', () => {
         const expanded = h2.classList.toggle('expanded');
         section.classList.toggle('expanded', expanded);
+        toggle.textContent = expanded ? '−' : '+';
       });
     });
+  },
+
+  _addCollapseAllBtn(container) {
+    const nav = document.querySelector('.briefing-nav');
+    if (!nav) return;
+    let btn = document.getElementById('briefing-collapse-all');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'briefing-collapse-all';
+      btn.className = 'briefing-collapse-all-btn';
+      btn.title = 'Collapse/expand all sections';
+      nav.appendChild(btn);
+    }
+    btn.textContent = '▸ Collapse All';
+    btn.onclick = () => {
+      const sections = container.querySelectorAll('.briefing-section');
+      const headings = container.querySelectorAll('.markdown-body h2');
+      const allExpanded = [...sections].every(s => s.classList.contains('expanded'));
+      sections.forEach(s => s.classList.toggle('expanded', !allExpanded));
+      headings.forEach(h => h.classList.toggle('expanded', !allExpanded));
+      btn.textContent = allExpanded ? '▾ Expand All' : '▸ Collapse All';
+    };
   },
 
   bindCheckboxes(container, date) {
@@ -813,8 +843,8 @@ const Briefing = {
     if (match) {
       const emoji = match[1];
       const level = match[2].toUpperCase();
-      label.textContent = level;
-      label.dataset.text = level;
+      label.textContent = `THREAT LEVEL: ${level}`;
+      label.dataset.text = `THREAT LEVEL: ${level}`;
       label.classList.remove('glitch');
 
       badge.className = 'threat-badge';

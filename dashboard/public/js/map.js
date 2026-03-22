@@ -65,6 +65,12 @@ const MapView = {
     // Re-spread co-located markers when zoom changes
     this.map.on('zoomend', () => this._respreadOnZoom());
 
+    // Clear connection line overlay on map move
+    this.map.on('movestart', () => {
+      const svg = document.getElementById('connection-line-overlay');
+      if (svg) svg.innerHTML = '';
+    });
+
     // Load geocoding cache from localStorage
     this.loadGeoCache();
 

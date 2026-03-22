@@ -796,6 +796,116 @@ const App = {
       this.switchLeftTab('briefing');
       setTimeout(() => Briefing.scrollToMarker(markerId), delay);
     }
+    // Draw animated connection line from marker to panel item
+    if (window.innerWidth > 768) {
+      this._drawConnectionLine(markerId, type);
+    }
+  },
+
+  // --- Connection line from map marker to panel item ---
+
+  _connectionTimer: null,
+
+  _drawConnectionLine(markerId, type) {
+    const svg = document.getElementById('connection-line-overlay');
+    if (!svg || typeof MapView === 'undefined') return;
+
+    // Clear any existing line
+    svg.innerHTML = '';
+    clearTimeout(this._connectionTimer);
+
+    // Find the marker entry
+    const entry = MapView.markers.find(m => m.data.id === markerId);
+    if (!entry || !MapView.map) return;
+
+    // Get marker screen position
+    const markerLatLng = entry.marker.getLatLng();
+    const markerPoint = MapView.map.latLngToContainerPoint(markerLatLng);
+    const mapRect = MapView.map.getContainer().getBoundingClientRect();
+    const startX = mapRect.left + markerPoint.x;
+    const startY = mapRect.top + markerPoint.y;
+
+    const accent = getComputedStyle(document.documentElement)
+      .getPropertyValue('--accent').trim() || '#00ff41';
+
+    // Delay to allow panel open + scroll animation to finish
+    setTimeout(() => {
+      // Find the target element in the panel
+      let targetEl;
+      if (type === 'event') {
+        targetEl = document.querySelector(`.event-item[data-id="${markerId}"]`);
+      } else {
+        targetEl = document.querySelector('.briefing-content .highlight-flash');
+      }
+      if (!targetEl) return;
+
+      const targetRect = targetEl.getBoundingClientRect();
+      // Stop at the panel's left edge, not inside the element
+      const panel = type === 'event'
+        ? document.getElementById('right-panel')
+        : document.getElementById('left-panel');
+      const panelRect = panel ? panel.getBoundingClientRect() : targetRect;
+      const endX = type === 'event' ? panelRect.left : panelRect.right;
+      const endY = targetRect.top + targetRect.height / 2;
+
+      // Build an orthogonal circuit-board-style path:
+      // Start → horizontal to a mid-X → vertical turn → horizontal into panel
+      const goingLeft = endX < startX;
+      const turnX = goingLeft
+        ? startX - Math.abs(startX - endX) * 0.4
+        : startX + Math.abs(endX - startX) * 0.4;
+      const cornerSize = 4;  // small notch at each turn for a blocky feel
+
+      // Path: start → horizontal → notch → vertical → notch → horizontal → end
+      const d = [
+        `M ${startX} ${startY}`,
+        `H ${turnX}`,
+        `v ${endY > startY ? cornerSize : -cornerSize}`,
+        `V ${endY}`,
+        `h ${endX > turnX ? cornerSize : -cornerSize}`,
+        `H ${endX}`,
+      ].join(' ');
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', accent);
+      path.setAttribute('class', 'connection-line-path');
+      svg.appendChild(path);
+
+      // Compute path length for dash animation
+      const pathLen = path.getTotalLength();
+      path.style.strokeDasharray = pathLen;
+      path.style.strokeDashoffset = pathLen;
+      path.style.setProperty('--path-len', pathLen);
+      path.getBoundingClientRect(); // trigger reflow
+      path.classList.add('animate-in');
+
+      // Small square node at the start (on the marker)
+      const node = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      node.setAttribute('x', startX - 3);
+      node.setAttribute('y', startY - 3);
+      node.setAttribute('width', '6');
+      node.setAttribute('height', '6');
+      node.setAttribute('fill', accent);
+      node.setAttribute('class', 'connection-line-node');
+      svg.appendChild(node);
+
+      // Small square node at the end (on the panel item)
+      const endNode = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      endNode.setAttribute('x', endX - 3);
+      endNode.setAttribute('y', endY - 3);
+      endNode.setAttribute('width', '6');
+      endNode.setAttribute('height', '6');
+      endNode.setAttribute('fill', accent);
+      endNode.setAttribute('class', 'connection-line-node');
+      svg.appendChild(endNode);
+
+      // Fade out after 3 seconds
+      this._connectionTimer = setTimeout(() => {
+        svg.querySelectorAll('*').forEach(el => el.classList.add('fade-out'));
+        setTimeout(() => { svg.innerHTML = ''; }, 800);
+      }, 3000);
+    }, 500);
   },
 
   // --- Panel resize ---

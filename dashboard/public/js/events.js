@@ -299,6 +299,18 @@ const Events = {
       const deadlineBadge = this.getDeadlineBadge(event);
       const costBadge = this.getCostBadge(event.cost);
 
+      let inlineActions = '';
+      if (!isAccepted && !isSkipped) {
+        inlineActions = `<div class="event-inline-actions">
+          <button class="event-btn-accept-inline" data-id="${event.id}" title="Accept">&#x2713;</button>
+          <button class="event-btn-skip-inline" data-id="${event.id}" title="Skip">&#x2717;</button>
+        </div>`;
+      } else if (isAccepted) {
+        inlineActions = '<span class="event-inline-status accepted">&#x2713;</span>';
+      } else {
+        inlineActions = '<span class="event-inline-status skipped">&#x2717;</span>';
+      }
+
       html += `
         <div class="event-item ${stateClass}" data-id="${event.id}">
           <div class="event-item-body">
@@ -306,6 +318,7 @@ const Events = {
             <div class="event-item-meta">${this.escapeHtml(event.when || 'Date TBD')} · ${this.escapeHtml(event.where || 'Location TBD')}</div>
           </div>
           <div class="event-stars">${starsStr}</div>
+          ${inlineActions}
           <div class="event-arrow">${isExpanded ? '▾' : '›'}</div>
         </div>
         <div class="event-detail ${isExpanded ? 'active' : ''}" id="detail-${event.id}">
@@ -325,10 +338,10 @@ const Events = {
     container.querySelectorAll('.event-item').forEach(el => {
       el.addEventListener('click', () => this.toggleDetail(el.dataset.id));
     });
-    container.querySelectorAll('.event-btn-accept').forEach(btn => {
+    container.querySelectorAll('.event-btn-accept, .event-btn-accept-inline').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); this.acceptEvent(btn.dataset.id); });
     });
-    container.querySelectorAll('.event-btn-skip').forEach(btn => {
+    container.querySelectorAll('.event-btn-skip, .event-btn-skip-inline').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); this.skipEvent(btn.dataset.id); });
     });
     container.querySelectorAll('.event-btn-ics').forEach(btn => {

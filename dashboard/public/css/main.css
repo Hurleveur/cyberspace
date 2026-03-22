@@ -415,6 +415,52 @@ html, body {
   100% { background-position: -100% 0; }
 }
 
+/* === Connection line overlay (map → panel) === */
+.connection-line-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1500;
+}
+.connection-line-path {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  filter: drop-shadow(0 0 3px var(--accent-glow, rgba(0,255,65,0.4)));
+}
+.connection-line-path.animate-in {
+  animation: draw-connection 0.4s linear forwards;
+}
+.connection-line-node {
+  opacity: 0.9;
+  filter: drop-shadow(0 0 4px var(--accent-glow, rgba(0,255,65,0.4)));
+}
+.fade-out {
+  animation: fade-connection 0.8s ease forwards !important;
+}
+@keyframes draw-connection {
+  from { stroke-dashoffset: var(--path-len); }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes fade-connection {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* === Audio visualizer (header) === */
+.audio-visualizer {
+  width: 48px;
+  height: 20px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
 /* === Inline music bar (header) === */
 .music-bar-inline {
   display: inline-flex;
