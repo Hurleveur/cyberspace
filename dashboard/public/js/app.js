@@ -326,6 +326,14 @@ const App = {
     const wasHidden = panel.el.classList.contains('hidden');
     panel.el.classList.remove('hidden');
     panel.visible = true;
+    // On mobile, close the opposite panel to avoid overlap
+    if (window.innerWidth <= 768) {
+      const other = side === 'left' ? 'right' : 'left';
+      if (this.panels[other].visible) {
+        this.panels[other].visible = false;
+        this.panels[other].el.classList.add('hidden');
+      }
+    }
     this.updateButtonStates();
     this._syncTerminalBounds();
     if (side === 'right') this._saveUIState();
@@ -777,14 +785,16 @@ const App = {
   showInPanel(markerId, type) {
     // type is passed directly from the popup onclick to avoid a markers-array lookup
     // that could fail if the map is still loading or has been refreshed.
+    // On mobile, delay scroll to let the panel slide-in transition finish (0.25s)
+    const delay = window.innerWidth <= 768 ? 300 : 0;
     if (type === 'event') {
       this.showPanel('right');
       this.switchRightTab('events');
-      Events.scrollToEvent(markerId);
+      setTimeout(() => Events.scrollToEvent(markerId), delay);
     } else {
       this.showPanel('left');
       this.switchLeftTab('briefing');
-      Briefing.scrollToMarker(markerId);
+      setTimeout(() => Briefing.scrollToMarker(markerId), delay);
     }
   },
 
