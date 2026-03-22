@@ -9,6 +9,7 @@
     "setup-https": "node generate-cert.js"
   },
   "dependencies": {
+    "@vercel/blob": "^2.3.1",
     "chokidar": "^4.0.0",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",

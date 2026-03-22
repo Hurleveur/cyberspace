@@ -25,11 +25,10 @@ const https   = require('https');
 const { WebSocketServer } = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
-const fsp  = require('fs').promises;
 const fs   = require('fs');
 const { randomUUID } = require('crypto');
 
-const fm = require('./lib/fileManager');
+const fm = require('./lib/storage');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
 
 const HTTP_PORT  = process.env.HTTP_PORT  || process.env.PORT || 3000;
@@ -242,20 +241,20 @@ app.get('/api/feeds/test', async (req, res) => {
 
 // --- Projects API ---
 
-const PROJECTS_FILE = path.join(__dirname, 'data', 'projects.json');
+const PROJECTS_PATH = 'data/projects.json';
 
 async function readProjects() {
   try {
-    const data = await fsp.readFile(PROJECTS_FILE, 'utf-8');
-    return JSON.parse(data);
+    const result = await fm.readFile(PROJECTS_PATH);
+    if (result.error) return [];
+    return JSON.parse(result.content);
   } catch {
     return [];
   }
 }
 
 async function writeProjects(projects) {
-  await fsp.mkdir(path.dirname(PROJECTS_FILE), { recursive: true });
-  await fsp.writeFile(PROJECTS_FILE, JSON.stringify(projects, null, 2), 'utf-8');
+  await fm.writeFile(PROJECTS_PATH, JSON.stringify(projects, null, 2));
 }
 
 function stripHtml(s) {
@@ -556,43 +555,44 @@ function broadcast(data) {
   }
 }
 
-// --- File watcher ---
+// --- File watcher (local dev only — Vercel has no persistent filesystem) ---
 
-const watcher = chokidar.watch(fm.PROJECT_ROOT, {
-  ignored: [
-    /(^|[\/\\])\.(?!claude)/,  // Ignore dotfiles except .claude
-    /node_modules/,
-    /dashboard\//,             // Don't watch ourselves
-  ],
-  persistent: true,
-  ignoreInitial: true,
-  awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 500 },
-});
-
-watcher.on('all', (event, filePath) => {
-  try {
-    const rel = path.relative(fm.PROJECT_ROOT, filePath).replace(/\\/g, '/');
-
-    // Invalidate file cache for changed files
-    fm.invalidateCache(rel);
-
-    if (['add', 'change'].includes(event)) {
-      broadcast({ type: 'file_changed', file: rel, action: event === 'add' ? 'created' : 'modified' });
-
-      // config/rss.md changed → force-refresh feeds immediately
-      if (rel === 'config/rss.md') {
-        console.log('[feeds] config/rss.md changed — triggering feed refresh');
-        refreshFeedsQuietly();
-      }
-    }
-  } catch (err) {
-    console.error('[watcher] Error in file watcher callback:', err.message);
-  }
-});
-
-// --- Periodic feed refresh ---
-
+let watcher = null;
 let feedRefreshTimer = null;
+
+if (!process.env.VERCEL) {
+  watcher = chokidar.watch(fm.PROJECT_ROOT, {
+    ignored: [
+      /(^|[\/\\])\.(?!claude)/,  // Ignore dotfiles except .claude
+      /node_modules/,
+      /dashboard\//,             // Don't watch ourselves
+    ],
+    persistent: true,
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 500 },
+  });
+
+  watcher.on('all', (event, filePath) => {
+    try {
+      const rel = path.relative(fm.PROJECT_ROOT, filePath).replace(/\\/g, '/');
+
+      // Invalidate file cache for changed files
+      fm.invalidateCache(rel);
+
+      if (['add', 'change'].includes(event)) {
+        broadcast({ type: 'file_changed', file: rel, action: event === 'add' ? 'created' : 'modified' });
+
+        // config/rss.md changed → force-refresh feeds immediately
+        if (rel === 'config/rss.md') {
+          console.log('[feeds] config/rss.md changed — triggering feed refresh');
+          refreshFeedsQuietly();
+        }
+      }
+    } catch (err) {
+      console.error('[watcher] Error in file watcher callback:', err.message);
+    }
+  });
+}
 
 async function refreshFeedsQuietly() {
   try {
@@ -646,7 +646,7 @@ if (require.main === module) {
     console.log('\nShutting down...');
     clearInterval(feedRefreshTimer);
     clearInterval(heartbeatInterval);
-    watcher.close();
+    if (watcher) watcher.close();
     wss.close();
     if (redirectServer) redirectServer.close();
     server.close(() => process.exit(0));

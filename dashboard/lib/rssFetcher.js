@@ -1,14 +1,11 @@
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const RssParser = require('rss-parser');
 
-const { PROJECT_ROOT } = require('./fileManager');
+const storage = require('./storage');
 
-const RSS_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'rss.md');
 const CACHE_TTL_MS = 15 * 60 * 1000;       // 15 minutes — in-memory freshness
 const ITEM_MAX_AGE_MS = 7 * 24 * 3600000;  // 7 days — disk persistence TTL
-const DISK_CACHE_PATH = path.join(__dirname, '..', 'data', 'feed-cache.json');
+const FEED_CACHE_PATH = 'data/feed-cache.json';
 
 const parser = new RssParser({
   headers: {
@@ -17,22 +14,22 @@ const parser = new RssParser({
   timeout: 10000,
 });
 
-// ── Disk persistence ─────────────────────────────────────────────────────────
+// ── Disk persistence (via storage layer) ────────────────────────────────────
 
-function loadDiskCache() {
+async function loadDiskCache() {
   try {
-    const raw = fs.readFileSync(DISK_CACHE_PATH, 'utf-8');
-    const parsed = JSON.parse(raw);
+    const result = await storage.readFile(FEED_CACHE_PATH);
+    if (result.error) return [];
+    const parsed = JSON.parse(result.content);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-function saveDiskCache(items) {
+async function saveDiskCache(items) {
   try {
-    fs.mkdirSync(path.dirname(DISK_CACHE_PATH), { recursive: true });
-    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(items), 'utf-8');
+    await storage.writeFile(FEED_CACHE_PATH, JSON.stringify(items));
   } catch (err) {
     console.error('[rssFetcher] Could not save disk cache:', err.message);
   }
@@ -41,9 +38,10 @@ function saveDiskCache(items) {
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let cache = {
-  items: loadDiskCache(),  // seed from disk on startup
+  items: [],     // seeded lazily on first fetchAllFeeds call
   fetchedAt: 0,
   errors: [],
+  _seeded: false,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -59,14 +57,11 @@ function stableId(url, title) {
 /**
  * Parse config/rss.md to extract feed URLs with their category and priority.
  */
-function parseRssConfig() {
-  let content;
-  try {
-    content = fs.readFileSync(RSS_CONFIG_PATH, 'utf-8');
-  } catch {
-    return [];
-  }
+async function parseRssConfig() {
+  const result = await storage.readFile('config/rss.md');
+  if (result.error) return [];
 
+  const content = result.content;
   const feeds = [];
   let currentCategory = 'Uncategorized';
 
@@ -173,14 +168,20 @@ function mergeWithPersisted(newItems, existingItems, activeFeedUrls) {
  * Fetch all feeds, normalize, deduplicate, sort, merge with disk cache, persist.
  */
 async function fetchAllFeeds(forceRefresh = false) {
+  // Lazy-seed from disk on first call
+  if (!cache._seeded) {
+    cache.items = await loadDiskCache();
+    cache._seeded = true;
+  }
+
   // Return in-memory cache if still fresh
   if (!forceRefresh && cache.fetchedAt > 0 && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
     return { items: cache.items, errors: cache.errors, fetchedAt: cache.fetchedAt, fromCache: true };
   }
 
-  const feedConfigs = parseRssConfig();
+  const feedConfigs = await parseRssConfig();
   if (feedConfigs.length === 0) {
-    return { items: [], errors: [{ url: RSS_CONFIG_PATH, message: 'No feeds configured in config/rss.md' }], fetchedAt: Date.now(), fromCache: false };
+    return { items: [], errors: [{ url: 'config/rss.md', message: 'No feeds configured in config/rss.md' }], fetchedAt: Date.now(), fromCache: false };
   }
 
   // Fetch all feeds in parallel
@@ -206,10 +207,10 @@ async function fetchAllFeeds(forceRefresh = false) {
   const sorted = sortItems(merged);
 
   // Persist to disk so items survive server restarts
-  saveDiskCache(sorted);
+  await saveDiskCache(sorted);
 
   // Update in-memory cache
-  cache = { items: sorted, fetchedAt: Date.now(), errors };
+  cache = { items: sorted, fetchedAt: Date.now(), errors, _seeded: true };
 
   return { items: sorted, errors, fetchedAt: cache.fetchedAt, fromCache: false };
 }
