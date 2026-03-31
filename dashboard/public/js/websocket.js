@@ -23,9 +23,22 @@ const WS = {
     clearTimeout(this.reconnectTimer);
     console.log('[ws] Preview mode — polling for feed updates');
     const el = document.getElementById('connection-status');
-    el.textContent = 'Preview Mode';
+    const label = el.querySelector('.connection-label');
+    const info = el.querySelector('.preview-info');
+    label.textContent = 'Preview Mode';
     el.classList.add('preview');
     el.classList.remove('hidden');
+
+    label.addEventListener('click', () => {
+      el.classList.add('expanded');
+      info.classList.remove('hidden');
+    });
+    el.querySelector('.preview-info-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.classList.remove('expanded');
+      info.classList.add('hidden');
+    });
+
     this._startPolling();
   },
 
