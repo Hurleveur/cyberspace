@@ -261,6 +261,12 @@ const Events = {
     });
 
     this.render();
+
+    // Sync map: show/hide/dim event markers to match sidebar filters
+    if (typeof MapView !== 'undefined') {
+      const visibleIds = new Set(this.filteredEvents.map(e => e.id));
+      MapView.syncEventVisibility(visibleIds);
+    }
   },
 
   /** Sort filteredEvents in-place by relevance score (highest first) and re-render. */
@@ -451,9 +457,8 @@ const Events = {
     } catch (err) {
       console.error('[events] Accept error:', err);
     } finally {
-      this.render();
+      this.applyFilters();
       App.updateUnreadCount();
-      if (typeof MapView !== 'undefined') MapView.removeMarker(id);
     }
     App.toast(`✓ Accepted — ${event.name.slice(0, 30)}`, 'briefing');
   },
@@ -461,10 +466,18 @@ const Events = {
   undoEvent(id) {
     localStorage.removeItem(`event-accepted-${id}`);
     localStorage.removeItem(`event-skipped-${id}`);
-    this.render();
+    // Update the marker's dimmed state
+    if (typeof MapView !== 'undefined') {
+      const entry = MapView.markers.find(m => m.data.id === id);
+      if (entry) {
+        entry.data._accepted = false;
+        entry.data._skipped = false;
+        const color = MapView.getColor(entry.data);
+        entry.marker.setStyle({ opacity: 0.9, fillOpacity: 0.5, weight: 2, color, fillColor: color });
+      }
+    }
+    this.applyFilters();
     App.updateUnreadCount();
-    const event = this.events.find(e => e.id === id);
-    if (event && typeof MapView !== 'undefined') MapView.addOrUpdateMarker?.(id);
   },
 
   async skipEvent(id) {
@@ -477,9 +490,8 @@ const Events = {
         body: JSON.stringify({ text: `EVENT SKIPPED: "${event.name}" — not interested` }),
       });
       localStorage.setItem(`event-skipped-${id}`, 'true');
-      this.render();
+      this.applyFilters();
       App.updateUnreadCount();
-      if (typeof MapView !== 'undefined') MapView.removeMarker(id);
     } catch (err) {
       console.error('[events] Skip error:', err);
     }

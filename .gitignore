@@ -14,6 +14,7 @@ config/previous-news.md
 # Personal reports (your actual daily briefings — private)
 /reports/*
 !/reports/example/
+TODO
 
 # Environment / secrets
 dashboard/.env

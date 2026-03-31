@@ -40,7 +40,7 @@ const MapView = {
     this.map = L.map('map', {
       center: mapCenter,
       zoom: 4,
-      minZoom: 3,
+      minZoom: 1,
       maxZoom: 14,
       maxBounds: [[-85, -180], [85, 180]],
       maxBoundsViscosity: 1.0,
@@ -230,14 +230,20 @@ const MapView = {
     // Also pull event-type markers from the news date's own markers.json
     // (they were already included in newsMarkers above, nothing extra needed)
 
-    // Filter out events the user has already accepted or skipped
-    const filtered = merged.filter(m => {
-      if (m.type !== 'event') return true;
-      return !localStorage.getItem(`event-accepted-${m.id}`) &&
-             !localStorage.getItem(`event-skipped-${m.id}`);
-    });
+    // Tag accepted/skipped events for dimmed rendering
+    for (const m of merged) {
+      if (m.type !== 'event') continue;
+      if (localStorage.getItem(`event-accepted-${m.id}`)) m._accepted = true;
+      else if (localStorage.getItem(`event-skipped-${m.id}`)) m._skipped = true;
+    }
 
-    this.plotMarkers(filtered);
+    this.plotMarkers(merged);
+
+    // Sync with sidebar filters if Events has already loaded
+    if (typeof Events !== 'undefined' && Events.filteredEvents) {
+      const visibleIds = new Set(Events.filteredEvents.map(e => e.id));
+      this.syncEventVisibility(visibleIds);
+    }
   },
 
   plotMarkers(data) {
@@ -402,21 +408,22 @@ const MapView = {
     const radius = item.priority === 'critical' ? 8 : item.priority === 'high' ? 7 : 6;
     const isRead = ReadTracker.isRead(item.id);
     const isCritical = item.priority === 'critical';
+    const isDimmed = item._accepted || item._skipped;
 
     // Build className with drop-in animation
     const idx = (this._markerIndex || 0) % 10;
     this._markerIndex = (this._markerIndex || 0) + 1;
     let className = 'marker-dropin';
     if (idx > 0 && idx <= 9) className += ` marker-delay-${idx}`;
-    if (!isRead) className += isCritical ? ' marker-unread marker-critical' : ' marker-unread';
+    if (!isRead && !isDimmed) className += isCritical ? ' marker-unread marker-critical' : ' marker-unread';
 
     const marker = L.circleMarker([item.lat, item.lng], {
       radius,
       fillColor: color,
       color: color,
-      weight: isRead ? 1 : 2,
-      opacity: isRead ? 0.3 : 0.9,
-      fillOpacity: isRead ? 0.15 : 0.5,
+      weight: isDimmed ? 1 : isRead ? 1 : 2,
+      opacity: isDimmed ? 0.35 : isRead ? 0.3 : 0.9,
+      fillOpacity: isDimmed ? 0.18 : isRead ? 0.15 : 0.5,
       className,
     });
 
@@ -439,6 +446,30 @@ const MapView = {
 
     this.markerLayer.addLayer(marker);
     this.markers.push({ marker, data: item });
+  },
+
+  /**
+   * Show/hide/dim event markers to match the sidebar's filtered event list.
+   * Events in visibleIds are shown normally (dimmed if accepted/skipped).
+   * Events NOT in visibleIds are hidden entirely.
+   */
+  syncEventVisibility(visibleIds) {
+    for (const entry of this.markers) {
+      if (entry.data.type !== 'event') continue;
+      const el = entry.marker.getElement?.();
+      if (!el) continue;
+      const isVisible = visibleIds.has(entry.data.id);
+      if (!isVisible) {
+        el.style.display = 'none';
+      } else {
+        el.style.display = '';
+        // Dim accepted/skipped events that are still shown
+        const isDimmed = entry.data._accepted || entry.data._skipped;
+        if (isDimmed) {
+          entry.marker.setStyle({ opacity: 0.35, fillOpacity: 0.18, weight: 1 });
+        }
+      }
+    }
   },
 
   // ── Profiler hover card ───────────────────────────────────────────────────
