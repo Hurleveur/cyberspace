@@ -1,0 +1,27 @@
+dashboard/public/js/settings.js
+  43731c3f85f4c7ab 6
+dashboard/public/index.html
+  43731c3f85f4c7ab 293-294
+config/rss.example.md
+  43731c3f85f4c7ab 7-11,13-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "624886fa38217a55a89cc15d7543d56a9b6b5389",
+  "prompts": {
+    "43731c3f85f4c7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "985bcabb-bffa-456d-84ed-ce21ab807d88",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 1169,
+      "total_deletions": 1172,
+      "accepted_lines": 1169,
+      "overriden_lines": 0
+    }
+  }
+}
