@@ -152,6 +152,7 @@ app.get('/api/file', requireAuthForConfig, async (req, res) => {
     if (res.locals.readOnly) res.set('X-Cyberspace-ReadOnly', 'true');
     res.type('text/plain').send(result.content);
   } catch (err) {
+    console.error('[file:read]', req.query.path, err.message, err.stack);
     res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
@@ -183,6 +184,7 @@ app.put('/api/file', requireAuth, async (req, res) => {
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
     res.json({ ok: true });
   } catch (err) {
+    console.error('[file:write]', req.query.path, err.message, err.stack);
     res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
