@@ -1,0 +1,27 @@
+dashboard/lib/storage.js
+  43731c3f85f4c7ab 44-45
+dashboard/lib/auth.js
+  43731c3f85f4c7ab 8-9,16-20,134-135,210-213
+dashboard/server.js
+  43731c3f85f4c7ab 258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "c36d1b289f3442cc139ea3eab0ee7f550cf73b13",
+  "prompts": {
+    "43731c3f85f4c7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "985bcabb-bffa-456d-84ed-ce21ab807d88",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 812,
+      "total_deletions": 799,
+      "accepted_lines": 812,
+      "overriden_lines": 0
+    }
+  }
+}
