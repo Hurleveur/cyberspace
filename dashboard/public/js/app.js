@@ -774,6 +774,8 @@ const App = {
 
   _initNotifications() {
     if (!('Notification' in window) || Notification.permission !== 'default') return;
+    // Skip notification prompt on the online/serverless version — it's annoying for visitors
+    if (Auth.oauthConfigured) return;
     // Request permission only after the first user gesture (required by browsers).
     const request = () => {
       if (Notification.permission === 'default') Notification.requestPermission();
