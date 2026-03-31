@@ -5,9 +5,6 @@
  * On local dev: auth is skipped entirely (passthrough).
  * AUTH_TOKEN bearer fallback for sync scripts.
  */
-const { SignJWT, jwtVerify } = require('jose');
-const crypto = require('crypto');
-
 const IS_VERCEL = !!process.env.VERCEL;
 
 const GITHUB_CLIENT_ID     = process.env.GITHUB_CLIENT_ID || '';
@@ -26,10 +23,18 @@ const STATE_COOKIE = '__oauth_state';
 // Encode JWT_SECRET as Uint8Array for jose
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 
+// jose is ESM-only — lazy-load via dynamic import()
+let _jose = null;
+async function getJose() {
+  if (!_jose) _jose = await import('jose');
+  return _jose;
+}
+
 /**
  * Create a signed JWT with user info.
  */
 async function createJWT({ sub, login, role, avatar }) {
+  const { SignJWT } = await getJose();
   return new SignJWT({ sub, login, role, avatar })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -42,6 +47,7 @@ async function createJWT({ sub, login, role, avatar }) {
  */
 async function verifyJWT(token) {
   try {
+    const { jwtVerify } = await getJose();
     const { payload } = await jwtVerify(token, secretKey);
     return payload;
   } catch {
@@ -171,7 +177,12 @@ function requireAuthForConfig(req, res, next) {
  */
 async function attachUser(req, res, next) {
   if (!IS_VERCEL) return next();
-  res.locals.user = await resolveUser(req);
+  try {
+    res.locals.user = await resolveUser(req);
+  } catch (err) {
+    console.error('[auth] attachUser error:', err.message);
+    res.locals.user = null;
+  }
   next();
 }
 
