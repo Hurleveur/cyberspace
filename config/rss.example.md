@@ -4,15 +4,12 @@
 > Format: one URL per line, followed by a priority tag [HIGH], [MEDIUM], or [LOW].
 > The dashboard fetches these automatically.
 
-## Category 1
-- https://example.com/feed.xml [HIGH]
-- https://example.com/feed.xml [HIGH]
-- https://example.com/feed.xml [MEDIUM]
+## Breaking News
+- https://feeds.feedburner.com/TheHackersNews [HIGH]
+- https://www.bleepingcomputer.com/feed/ [HIGH]
+- https://krebsonsecurity.com/feed/ [HIGH]
+- https://www.darkreading.com/rss.xml [MEDIUM]
 
-## Category 2 — Official Sources
-- https://example.com/feed.xml [HIGH]
-- https://example.com/rss.xml [MEDIUM]
-
-## Category 3 — Analysis
-- https://example.com/feed/ [MEDIUM]
-- https://example.com/feed/ [MEDIUM]
+## Official Advisories
+- https://www.cisa.gov/cybersecurity-advisories/all.xml [HIGH]
+- https://www.enisa.europa.eu/publications/rss.xml [MEDIUM]

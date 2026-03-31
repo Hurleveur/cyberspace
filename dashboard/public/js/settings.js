@@ -3,7 +3,7 @@
  * Pencil icon toggles raw textarea editing.
  */
 const Settings = {
-  currentFile: 'config/interests.md',
+  currentFile: 'config/rss.md',
   editing: false,
   PROJECTS_KANBAN_KEY: 'cyberspace-projects-kanban-enabled',
 
