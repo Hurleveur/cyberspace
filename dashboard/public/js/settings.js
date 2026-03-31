@@ -122,7 +122,7 @@ const Settings = {
       if (isOnlineRestricted) {
         html += `<div class="config-offline-banner">
           This configuration file is for offline use only.
-          <a href="https://github.com/hurleveur/cyberspace" target="_blank" rel="noopener">Clone the repository</a> to customise it locally.
+          <a href="https://www.github.com/hurleveur/cyberspace" target="_blank" rel="noopener">Clone the repository</a> to customise it locally.
         </div>`;
       }
       html += `<div class="markdown-body">${marked.parse(content)}</div>`;
