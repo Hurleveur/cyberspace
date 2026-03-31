@@ -38,3 +38,4 @@ desktop.ini
 
 # Audio assets (large binary files — add individually if needed)
 dashboard/daemon
+node_modules/

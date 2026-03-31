@@ -409,6 +409,12 @@
   <!-- Auth (must load before any deferred scripts that call fetch) -->
   <script src="/js/auth.js"></script>
 
+  <!-- Vercel Speed Insights -->
+  <script>
+    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+
   <!-- Scripts (defer enables parallel download + ordered execution) -->
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
