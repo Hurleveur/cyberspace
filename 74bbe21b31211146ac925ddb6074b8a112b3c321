@@ -1,0 +1,40 @@
+dashboard/public/js/announcement.js
+  d0caf2c73d221ad2 315-330,333-343,346,350-372,379-401,404-406,416-421
+dashboard/public/css/mobile.css
+  d0caf2c73d221ad2 263-277
+dashboard/public/css/main.css
+  d0caf2c73d221ad2 1645,2033-2093
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "74bbe21b31211146ac925ddb6074b8a112b3c321",
+  "prompts": {
+    "4d70e8f4de2620bc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4655f1d3-bff3-43bf-a716-dc86e2b899f8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 1,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    },
+    "d0caf2c73d221ad2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9a368a21-765a-4568-91d3-5809000b301d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 15,
+      "total_deletions": 0,
+      "accepted_lines": 160,
+      "overriden_lines": 0
+    }
+  }
+}
