@@ -1,0 +1,23 @@
+dashboard/public/js/map.js
+  4d70e8f4de2620bc 461-465,477,607-611
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "99d11c25caafbbe870a46e1aa2a73f2c9087abec",
+  "prompts": {
+    "4d70e8f4de2620bc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4655f1d3-bff3-43bf-a716-dc86e2b899f8",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 0,
+      "accepted_lines": 11,
+      "overriden_lines": 0
+    }
+  }
+}
