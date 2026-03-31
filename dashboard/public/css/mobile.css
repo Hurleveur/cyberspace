@@ -260,6 +260,21 @@
     padding: 12px;
   }
 
+  .announcement-text pre {
+    font-size: 9px;
+    padding: 6px 8px;
+    max-width: calc(100vw - 40px);
+  }
+
+  .announcement-text h1,
+  .announcement-text h2,
+  .announcement-text h3 {
+    font-size: 1em;
+    margin: 0.8em 0 0.3em;
+  }
+
+  .announcement-text h1 { font-size: 1.1em; }
+
   .announcement-footer {
     padding: 8px 12px;
     flex-wrap: wrap;

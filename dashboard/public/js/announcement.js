@@ -312,36 +312,98 @@ const Announcement = {
 
   // ── Typewriter ────────────────────────────────────────────────────────────────
 
+  _renderMarkdown(body) {
+    if (typeof marked !== 'undefined' && marked.parse) {
+      return marked.parse(body);
+    }
+    // Fallback: escape HTML and convert bare URLs to links
+    const escaped = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  },
+
+  _collectTextNodes(root) {
+    const nodes = [];
+    const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (walk.nextNode()) nodes.push(walk.currentNode);
+    return nodes;
+  },
+
   _startTypewriter(container, body) {
     this._typing = true;
-    container.innerHTML = '';
-    container.style.whiteSpace = 'pre-wrap';
 
-    const textNode = document.createTextNode('');
-    const cursor   = document.createElement('span');
+    // Render markdown into a temporary element to extract block children
+    const temp = document.createElement('div');
+    temp.innerHTML = this._renderMarkdown(body);
+    temp.querySelectorAll('a').forEach(a => {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    });
+
+    // Pull out all top-level block elements to insert one at a time
+    const blocks = [...temp.children];
+    container.innerHTML = '';
+
+    const cursor = document.createElement('span');
     cursor.className = 'announcement-cursor';
-    container.appendChild(textNode);
     container.appendChild(cursor);
 
-    // Adaptive speed: clamp between 8ms and 22ms per character
-    const delay = Math.max(8, Math.min(22, Math.floor(3800 / body.length)));
-    let i = 0;
+    // Count total characters for adaptive speed
+    const totalChars = blocks.reduce((sum, el) => sum + el.textContent.length, 0);
+    const delay = Math.max(8, Math.min(22, Math.floor(3800 / totalChars)));
+
+    let blockIdx = 0;
+    let textNodes = [];
+    let fullTexts = [];
+    let nodeIdx = 0;
+    let charIdx = 0;
+
+    // Insert the next block element before the cursor and prepare its text nodes
+    const advanceBlock = () => {
+      if (blockIdx >= blocks.length) return false;
+      const block = blocks[blockIdx++];
+      container.insertBefore(block, cursor);
+
+      textNodes = this._collectTextNodes(block);
+      fullTexts = textNodes.map(n => n.textContent);
+      textNodes.forEach(n => { n.textContent = ''; });
+      nodeIdx = 0;
+      charIdx = 0;
+      return true;
+    };
 
     this._showSkip(true);
 
     const bodyEl = container.parentElement; // .announcement-body
     const step = () => {
       if (!this._typing) return;
-      if (i < body.length) {
-        textNode.appendData(body[i++]);
-        // Check every 20 chars so hint appears as soon as the body fills up
-        if (i % 20 === 0 && bodyEl) this._updateScrollHint(bodyEl);
+
+      // Advance to the next block if current text nodes are exhausted
+      if (nodeIdx >= textNodes.length) {
+        if (!advanceBlock()) {
+          cursor.remove();
+          this._typing = false;
+          this._showSkip(false);
+          if (bodyEl) this._updateScrollHint(bodyEl);
+          return;
+        }
+        // Elements with no text (e.g. <hr>) — show immediately, move on
+        if (textNodes.length === 0) {
+          if (bodyEl) bodyEl.scrollTop = bodyEl.scrollHeight;
+          this._typeTimeout = setTimeout(step, delay);
+          return;
+        }
+      }
+
+      const txt = fullTexts[nodeIdx];
+      if (charIdx < txt.length) {
+        textNodes[nodeIdx].textContent += txt[charIdx++];
+        if (bodyEl) bodyEl.scrollTop = bodyEl.scrollHeight;
+        if ((charIdx % 20 === 0) && bodyEl) this._updateScrollHint(bodyEl);
         this._typeTimeout = setTimeout(step, delay);
       } else {
-        cursor.remove();
-        this._typing = false;
-        this._showSkip(false);
-        if (bodyEl) this._updateScrollHint(bodyEl);
+        nodeIdx++;
+        charIdx = 0;
+        step();
       }
     };
 
@@ -351,15 +413,17 @@ const Announcement = {
   _skipTypewriter(container) {
     this._typing = false;
     clearTimeout(this._typeTimeout);
-    container.innerHTML = '';
-    container.style.whiteSpace = 'pre-wrap';
-    container.textContent = this._body;
+    container.innerHTML = this._renderMarkdown(this._body);
+    // Make links open in new tab
+    container.querySelectorAll('a').forEach(a => {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    });
     this._showSkip(false);
     // Scroll to top so user sees the start; hint will indicate there's more below
     const bodyEl = document.querySelector('.announcement-body');
     if (bodyEl) {
       bodyEl.scrollTop = 0;
-      // Defer so the browser has computed the new scrollHeight before we check
       requestAnimationFrame(() => this._updateScrollHint(bodyEl));
     }
   },
