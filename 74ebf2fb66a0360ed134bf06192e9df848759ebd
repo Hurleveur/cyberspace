@@ -1,0 +1,43 @@
+dashboard/public/css/panels.css
+  43731c3f85f4c7ab 1650-1665
+dashboard/lib/users.js
+  43731c3f85f4c7ab 1-148
+dashboard/public/js/app.js
+  43731c3f85f4c7ab 121-124,753-774
+dashboard/public/index.html
+  43731c3f85f4c7ab 84-92
+dashboard/lib/rssFetcher.js
+  43731c3f85f4c7ab 10-15,25,27,36,38,44,46-59,74-75,184-186,189,198,226,229-230,232
+dashboard/server.js
+  43731c3f85f4c7ab 10-21,51-56,59-139,149-150,152,162,164,175,177,287-288,298-299,603-604,612-639
+dashboard/lib/auth.js
+  43731c3f85f4c7ab 1-281
+dashboard/lib/storage.js
+  43731c3f85f4c7ab 7-10,31-33,38-56,113-117,119-121,123-136,145-153,158-166
+dashboard/public/js/auth.js
+  43731c3f85f4c7ab 2,4-5,7-8,12-15,18,29-53,56,58,60-68,75-89,103-112
+dashboard/public/css/main.css
+  43731c3f85f4c7ab 142-193
+dashboard/public/js/settings.js
+  43731c3f85f4c7ab 168,181-188,204,220-221,532-556,569-575,682,684,686
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "74ebf2fb66a0360ed134bf06192e9df848759ebd",
+  "prompts": {
+    "43731c3f85f4c7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "985bcabb-bffa-456d-84ed-ce21ab807d88",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 8641,
+      "total_deletions": 7827,
+      "accepted_lines": 8629,
+      "overriden_lines": 0
+    }
+  }
+}
