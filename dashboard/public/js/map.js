@@ -40,8 +40,8 @@ const MapView = {
     this.map = L.map('map', {
       center: mapCenter,
       zoom: 4,
-      minZoom: 1,
-      maxZoom: 14,
+      minZoom: 3,
+      maxZoom: 16,
       maxBounds: [[-85, -180], [85, 180]],
       maxBoundsViscosity: 1.0,
       zoomControl: false,
@@ -52,7 +52,7 @@ const MapView = {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
-      maxZoom: 14,
+      maxZoom: 16,
     }).addTo(this.map);
 
     // Marker layer group
@@ -458,7 +458,11 @@ const MapView = {
       if (entry.data.type !== 'event') continue;
       const el = entry.marker.getElement?.();
       if (!el) continue;
-      const isVisible = visibleIds.has(entry.data.id);
+      // Fuzzy match: marker IDs and Events-parsed IDs may differ in suffix,
+      // so check prefix overlap in both directions (same logic as getEventDetails).
+      const mid = entry.data.id;
+      const isVisible = visibleIds.has(mid) ||
+        [...visibleIds].some(vid => vid.startsWith(mid) || mid.startsWith(vid));
       if (!isVisible) {
         el.style.display = 'none';
       } else {
@@ -470,6 +474,7 @@ const MapView = {
         }
       }
     }
+    this.renderConnections();
   },
 
   // ── Profiler hover card ───────────────────────────────────────────────────
@@ -599,6 +604,11 @@ const MapView = {
 
     const groups = new Map();
     for (const m of this.markers) {
+      // Skip hidden event markers (filtered out by sidebar)
+      if (m.data.type === 'event') {
+        const el = m.marker.getElement?.();
+        if (el && el.style.display === 'none') continue;
+      }
       for (const token of this._relationTokens(m.data)) {
         if (!groups.has(token)) groups.set(token, []);
         groups.get(token).push(m);
