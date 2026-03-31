@@ -108,13 +108,26 @@ const Settings = {
       return;
     }
 
+    // On the online version, non-RSS config files are read-only with explanation
+    const isOnlineRestricted = typeof Auth !== 'undefined' && Auth.oauthConfigured
+      && this.currentFile.startsWith('config/')
+      && this.currentFile !== 'config/rss.md';
+
     try {
       const res = await fetch(`/api/file?path=${encodeURIComponent(this.currentFile)}`);
       if (!res.ok) throw new Error('File not found');
       const content = await res.text();
 
-      // Render as markdown
-      view.innerHTML = `<div class="markdown-body">${marked.parse(content)}</div>`;
+      let html = '';
+      if (isOnlineRestricted) {
+        html += `<div class="config-offline-banner">
+          This configuration file is for offline use only.
+          <a href="https://github.com/hurleveur/cyberspace" target="_blank" rel="noopener">Clone the repository</a> to customise it locally.
+        </div>`;
+      }
+      html += `<div class="markdown-body">${marked.parse(content)}</div>`;
+      view.innerHTML = html;
+
       // Open all links in new tab
       view.querySelectorAll('.markdown-body a[href]').forEach(a => {
         a.setAttribute('target', '_blank');
@@ -680,10 +693,12 @@ const Settings = {
     document.getElementById('settings-view').classList.remove('hidden');
     document.getElementById('settings-edit').classList.add('hidden');
     const readOnly = typeof Auth !== 'undefined' && Auth.isReadOnly();
-    // config/seen-events.md and __system are auto-maintained — hide raw editor button
-    // Also hide when in read-only/demo mode
+    const isOnlineRestricted = typeof Auth !== 'undefined' && Auth.oauthConfigured
+      && this.currentFile.startsWith('config/')
+      && this.currentFile !== 'config/rss.md';
+    // Hide raw editor for: read-only/demo, auto-maintained, system tab, online-restricted configs
     document.getElementById('settings-edit-btn').style.display =
-      (readOnly || this.currentFile === 'config/seen-events.md' || this.currentFile === '__system') ? 'none' : '';
+      (readOnly || isOnlineRestricted || this.currentFile === 'config/seen-events.md' || this.currentFile === '__system') ? 'none' : '';
   },
 
   showEditor() {

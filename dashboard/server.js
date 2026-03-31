@@ -156,8 +156,26 @@ app.get('/api/file', requireAuthForConfig, async (req, res) => {
   }
 });
 
+// Config files that are only editable offline (all except rss.md)
+const IS_VERCEL = !!process.env.VERCEL;
+const ONLINE_EDITABLE_CONFIGS = ['config/rss.md'];
+
+function blockOnlineConfigWrite(req, res) {
+  if (!IS_VERCEL) return false;
+  const p = String(req.query.path || '');
+  if (p.startsWith('config/') && !ONLINE_EDITABLE_CONFIGS.includes(p)) {
+    res.status(403).json({
+      error: 'This config file can only be edited offline. Clone the GitHub repo for full configuration.',
+      offlineOnly: true,
+    });
+    return true;
+  }
+  return false;
+}
+
 // PUT /api/file?path=relative/path.md  (body = raw text)
 app.put('/api/file', requireAuth, async (req, res) => {
+  if (blockOnlineConfigWrite(req, res)) return;
   try {
     const userId = res.locals.user?.id;
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
@@ -171,6 +189,7 @@ app.put('/api/file', requireAuth, async (req, res) => {
 
 // POST /api/file/append?path=relative/path.md  (body = raw text)
 app.post('/api/file/append', requireAuth, async (req, res) => {
+  if (blockOnlineConfigWrite(req, res)) return;
   try {
     const userId = res.locals.user?.id;
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
@@ -594,6 +613,12 @@ app.post('/api/data/import', requireAuth, async (req, res) => {
 
 // POST /api/feedback  (body = { text: "..." })
 app.post('/api/feedback', requireAuth, async (req, res) => {
+  if (IS_VERCEL) {
+    return res.status(403).json({
+      error: 'Feedback submission is only available offline. Clone the GitHub repo for full configuration.',
+      offlineOnly: true,
+    });
+  }
   try {
     const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
     if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
