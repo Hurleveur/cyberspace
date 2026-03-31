@@ -257,24 +257,26 @@ const Settings = {
 
     // ── Bind events ──
 
-    document.getElementById('rss-add-btn').addEventListener('click', () => {
-      const url = document.getElementById('rss-url-input').value.trim();
-      const category = document.getElementById('rss-category-input').value.trim() || 'Uncategorized';
-      const priority = document.getElementById('rss-priority-select').value;
-      if (!url || !/^https?:\/\//i.test(url)) {
-        const status = document.getElementById('rss-add-status');
-        status.textContent = 'Invalid URL';
-        status.className = 'rss-add-status rss-status-err';
-        return;
-      }
-      this.addFeed(url, category, priority);
-    });
+    if (!readOnly) {
+      document.getElementById('rss-add-btn').addEventListener('click', () => {
+        const url = document.getElementById('rss-url-input').value.trim();
+        const category = document.getElementById('rss-category-input').value.trim() || 'Uncategorized';
+        const priority = document.getElementById('rss-priority-select').value;
+        if (!url || !/^https?:\/\//i.test(url)) {
+          const status = document.getElementById('rss-add-status');
+          status.textContent = 'Invalid URL';
+          status.className = 'rss-add-status rss-status-err';
+          return;
+        }
+        this.addFeed(url, category, priority);
+      });
 
-    document.getElementById('rss-test-new-btn').addEventListener('click', () => {
-      const url = document.getElementById('rss-url-input').value.trim();
-      const statusEl = document.getElementById('rss-add-status');
-      this.testFeed(url, statusEl);
-    });
+      document.getElementById('rss-test-new-btn').addEventListener('click', () => {
+        const url = document.getElementById('rss-url-input').value.trim();
+        const statusEl = document.getElementById('rss-add-status');
+        this.testFeed(url, statusEl);
+      });
+    }
 
     view.querySelectorAll('.rss-test-btn').forEach(btn => {
       btn.addEventListener('click', () => {
