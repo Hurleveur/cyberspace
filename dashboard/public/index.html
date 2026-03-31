@@ -6,10 +6,8 @@
   <title>CYBERSPACE</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Fonts (self-hosted) -->
+  <link rel="stylesheet" href="/vendor/jetbrains-mono.css">
 
   <!-- Preconnect to CDNs and APIs -->
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -404,7 +402,24 @@
   </div>
 
   <!-- Connection status -->
-  <div id="connection-status" class="connection-status hidden">Disconnected</div>
+  <div id="connection-status" class="connection-status hidden">
+    <span class="connection-label">Disconnected</span>
+    <div class="preview-info hidden">
+      <div class="preview-info-header">
+        <span>PREVIEW MODE</span>
+        <button class="preview-info-close" aria-label="Close">&times;</button>
+      </div>
+      <p>You're viewing Cyberspace on a <strong>serverless host</strong> (e.g. Vercel) where persistent WebSocket connections aren't available.</p>
+      <p><strong>What works:</strong> Briefings, events, map markers, feeds, and all saved reports load normally via the API.</p>
+      <p><strong>Limitations:</strong></p>
+      <ul>
+        <li>No live updates — feeds poll every 5 minutes instead of streaming in real time</li>
+        <li>Terminal is read-only (no server shell access)</li>
+        <li>Config edits save but won't trigger an instant reload</li>
+      </ul>
+      <p>For full live functionality, run the server locally: <code>node dashboard/server.js</code></p>
+    </div>
+  </div>
 
   <!-- Auth (must load before any deferred scripts that call fetch) -->
   <script src="/js/auth.js"></script>
