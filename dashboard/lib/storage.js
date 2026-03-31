@@ -122,18 +122,20 @@ async function readFile(relativePath, { userId } = {}) {
     const result = await blob.readFile(scopedPath);
 
     if (result.error && result.status === 404) {
-      // Copy-on-write: user has no custom copy yet, fall back to example
       if (userId && USER_PREFIXES.some(p => relativePath.startsWith(p))) {
-        // Try the example file from the deployed filesystem
-        const fallback = relativePath.startsWith('config/')
-          ? examplePath(relativePath)
-          : relativePath;
-        const fsResult = isDataPath(fallback) ? await readDataFile(fallback) : fm.readFile(fallback);
-        // If the example also doesn't exist, try the original path from filesystem
-        if (fsResult.error && fsResult.status === 404) {
-          return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
+        // User has no custom copy yet — fallback chain:
+        // 1. Try the global blob path (admin's real config)
+        const globalResult = await blob.readFile(relativePath);
+        if (!globalResult.error) return globalResult;
+
+        // 2. Try the example file from the deployed filesystem
+        if (relativePath.startsWith('config/')) {
+          const exResult = fm.readFile(examplePath(relativePath));
+          if (!exResult.error) return exResult;
         }
-        return fsResult;
+
+        // 3. Last resort: try the original path from filesystem
+        return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
       }
       // No userId — unauthenticated or non-user path: seed from filesystem
       return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
