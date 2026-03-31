@@ -1,0 +1,38 @@
+dashboard/public/css/panels.css
+  5930a665efdd8fab 1930-1941
+dashboard/public/js/app.js
+  5930a665efdd8fab 944-984
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "c7a36c3365fd1f152e3fcd3fd73c1e323895c4f9",
+  "prompts": {
+    "5930a665efdd8fab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92d5913a-a960-4fa1-8415-b2ca505ac746",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 3957,
+      "total_deletions": 3904,
+      "accepted_lines": 3957,
+      "overriden_lines": 0
+    },
+    "d0caf2c73d221ad2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9a368a21-765a-4568-91d3-5809000b301d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 2812,
+      "total_deletions": 2689,
+      "accepted_lines": 2766,
+      "overriden_lines": 0
+    }
+  }
+}
