@@ -1,0 +1,27 @@
+dashboard/public/css/panels.css
+  43731c3f85f4c7ab 1666-1681
+dashboard/server.js
+  43731c3f85f4c7ab 159-175,178,192,616-621
+dashboard/public/js/settings.js
+  43731c3f85f4c7ab 111-115,121-130,696-699,701
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "f2007bfc86ffe8a714b34f6f1e0f20195e9ec870",
+  "prompts": {
+    "43731c3f85f4c7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "985bcabb-bffa-456d-84ed-ce21ab807d88",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 4358,
+      "total_deletions": 4302,
+      "accepted_lines": 4355,
+      "overriden_lines": 0
+    }
+  }
+}
