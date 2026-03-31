@@ -1,0 +1,23 @@
+dashboard/public/js/app.js
+  43731c3f85f4c7ab 777-778
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "9702c4062aac62629978ca714dfb13790a63e973",
+  "prompts": {
+    "43731c3f85f4c7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "985bcabb-bffa-456d-84ed-ce21ab807d88",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 1100,
+      "total_deletions": 1098,
+      "accepted_lines": 1100,
+      "overriden_lines": 0
+    }
+  }
+}
