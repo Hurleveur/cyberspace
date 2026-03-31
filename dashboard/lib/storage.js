@@ -41,6 +41,8 @@ function usesBlob(relativePath) {
  */
 function userScopedPath(relativePath, userId) {
   if (!userId) return relativePath;
+  // Validate userId is alphanumeric to prevent path traversal (e.g. ../../)
+  if (!/^[a-zA-Z0-9_-]+$/.test(userId)) return relativePath;
   if (!USER_PREFIXES.some(p => relativePath.startsWith(p))) return relativePath;
   return `users/${userId}/${relativePath}`;
 }

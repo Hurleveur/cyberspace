@@ -255,7 +255,7 @@ app.get('/api/reports/announcements', async (req, res) => {
 
 // POST /api/reports/sync — upload report files to blob storage (for syncing local → Vercel)
 // Body: { date: "2026-03-07", files: { "briefing.md": "...", "markers.json": "...", ... } }
-app.post('/api/reports/sync', requireAuth, express.json({ limit: '5mb' }), async (req, res) => {
+app.post('/api/reports/sync', requireAdmin, express.json({ limit: '5mb' }), async (req, res) => {
   try {
     const { date, files } = req.body;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {

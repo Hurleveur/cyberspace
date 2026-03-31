@@ -5,12 +5,19 @@
  * On local dev: auth is skipped entirely (passthrough).
  * AUTH_TOKEN bearer fallback for sync scripts.
  */
+const { timingSafeEqual } = require('crypto');
+
 const IS_VERCEL = !!process.env.VERCEL;
 
 const GITHUB_CLIENT_ID     = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const JWT_SECRET           = process.env.JWT_SECRET || '';
 const AUTH_TOKEN           = process.env.AUTH_TOKEN || null;
+
+// Fail fast if JWT_SECRET is missing in production
+if (IS_VERCEL && GITHUB_CLIENT_ID && !JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be set when GitHub OAuth is configured');
+}
 const ADMIN_GITHUB_IDS     = (process.env.ADMIN_GITHUB_IDS || '')
   .split(',')
   .map(s => s.trim())
@@ -124,7 +131,8 @@ async function resolveUser(req) {
   if (AUTH_TOKEN) {
     const header = req.headers.authorization || '';
     const bearer = header.startsWith('Bearer ') ? header.slice(7) : String(req.query?.token || '');
-    if (bearer && bearer === AUTH_TOKEN) {
+    if (bearer && bearer.length === AUTH_TOKEN.length &&
+        timingSafeEqual(Buffer.from(bearer), Buffer.from(AUTH_TOKEN))) {
       return { id: '__token', login: 'api-token', role: 'admin', avatar: null };
     }
   }
@@ -199,7 +207,10 @@ function csrfProtection(req, res, next) {
   if (authHeader.startsWith('Bearer ')) return next();
 
   const origin = req.headers.origin;
-  if (!origin) return next(); // Allow requests without Origin (e.g., same-origin fetch)
+  if (!origin) {
+    // No Origin and no Bearer token — reject to prevent cross-origin form submissions
+    return res.status(403).json({ error: 'CSRF: Missing origin header' });
+  }
 
   const host = req.headers.host;
   try {
