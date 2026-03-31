@@ -1,24 +1,5 @@
 require('dotenv').config();
 
-// --- Auth (production only) ---
-// Set AUTH_TOKEN in Vercel environment variables. If unset, auth is skipped (local dev).
-const AUTH_TOKEN = process.env.AUTH_TOKEN || null;
-
-function requireAuth(req, res, next) {
-  if (!AUTH_TOKEN) return next();
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : String(req.query.token || '');
-  if (token !== AUTH_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
-  next();
-}
-
-// Config files require auth even for reads (personal profile data)
-function requireAuthForConfig(req, res, next) {
-  const p = String(req.query.path || '');
-  if (!AUTH_TOKEN || !p.startsWith('config/')) return next();
-  return requireAuth(req, res, next);
-}
-
 const express = require('express');
 const http    = require('http');
 const https   = require('https');
@@ -26,7 +7,18 @@ const { WebSocketServer } = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
 const fs   = require('fs');
-const { randomUUID } = require('crypto');
+const { randomUUID, randomBytes } = require('crypto');
+
+// --- Auth module ---
+const auth = require('./lib/auth');
+const users = require('./lib/users');
+const {
+  attachUser,
+  requireAuth,
+  requireAdmin,
+  requireAuthForConfig,
+  csrfProtection,
+} = auth;
 
 const fm = require('./lib/storage');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
@@ -56,7 +48,94 @@ const MAP_CENTER = parseMapCenter(process.env.MAP_CENTER);
 const app = express();
 app.use(express.json());
 app.use(express.text());
+
+// Attach authenticated user to res.locals on every request
+app.use(attachUser);
+// CSRF protection on state-mutating requests
+app.use(csrfProtection);
+
 app.use(express.static(path.join(__dirname, 'public')));
+
+// --- OAuth routes ---
+
+app.get('/auth/github', (req, res) => {
+  if (!auth.isOAuthConfigured()) {
+    return res.status(501).json({ error: 'GitHub OAuth not configured' });
+  }
+  const state = randomBytes(16).toString('hex');
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const redirectUri = `${proto}://${host}/auth/github/callback`;
+  auth.setCookie(res, auth.STATE_COOKIE, state, {
+    maxAge: 300, path: '/', httpOnly: true,
+    secure: proto === 'https', sameSite: 'Lax',
+  });
+  res.redirect(auth.getGitHubAuthUrl(redirectUri, state));
+});
+
+app.get('/auth/github/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    const cookies = auth.parseCookies(req);
+    const expectedState = cookies[auth.STATE_COOKIE];
+
+    if (!code || !state || state !== expectedState) {
+      return res.status(400).send('Invalid OAuth callback — state mismatch or missing code.');
+    }
+    auth.clearCookie(res, auth.STATE_COOKIE);
+
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const redirectUri = `${proto}://${host}/auth/github/callback`;
+
+    const accessToken = await auth.exchangeCode(code, redirectUri);
+    const ghUser = await auth.fetchGitHubUser(accessToken);
+
+    const role = auth.determineRole(ghUser.id);
+    const userRecord = await users.upsertUser(ghUser.id, {
+      login: ghUser.login,
+      role,
+      avatar: ghUser.avatar_url || null,
+    });
+
+    // One-time migration for admin
+    if (role === 'admin') {
+      await users.migrateAdminConfig(String(ghUser.id));
+    }
+
+    const jwt = await auth.createJWT({
+      sub: String(ghUser.id),
+      login: ghUser.login,
+      role,
+      avatar: ghUser.avatar_url || null,
+    });
+
+    auth.setCookie(res, auth.COOKIE_NAME, jwt, {
+      maxAge: 7 * 24 * 60 * 60, path: '/', httpOnly: true,
+      secure: proto === 'https', sameSite: 'Lax',
+    });
+
+    res.redirect('/');
+  } catch (err) {
+    console.error('[auth] OAuth callback error:', err.message);
+    res.status(500).send('Authentication failed. Please try again.');
+  }
+});
+
+app.get('/auth/me', (req, res) => {
+  const user = res.locals.user;
+  res.json({
+    user: user ? { id: user.id, login: user.login, role: user.role, avatar: user.avatar } : null,
+    oauthConfigured: auth.isOAuthConfigured(),
+  });
+});
+
+app.post('/auth/logout', (req, res) => {
+  auth.clearCookie(res, auth.COOKIE_NAME);
+  res.redirect('/');
+});
+
+// --- Config / API ---
 
 app.get('/api/config', (req, res) => {
   res.json({ mapCenter: MAP_CENTER, serverless: !!process.env.VERCEL });
@@ -67,8 +146,10 @@ app.get('/api/config', (req, res) => {
 // GET /api/file?path=relative/path.md
 app.get('/api/file', requireAuthForConfig, async (req, res) => {
   try {
-    const result = await fm.readFile(req.query.path);
+    const userId = res.locals.user?.id;
+    const result = await fm.readFile(req.query.path, { userId });
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
+    if (res.locals.readOnly) res.set('X-Cyberspace-ReadOnly', 'true');
     res.type('text/plain').send(result.content);
   } catch (err) {
     res.status(500).json({ error: err.message || 'Internal server error' });
@@ -78,8 +159,9 @@ app.get('/api/file', requireAuthForConfig, async (req, res) => {
 // PUT /api/file?path=relative/path.md  (body = raw text)
 app.put('/api/file', requireAuth, async (req, res) => {
   try {
+    const userId = res.locals.user?.id;
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    const result = await fm.writeFile(req.query.path, content);
+    const result = await fm.writeFile(req.query.path, content, { userId });
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
     res.json({ ok: true });
   } catch (err) {
@@ -90,8 +172,9 @@ app.put('/api/file', requireAuth, async (req, res) => {
 // POST /api/file/append?path=relative/path.md  (body = raw text)
 app.post('/api/file/append', requireAuth, async (req, res) => {
   try {
+    const userId = res.locals.user?.id;
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    const result = await fm.appendFile(req.query.path, content);
+    const result = await fm.appendFile(req.query.path, content, { userId });
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
     res.json({ ok: true });
   } catch (err) {
@@ -201,7 +284,8 @@ app.post('/api/reports/sync', requireAuth, express.json({ limit: '5mb' }), async
 // GET /api/feeds — return cached/fresh RSS feed items
 app.get('/api/feeds', async (req, res) => {
   try {
-    const result = await fetchAllFeeds();
+    const userId = res.locals.user?.id;
+    const result = await fetchAllFeeds(false, userId);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -211,7 +295,8 @@ app.get('/api/feeds', async (req, res) => {
 // POST /api/feeds/refresh — force re-fetch
 app.post('/api/feeds/refresh', requireAuth, async (req, res) => {
   try {
-    const result = await fetchAllFeeds(true);
+    const userId = res.locals.user?.id;
+    const result = await fetchAllFeeds(true, userId);
     // Notify WebSocket clients
     broadcast({ type: 'feeds_updated', count: result.items.length, new: result.items.length });
     res.json(result);
@@ -515,11 +600,40 @@ app.post('/api/feedback', requireAuth, async (req, res) => {
 
     const timestamp = new Date().toISOString().split('T')[0];
     const entry = `\n- [${timestamp}] ${text.trim()}\n`;
-    const result = await fm.appendFile('config/feedback.md', entry);
+    const userId = res.locals.user?.id;
+    const result = await fm.appendFile('config/feedback.md', entry, { userId });
     if (result.error) return res.status(result.status || 500).json({ error: result.error });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// --- Admin API ---
+
+// GET /api/admin/users — list all users (admin only)
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const userList = await users.listUsers();
+    res.json(userList);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/users/:id/role — change user role (admin only)
+app.put('/api/admin/users/:id/role', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body || {};
+    if (!['admin', 'user'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be "admin" or "user".' });
+    }
+    const updated = await users.setUserRole(id, role);
+    if (!updated) return res.status(404).json({ error: 'User not found.' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

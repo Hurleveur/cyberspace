@@ -4,6 +4,10 @@
  * the local filesystem (development). Read-only paths (reports/)
  * always go through the filesystem.
  *
+ * Multi-user support: when a userId is provided, config/ and data/
+ * paths are namespaced under users/{userId}/ in blob storage.
+ * Unauthenticated reads of config/ fall back to *.example.md files.
+ *
  * Path convention:
  *   config/*  → PROJECT_ROOT/config/*   (handled by fileManager)
  *   data/*    → dashboard/data/*        (internal storage, direct fs)
@@ -24,8 +28,32 @@ const DATA_DIR = path.resolve(__dirname, '..', 'data');
 // On Vercel, all dynamic content goes through blob (reports aren't on the filesystem)
 const BLOB_PREFIXES = ['config/', 'data/', 'reports/'];
 
+// Prefixes that get per-user namespacing
+const USER_PREFIXES = ['config/', 'data/'];
+
 function usesBlob(relativePath) {
   return IS_VERCEL && BLOB_PREFIXES.some(p => relativePath.startsWith(p));
+}
+
+/**
+ * Resolve a path for per-user blob storage.
+ * config/rss.md with userId "123" → users/123/config/rss.md
+ */
+function userScopedPath(relativePath, userId) {
+  if (!userId) return relativePath;
+  if (!USER_PREFIXES.some(p => relativePath.startsWith(p))) return relativePath;
+  return `users/${userId}/${relativePath}`;
+}
+
+/**
+ * For unauthenticated config reads, map to the .example.md variant.
+ * config/rss.md → config/rss.example.md
+ */
+function examplePath(relativePath) {
+  if (!relativePath.startsWith('config/') || !relativePath.endsWith('.md')) {
+    return relativePath;
+  }
+  return relativePath.replace(/\.md$/, '.example.md');
 }
 
 /**
@@ -82,11 +110,30 @@ async function appendDataFile(relativePath, content) {
   }
 }
 
-async function readFile(relativePath) {
+/**
+ * Read a file. Options:
+ *   userId — namespace config/data paths per-user in blob
+ */
+async function readFile(relativePath, { userId } = {}) {
   if (usesBlob(relativePath)) {
-    const result = await blob.readFile(relativePath);
-    // Seed from deployed filesystem on first access (blob empty)
+    const scopedPath = userScopedPath(relativePath, userId);
+    const result = await blob.readFile(scopedPath);
+
     if (result.error && result.status === 404) {
+      // Copy-on-write: user has no custom copy yet, fall back to example
+      if (userId && USER_PREFIXES.some(p => relativePath.startsWith(p))) {
+        // Try the example file from the deployed filesystem
+        const fallback = relativePath.startsWith('config/')
+          ? examplePath(relativePath)
+          : relativePath;
+        const fsResult = isDataPath(fallback) ? await readDataFile(fallback) : fm.readFile(fallback);
+        // If the example also doesn't exist, try the original path from filesystem
+        if (fsResult.error && fsResult.status === 404) {
+          return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
+        }
+        return fsResult;
+      }
+      // No userId — unauthenticated or non-user path: seed from filesystem
       return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
     }
     return result;
@@ -95,14 +142,28 @@ async function readFile(relativePath) {
   return fm.readFile(relativePath);
 }
 
-async function writeFile(relativePath, content) {
-  if (usesBlob(relativePath)) return blob.writeFile(relativePath, content);
+/**
+ * Write a file. Options:
+ *   userId — namespace config/data paths per-user in blob
+ */
+async function writeFile(relativePath, content, { userId } = {}) {
+  if (usesBlob(relativePath)) {
+    const scopedPath = userScopedPath(relativePath, userId);
+    return blob.writeFile(scopedPath, content);
+  }
   if (isDataPath(relativePath)) return writeDataFile(relativePath, content);
   return fm.writeFile(relativePath, content);
 }
 
-async function appendFile(relativePath, content) {
-  if (usesBlob(relativePath)) return blob.appendFile(relativePath, content);
+/**
+ * Append to a file. Options:
+ *   userId — namespace config/data paths per-user in blob
+ */
+async function appendFile(relativePath, content, { userId } = {}) {
+  if (usesBlob(relativePath)) {
+    const scopedPath = userScopedPath(relativePath, userId);
+    return blob.appendFile(scopedPath, content);
+  }
   if (isDataPath(relativePath)) return appendDataFile(relativePath, content);
   return fm.appendFile(relativePath, content);
 }

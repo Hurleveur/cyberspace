@@ -1,45 +1,92 @@
 /**
- * Auth helper — automatically attaches AUTH_TOKEN to all /api/ requests.
+ * Auth helper — cookie-based authentication via GitHub OAuth.
  *
- * Token source (checked in order):
- *   1. ?token=xxx in the page URL (persisted to localStorage on first visit)
- *   2. localStorage 'cyberspace-auth-token'
+ * On Vercel: user logs in via GitHub OAuth → JWT stored in HttpOnly cookie.
+ * On local dev: no auth, full access.
  *
- * When a token is present, every fetch() call to a /api/ path gets an
- * Authorization: Bearer header injected automatically.
+ * Backwards compatibility: if a localStorage token exists and no cookie session
+ * is active, Bearer token injection is preserved for migration.
  */
 const Auth = {
   STORAGE_KEY: 'cyberspace-auth-token',
+  user: null,       // { id, login, role, avatar } or null
+  readOnly: false,   // true when unauthenticated on Vercel
+  oauthConfigured: false,
+  _ready: null,      // Promise that resolves when init completes
 
   init() {
-    // Check URL for ?token= parameter and persist it
+    // Legacy: check URL for ?token= parameter and persist it
     const params = new URLSearchParams(location.search);
     const urlToken = params.get('token');
     if (urlToken) {
       localStorage.setItem(this.STORAGE_KEY, urlToken);
-      // Clean the token from the URL so it isn't shared accidentally
       params.delete('token');
       const clean = params.toString();
       const newUrl = location.pathname + (clean ? '?' + clean : '') + location.hash;
       history.replaceState(null, '', newUrl);
     }
 
-    const token = this.getToken();
+    // Fetch current user from server
+    this._ready = this._fetchUser();
+
+    // Legacy Bearer token fallback (if no cookie session)
+    this._setupLegacyTokenFallback();
+  },
+
+  async _fetchUser() {
+    try {
+      const res = await fetch('/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        this.user = data.user;
+        this.oauthConfigured = data.oauthConfigured;
+        this.readOnly = !this.user && this.oauthConfigured;
+      }
+    } catch {
+      // Network error — assume local dev, no auth needed
+      this.user = null;
+      this.readOnly = false;
+    }
+  },
+
+  _setupLegacyTokenFallback() {
+    const token = localStorage.getItem(this.STORAGE_KEY);
     if (!token) return;
 
-    // Monkey-patch fetch to inject auth header on /api/ requests
+    // Monkey-patch fetch to inject Bearer token as fallback
     const originalFetch = window.fetch;
+    const self = this;
     window.fetch = function (input, init) {
-      const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
-      if (url.startsWith('/api/') || url.includes('/api/')) {
-        init = init || {};
-        init.headers = new Headers(init.headers || {});
-        if (!init.headers.has('Authorization')) {
-          init.headers.set('Authorization', 'Bearer ' + token);
+      // Only inject if no cookie session is active
+      if (!self.user) {
+        const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+        if (url.startsWith('/api/') || url.includes('/api/')) {
+          init = init || {};
+          init.headers = new Headers(init.headers || {});
+          if (!init.headers.has('Authorization')) {
+            init.headers.set('Authorization', 'Bearer ' + token);
+          }
         }
       }
       return originalFetch.call(this, input, init);
     };
+  },
+
+  /** Wait for auth state to be resolved. */
+  async whenReady() {
+    if (this._ready) await this._ready;
+  },
+
+  isAuthenticated() {
+    return !!this.user;
+  },
+
+  isAdmin() {
+    return this.user?.role === 'admin';
+  },
+
+  isReadOnly() {
+    return this.readOnly;
   },
 
   getToken() {
@@ -52,6 +99,17 @@ const Auth = {
     } else {
       localStorage.removeItem(this.STORAGE_KEY);
     }
+  },
+
+  logout() {
+    // Clear legacy token
+    localStorage.removeItem(this.STORAGE_KEY);
+    // POST to logout endpoint (clears cookie)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/auth/logout';
+    document.body.appendChild(form);
+    form.submit();
   },
 };
 

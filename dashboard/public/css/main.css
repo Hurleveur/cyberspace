@@ -139,6 +139,58 @@ html, body {
   gap: 8px;
 }
 
+/* Auth widget */
+.auth-widget {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  font-size: 11px;
+}
+.auth-login-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.auth-login-link:hover { opacity: 1; }
+.auth-user-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.auth-avatar {
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.auth-username {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.auth-logout-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.auth-logout-btn:hover { opacity: 1; color: var(--accent); }
+.demo-badge {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--bg);
+  background: var(--accent);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
 .logo {
   font-size: 17px;
   font-weight: 700;

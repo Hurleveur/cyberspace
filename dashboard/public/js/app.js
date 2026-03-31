@@ -118,6 +118,10 @@ const App = {
     this.panels.left.el = document.getElementById('left-panel');
     this.panels.right.el = document.getElementById('right-panel');
 
+    // Wait for auth state before initializing modules
+    await Auth.whenReady();
+    this._initAuthWidget();
+
     // Initialize all modules
     WS.init();
     MapView.init();
@@ -745,6 +749,28 @@ const App = {
   },
 
   // --- Desktop notifications ---
+
+  _initAuthWidget() {
+    const widget = document.getElementById('auth-widget');
+    const loginLink = document.getElementById('auth-login');
+    const userInfo = document.getElementById('auth-user');
+    const demoBadge = document.getElementById('demo-badge');
+    if (!widget) return;
+
+    if (Auth.isAuthenticated()) {
+      widget.classList.remove('hidden');
+      userInfo.classList.remove('hidden');
+      document.getElementById('auth-avatar').src = Auth.user.avatar || '';
+      document.getElementById('auth-avatar').style.display = Auth.user.avatar ? '' : 'none';
+      document.getElementById('auth-username').textContent = Auth.user.login;
+      document.getElementById('auth-logout').addEventListener('click', () => Auth.logout());
+    } else if (Auth.oauthConfigured) {
+      widget.classList.remove('hidden');
+      loginLink.classList.remove('hidden');
+      demoBadge.classList.remove('hidden');
+    }
+    // On local dev (no OAuth configured), widget stays hidden — no auth needed
+  },
 
   _initNotifications() {
     if (!('Notification' in window) || Notification.permission !== 'default') return;

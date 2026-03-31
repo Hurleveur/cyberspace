@@ -7,6 +7,12 @@ const CACHE_TTL_MS = 15 * 60 * 1000;       // 15 minutes — in-memory freshness
 const ITEM_MAX_AGE_MS = 7 * 24 * 3600000;  // 7 days — disk persistence TTL
 const FEED_CACHE_PATH = 'data/feed-cache.json';
 
+function feedCachePath(userId) {
+  // On Vercel with userId, storage.js handles namespacing (users/{id}/data/feed-cache.json)
+  // On local dev, there's no userId — use the default path
+  return FEED_CACHE_PATH;
+}
+
 const parser = new RssParser({
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -16,9 +22,9 @@ const parser = new RssParser({
 
 // ── Disk persistence (via storage layer) ────────────────────────────────────
 
-async function loadDiskCache() {
+async function loadDiskCache(userId) {
   try {
-    const result = await storage.readFile(FEED_CACHE_PATH);
+    const result = await storage.readFile(feedCachePath(userId), { userId });
     if (result.error) return [];
     const parsed = JSON.parse(result.content);
     return Array.isArray(parsed) ? parsed : [];
@@ -27,22 +33,30 @@ async function loadDiskCache() {
   }
 }
 
-async function saveDiskCache(items) {
+async function saveDiskCache(items, userId) {
   try {
-    await storage.writeFile(FEED_CACHE_PATH, JSON.stringify(items));
+    await storage.writeFile(feedCachePath(userId), JSON.stringify(items), { userId });
   } catch (err) {
     console.error('[rssFetcher] Could not save disk cache:', err.message);
   }
 }
 
-// ── In-memory cache ───────────────────────────────────────────────────────────
+// ── In-memory cache (per-user) ────────────────────────────────────────────────
 
-let cache = {
-  items: [],     // seeded lazily on first fetchAllFeeds call
-  fetchedAt: 0,
-  errors: [],
-  _seeded: false,
-};
+const cacheMap = new Map(); // userId (or '__anon') → { items, fetchedAt, errors, _seeded }
+
+function getCache(userId) {
+  const key = userId || '__anon';
+  if (!cacheMap.has(key)) {
+    cacheMap.set(key, { items: [], fetchedAt: 0, errors: [], _seeded: false });
+  }
+  return cacheMap.get(key);
+}
+
+function setCache(userId, data) {
+  const key = userId || '__anon';
+  cacheMap.set(key, data);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,8 +71,8 @@ function stableId(url, title) {
 /**
  * Parse config/rss.md to extract feed URLs with their category and priority.
  */
-async function parseRssConfig() {
-  const result = await storage.readFile('config/rss.md');
+async function parseRssConfig(userId) {
+  const result = await storage.readFile('config/rss.md', { userId });
   if (result.error) return [];
 
   const content = result.content;
@@ -167,10 +181,12 @@ function mergeWithPersisted(newItems, existingItems, activeFeedUrls) {
 /**
  * Fetch all feeds, normalize, deduplicate, sort, merge with disk cache, persist.
  */
-async function fetchAllFeeds(forceRefresh = false) {
+async function fetchAllFeeds(forceRefresh = false, userId) {
+  const cache = getCache(userId);
+
   // Lazy-seed from disk on first call
   if (!cache._seeded) {
-    cache.items = await loadDiskCache();
+    cache.items = await loadDiskCache(userId);
     cache._seeded = true;
   }
 
@@ -179,7 +195,7 @@ async function fetchAllFeeds(forceRefresh = false) {
     return { items: cache.items, errors: cache.errors, fetchedAt: cache.fetchedAt, fromCache: true };
   }
 
-  const feedConfigs = await parseRssConfig();
+  const feedConfigs = await parseRssConfig(userId);
   if (feedConfigs.length === 0) {
     return { items: [], errors: [{ url: 'config/rss.md', message: 'No feeds configured in config/rss.md' }], fetchedAt: Date.now(), fromCache: false };
   }
@@ -207,12 +223,13 @@ async function fetchAllFeeds(forceRefresh = false) {
   const sorted = sortItems(merged);
 
   // Persist to disk so items survive server restarts
-  await saveDiskCache(sorted);
+  await saveDiskCache(sorted, userId);
 
   // Update in-memory cache
-  cache = { items: sorted, fetchedAt: Date.now(), errors, _seeded: true };
+  const updatedCache = { items: sorted, fetchedAt: Date.now(), errors, _seeded: true };
+  setCache(userId, updatedCache);
 
-  return { items: sorted, errors, fetchedAt: cache.fetchedAt, fromCache: false };
+  return { items: sorted, errors, fetchedAt: updatedCache.fetchedAt, fromCache: false };
 }
 
 /**

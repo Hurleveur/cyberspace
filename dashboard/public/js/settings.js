@@ -165,6 +165,7 @@ const Settings = {
 
   renderRssVisual(feeds) {
     const view = document.getElementById('settings-view');
+    const readOnly = typeof Auth !== 'undefined' && Auth.isReadOnly();
 
     // Collect existing categories for datalist
     const categories = [...new Set(feeds.map(f => f.category))];
@@ -177,8 +178,14 @@ const Settings = {
       byCategory.get(f.category).push(f);
     }
 
-    let html = `<div class="rss-manager">
-      <div class="rss-add-form">
+    let html = `<div class="rss-manager">`;
+
+    if (readOnly) {
+      html += `<div class="rss-readonly-banner">Example feeds — <a href="/auth/github">sign in</a> to customize</div>`;
+    }
+
+    if (!readOnly) {
+      html += `<div class="rss-add-form">
         <div class="rss-add-title">Add Feed</div>
         <input id="rss-url-input" type="url" placeholder="https://example.com/feed.xml" autocomplete="off"/>
         <div class="rss-add-row">
@@ -194,6 +201,7 @@ const Settings = {
         </div>
         <div id="rss-add-status" class="rss-add-status"></div>
       </div>`;
+    }
 
     if (byCategory.size === 0) {
       html += `<div class="rss-empty">No feeds configured yet.</div>`;
@@ -209,8 +217,8 @@ const Settings = {
               <div class="rss-feed-actions">
                 <span class="rss-priority-badge ${feed.priority}">${feed.priority}</span>
                 <button class="rss-test-btn" data-url="${eu}">Test</button>
-                <button class="rss-edit-btn" data-url="${eu}">Edit</button>
-                <button class="rss-remove-btn" data-url="${eu}" title="Remove feed">✕</button>
+                ${readOnly ? '' : `<button class="rss-edit-btn" data-url="${eu}">Edit</button>`}
+                ${readOnly ? '' : `<button class="rss-remove-btn" data-url="${eu}" title="Remove feed">✕</button>`}
                 <span class="rss-test-result" id="result-${uid}"></span>
               </div>
             </div>
@@ -521,16 +529,31 @@ const Settings = {
           <div class="system-hint">Shows or hides the embedded CryptPad Kanban board at the bottom of the Tasks panel.</div>
         </div>
         <div class="system-section">
-          <div class="system-section-title">Auth Token</div>
-          <div class="system-info-grid">
-            <span class="system-info-label">Status</span><span class="system-info-value">${typeof Auth !== 'undefined' && Auth.getToken() ? '✓ Set' : '✗ Not set'}</span>
-          </div>
-          <div class="rss-add-row" style="margin-top:6px">
-            <input id="auth-token-input" type="password" placeholder="Paste AUTH_TOKEN" autocomplete="off" style="flex:1"/>
-            <button id="auth-token-save" class="rss-primary">Save</button>
-            <button id="auth-token-clear">Clear</button>
-          </div>
-          <div class="system-hint">Required on Vercel for editing config files. Visit with ?token=xxx to set automatically.</div>
+          <div class="system-section-title">Account</div>
+          ${typeof Auth !== 'undefined' && Auth.isAuthenticated() ? `
+            <div class="system-info-grid">
+              <span class="system-info-label">Signed in as</span><span class="system-info-value">${this._esc(Auth.user.login)}</span>
+              <span class="system-info-label">Role</span><span class="system-info-value">${this._esc(Auth.user.role)}</span>
+            </div>
+            <button id="system-logout-btn" class="rss-primary" style="margin-top:6px">Sign out</button>
+            <div class="system-hint">Signed in via GitHub OAuth. Your config and feeds are saved to your account.</div>
+          ` : typeof Auth !== 'undefined' && Auth.oauthConfigured ? `
+            <div class="system-info-grid">
+              <span class="system-info-label">Status</span><span class="system-info-value">Not signed in (demo mode)</span>
+            </div>
+            <a href="/auth/github" class="rss-primary" style="display:inline-block;margin-top:6px;text-decoration:none;text-align:center;padding:4px 12px">Sign in with GitHub</a>
+            <div class="system-hint">Sign in to customize your RSS feeds, config files, and more.</div>
+          ` : `
+            <div class="system-info-grid">
+              <span class="system-info-label">Status</span><span class="system-info-value">${typeof Auth !== 'undefined' && Auth.getToken() ? '✓ Token set' : 'Local mode (no auth needed)'}</span>
+            </div>
+            <div class="rss-add-row" style="margin-top:6px">
+              <input id="auth-token-input" type="password" placeholder="Paste AUTH_TOKEN" autocomplete="off" style="flex:1"/>
+              <button id="auth-token-save" class="rss-primary">Save</button>
+              <button id="auth-token-clear">Clear</button>
+            </div>
+            <div class="system-hint">API token for scripted access. On Vercel, use GitHub sign-in instead.</div>
+          `}
         </div>
         <div class="system-section">
           <div class="system-section-title">System Info</div>
@@ -543,6 +566,13 @@ const Settings = {
         </div>
       </div>`;
 
+    // Account actions
+    const logoutBtn = view.querySelector('#system-logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        if (typeof Auth !== 'undefined') Auth.logout();
+      });
+    }
     const authSaveBtn = view.querySelector('#auth-token-save');
     const authClearBtn = view.querySelector('#auth-token-clear');
     if (authSaveBtn) {
@@ -649,9 +679,11 @@ const Settings = {
   showView() {
     document.getElementById('settings-view').classList.remove('hidden');
     document.getElementById('settings-edit').classList.add('hidden');
+    const readOnly = typeof Auth !== 'undefined' && Auth.isReadOnly();
     // config/seen-events.md and __system are auto-maintained — hide raw editor button
+    // Also hide when in read-only/demo mode
     document.getElementById('settings-edit-btn').style.display =
-      (this.currentFile === 'config/seen-events.md' || this.currentFile === '__system') ? 'none' : '';
+      (readOnly || this.currentFile === 'config/seen-events.md' || this.currentFile === '__system') ? 'none' : '';
   },
 
   showEditor() {

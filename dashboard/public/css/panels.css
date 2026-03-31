@@ -1647,6 +1647,22 @@
 
 /* === Phase 3: RSS Feed Manager === */
 
+.rss-readonly-banner {
+  background: rgba(0, 255, 65, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.rss-readonly-banner a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.rss-readonly-banner a:hover { text-decoration: underline; }
+
 .rss-manager {
   display: flex;
   flex-direction: column;
