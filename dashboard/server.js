@@ -613,20 +613,15 @@ app.post('/api/data/import', requireAuth, async (req, res) => {
 
 // POST /api/feedback  (body = { text: "..." })
 app.post('/api/feedback', requireAuth, async (req, res) => {
-  if (IS_VERCEL) {
-    return res.status(403).json({
-      error: 'Feedback submission is only available offline. Clone the GitHub repo for full configuration.',
-      offlineOnly: true,
-    });
-  }
   try {
     const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
     if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
 
+    const login = res.locals.user?.login || 'anonymous';
     const timestamp = new Date().toISOString().split('T')[0];
-    const entry = `\n- [${timestamp}] ${text.trim()}\n`;
-    const userId = res.locals.user?.id;
-    const result = await fm.appendFile('config/feedback.md', entry, { userId });
+    const entry = `\n- [${timestamp}] (${login}) ${text.trim()}\n`;
+    // Always write to global feedback file so the admin sees all feedback
+    const result = await fm.appendFile('config/feedback.md', entry);
     if (result.error) return res.status(result.status || 500).json({ error: result.error });
     res.json({ ok: true });
   } catch (err) {
