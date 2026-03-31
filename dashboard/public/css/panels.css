@@ -1927,6 +1927,18 @@
 .terminal-panel.resizing {
   transition: transform 0.22s ease;
 }
+.terminal-resize-handle {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 5px;
+  cursor: row-resize;
+  z-index: 10;
+}
+.terminal-resize-handle:hover {
+  background: var(--accent-glow);
+}
 
 .terminal-header {
   display: flex;

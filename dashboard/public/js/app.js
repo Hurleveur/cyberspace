@@ -941,6 +941,47 @@ const App = {
   initPanelResize() {
     this._createResizeHandle('left-panel', 'right');
     this._createResizeHandle('right-panel', 'left');
+    this._createTerminalResizeHandle();
+  },
+
+  _createTerminalResizeHandle() {
+    const terminal = document.getElementById('terminal-panel');
+    if (!terminal) return;
+    const handle = document.createElement('div');
+    handle.className = 'terminal-resize-handle';
+    terminal.prepend(handle);
+
+    let startY, startHeight;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startY = e.clientY;
+      startHeight = terminal.offsetHeight;
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      terminal.classList.add('resizing');
+
+      const onMove = (e) => {
+        const delta = startY - e.clientY;
+        const newHeight = Math.min(window.innerHeight * 0.8, Math.max(150, startHeight + delta));
+        terminal.style.height = newHeight + 'px';
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        terminal.classList.remove('resizing');
+        localStorage.setItem('terminal-height', terminal.offsetHeight);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    const saved = localStorage.getItem('terminal-height');
+    if (saved) terminal.style.height = saved + 'px';
   },
 
   _createResizeHandle(panelId, edgeSide) {
