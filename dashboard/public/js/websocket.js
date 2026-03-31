@@ -21,11 +21,36 @@ const WS = {
   _enterPreviewMode() {
     this.previewMode = true;
     clearTimeout(this.reconnectTimer);
-    console.log('[ws] Preview mode — live updates disabled');
+    console.log('[ws] Preview mode — polling for feed updates');
     const el = document.getElementById('connection-status');
     el.textContent = 'Preview Mode';
     el.classList.add('preview');
     el.classList.remove('hidden');
+    this._startPolling();
+  },
+
+  _pollInterval: null,
+  _lastFeedCount: null,
+
+  _startPolling() {
+    if (this._pollInterval) return;
+    // Poll for feed updates every 5 minutes in preview mode
+    this._pollInterval = setInterval(() => this._pollFeeds(), 5 * 60 * 1000);
+  },
+
+  async _pollFeeds() {
+    try {
+      const res = await fetch('/api/feeds');
+      if (!res.ok) return;
+      const data = await res.json();
+      const count = data.items ? data.items.length : 0;
+      if (this._lastFeedCount !== null && count !== this._lastFeedCount) {
+        this.dispatch({ type: 'feeds_updated', count, new: Math.abs(count - this._lastFeedCount) });
+      }
+      this._lastFeedCount = count;
+    } catch (err) {
+      // Silently ignore polling errors
+    }
   },
 
   connect() {

@@ -341,6 +341,8 @@ const Settings = {
       });
 
       await this.loadRssVisual();
+      // Trigger feed refresh so changes take effect without page reload
+      if (typeof Feeds !== 'undefined') Feeds.load();
     } catch (err) {
       console.error('[settings] editFeed error:', err);
     }
@@ -397,6 +399,8 @@ const Settings = {
 
       if (statusEl) { statusEl.textContent = 'Feed added.'; statusEl.className = 'rss-add-status rss-status-ok'; }
       await this.loadRssVisual();
+      // Trigger feed refresh so new feed appears without page reload
+      if (typeof Feeds !== 'undefined') Feeds.load();
     } catch (err) {
       if (statusEl) { statusEl.textContent = `Error: ${err.message}`; statusEl.className = 'rss-add-status rss-status-err'; }
     }
@@ -436,6 +440,8 @@ const Settings = {
       });
 
       await this.loadRssVisual();
+      // Trigger feed refresh so removal takes effect without page reload
+      if (typeof Feeds !== 'undefined') Feeds.load();
     } catch (err) {
       console.error('[settings] removeFeed error:', err);
     }
