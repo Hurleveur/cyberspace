@@ -130,7 +130,7 @@ async function resolveUser(req) {
   // 2. Try AUTH_TOKEN bearer (for sync scripts)
   if (AUTH_TOKEN) {
     const header = req.headers.authorization || '';
-    const bearer = header.startsWith('Bearer ') ? header.slice(7) : String(req.query?.token || '');
+    const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
     if (bearer && bearer.length === AUTH_TOKEN.length &&
         timingSafeEqual(Buffer.from(bearer), Buffer.from(AUTH_TOKEN))) {
       return { id: '__token', login: 'api-token', role: 'admin', avatar: null };

@@ -15,17 +15,6 @@ const Auth = {
   _ready: null,      // Promise that resolves when init completes
 
   init() {
-    // Legacy: check URL for ?token= parameter and persist it
-    const params = new URLSearchParams(location.search);
-    const urlToken = params.get('token');
-    if (urlToken) {
-      localStorage.setItem(this.STORAGE_KEY, urlToken);
-      params.delete('token');
-      const clean = params.toString();
-      const newUrl = location.pathname + (clean ? '?' + clean : '') + location.hash;
-      history.replaceState(null, '', newUrl);
-    }
-
     // Fetch current user from server
     this._ready = this._fetchUser();
 

@@ -20,6 +20,8 @@ const {
   csrfProtection,
 } = auth;
 
+const rateLimit = require('express-rate-limit');
+
 const fm = require('./lib/storage');
 const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
 
@@ -44,6 +46,31 @@ function parseMapCenter(raw) {
 
 const MAP_CENTER = parseMapCenter(process.env.MAP_CENTER);
 
+// --- Rate limiters ---
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth attempts, try again later' },
+});
+
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, try again later' },
+});
+
+const feedRefreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many feed refresh requests, try again later' },
+});
+
 // --- Express app ---
 const app = express();
 app.use(express.json());
@@ -58,7 +85,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- OAuth routes ---
 
-app.get('/auth/github', (req, res) => {
+app.get('/auth/github', authLimiter, (req, res) => {
   if (!auth.isOAuthConfigured()) {
     return res.status(501).json({ error: 'GitHub OAuth not configured' });
   }
@@ -73,7 +100,7 @@ app.get('/auth/github', (req, res) => {
   res.redirect(auth.getGitHubAuthUrl(redirectUri, state));
 });
 
-app.get('/auth/github/callback', async (req, res) => {
+app.get('/auth/github/callback', authLimiter, async (req, res) => {
   try {
     const { code, state } = req.query;
     const cookies = auth.parseCookies(req);
@@ -175,13 +202,17 @@ function blockOnlineConfigWrite(req, res) {
 }
 
 // PUT /api/file?path=relative/path.md  (body = raw text)
-app.put('/api/file', requireAuth, async (req, res) => {
+app.put('/api/file', writeLimiter, requireAuth, async (req, res) => {
   if (blockOnlineConfigWrite(req, res)) return;
   try {
     const userId = res.locals.user?.id;
     const content = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     const result = await fm.writeFile(req.query.path, content, { userId });
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
+    // On Vercel, chokidar isn't running — trigger feed refresh manually
+    if (IS_VERCEL && req.query.path === 'config/rss.md') {
+      refreshFeedsQuietly();
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('[file:write]', req.query.path, err.message, err.stack);
@@ -190,7 +221,7 @@ app.put('/api/file', requireAuth, async (req, res) => {
 });
 
 // POST /api/file/append?path=relative/path.md  (body = raw text)
-app.post('/api/file/append', requireAuth, async (req, res) => {
+app.post('/api/file/append', writeLimiter, requireAuth, async (req, res) => {
   if (blockOnlineConfigWrite(req, res)) return;
   try {
     const userId = res.locals.user?.id;
@@ -276,7 +307,7 @@ app.get('/api/reports/announcements', async (req, res) => {
 
 // POST /api/reports/sync — upload report files to blob storage (for syncing local → Vercel)
 // Body: { date: "2026-03-07", files: { "briefing.md": "...", "markers.json": "...", ... } }
-app.post('/api/reports/sync', requireAdmin, express.json({ limit: '5mb' }), async (req, res) => {
+app.post('/api/reports/sync', writeLimiter, requireAdmin, express.json({ limit: '5mb' }), async (req, res) => {
   try {
     const { date, files } = req.body;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -314,7 +345,7 @@ app.get('/api/feeds', async (req, res) => {
 });
 
 // POST /api/feeds/refresh — force re-fetch
-app.post('/api/feeds/refresh', requireAuth, async (req, res) => {
+app.post('/api/feeds/refresh', feedRefreshLimiter, requireAuth, async (req, res) => {
   try {
     const userId = res.locals.user?.id;
     const result = await fetchAllFeeds(true, userId);
@@ -454,7 +485,7 @@ app.get('/api/projects', async (req, res) => {
 });
 
 // POST /api/projects
-app.post('/api/projects', requireAuth, async (req, res) => {
+app.post('/api/projects', writeLimiter, requireAuth, async (req, res) => {
   try {
     const validated = validateProjectInput(req.body);
     if (validated.error) return res.status(400).json({ error: validated.error });
@@ -472,7 +503,7 @@ app.post('/api/projects', requireAuth, async (req, res) => {
 });
 
 // PUT /api/projects/:id
-app.put('/api/projects/:id', requireAuth, async (req, res) => {
+app.put('/api/projects/:id', writeLimiter, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid project ID.' });
@@ -540,7 +571,7 @@ app.get('/api/projects/check-embed', async (req, res) => {
 });
 
 // DELETE /api/projects/:id
-app.delete('/api/projects/:id', requireAuth, async (req, res) => {
+app.delete('/api/projects/:id', writeLimiter, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid project ID.' });
@@ -572,7 +603,7 @@ app.get('/api/data/export', async (req, res) => {
 
 // POST /api/data/import — restore server-side data from backup
 // body: { projects: [...], mode: 'merge' | 'replace' }
-app.post('/api/data/import', requireAuth, async (req, res) => {
+app.post('/api/data/import', writeLimiter, requireAuth, async (req, res) => {
   try {
     const rawProjects = req.body?.projects;
     const mode = /^replace$/i.test(String(req.body?.mode || '')) ? 'replace' : 'merge';
@@ -614,7 +645,7 @@ app.post('/api/data/import', requireAuth, async (req, res) => {
 // --- Feedback API ---
 
 // POST /api/feedback  (body = { text: "..." })
-app.post('/api/feedback', requireAuth, async (req, res) => {
+app.post('/api/feedback', writeLimiter, requireAuth, async (req, res) => {
   try {
     const text = req.body?.text || (typeof req.body === 'string' ? req.body : '');
     if (!text.trim()) return res.status(400).json({ error: 'Empty feedback' });
