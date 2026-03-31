@@ -1,0 +1,27 @@
+dashboard/lib/storage.js
+  43731c3f85f4c7ab 3,8,23,28-29,34-35,39,117,120,122,127-128,151,154,156,164,167,169,177,183
+dashboard/lib/users.js
+  43731c3f85f4c7ab 2-3,7,9,16-17,24-25,32-33,40-41,45,49,52-53,67,70,75,79
+dashboard/lib/dbStorage.js
+  43731c3f85f4c7ab 1-506
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "5d2eafbfd88820d1e2a91fe9ee6662bd5540a7fe",
+  "prompts": {
+    "43731c3f85f4c7ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "985bcabb-bffa-456d-84ed-ce21ab807d88",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "hurleveur <belliorum@gmail.com>",
+      "messages": [],
+      "total_additions": 547,
+      "total_deletions": 99,
+      "accepted_lines": 547,
+      "overriden_lines": 0
+    }
+  }
+}
