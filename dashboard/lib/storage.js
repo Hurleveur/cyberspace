@@ -1,11 +1,11 @@
 /**
  * Storage abstraction layer.
- * Routes mutable file operations to Vercel Blob (production) or
+ * Routes mutable file operations to Turso DB (production) or
  * the local filesystem (development). Read-only paths (reports/)
  * always go through the filesystem.
  *
  * Multi-user support: when a userId is provided, config/ and data/
- * paths are namespaced under users/{userId}/ in blob storage.
+ * paths are namespaced under users/{userId}/ in database storage.
  * Unauthenticated reads of config/ fall back to *.example.md files.
  *
  * Path convention:
@@ -20,23 +20,23 @@ const path = require('path');
 const IS_VERCEL = !!process.env.VERCEL;
 
 const fm = require('./fileManager');
-const blob = IS_VERCEL ? require('./blobStorage') : null;
+const db = IS_VERCEL ? require('./dbStorage') : null;
 
 // dashboard/data/ directory for local data files
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
 
-// On Vercel, all dynamic content goes through blob (reports aren't on the filesystem)
-const BLOB_PREFIXES = ['config/', 'data/', 'reports/'];
+// On Vercel, all dynamic content goes through the database
+const DB_PREFIXES = ['config/', 'data/', 'reports/'];
 
 // Prefixes that get per-user namespacing
 const USER_PREFIXES = ['config/', 'data/'];
 
-function usesBlob(relativePath) {
-  return IS_VERCEL && BLOB_PREFIXES.some(p => relativePath.startsWith(p));
+function usesDb(relativePath) {
+  return IS_VERCEL && DB_PREFIXES.some(p => relativePath.startsWith(p));
 }
 
 /**
- * Resolve a path for per-user blob storage.
+ * Resolve a path for per-user database storage.
  * config/rss.md with userId "123" → users/123/config/rss.md
  */
 function userScopedPath(relativePath, userId) {
@@ -114,18 +114,18 @@ async function appendDataFile(relativePath, content) {
 
 /**
  * Read a file. Options:
- *   userId — namespace config/data paths per-user in blob
+ *   userId — namespace config/data paths per-user in database
  */
 async function readFile(relativePath, { userId } = {}) {
-  if (usesBlob(relativePath)) {
+  if (usesDb(relativePath)) {
     const scopedPath = userScopedPath(relativePath, userId);
-    const result = await blob.readFile(scopedPath);
+    const result = await db.readFile(scopedPath);
 
     if (result.error && result.status === 404) {
       if (userId && USER_PREFIXES.some(p => relativePath.startsWith(p))) {
         // User has no custom copy yet — fallback chain:
-        // 1. Try the global blob path (admin's real config)
-        const globalResult = await blob.readFile(relativePath);
+        // 1. Try the global db path (admin's real config)
+        const globalResult = await db.readFile(relativePath);
         if (!globalResult.error) return globalResult;
 
         // 2. Try the example file from the deployed filesystem
@@ -148,12 +148,12 @@ async function readFile(relativePath, { userId } = {}) {
 
 /**
  * Write a file. Options:
- *   userId — namespace config/data paths per-user in blob
+ *   userId — namespace config/data paths per-user in database
  */
 async function writeFile(relativePath, content, { userId } = {}) {
-  if (usesBlob(relativePath)) {
+  if (usesDb(relativePath)) {
     const scopedPath = userScopedPath(relativePath, userId);
-    return blob.writeFile(scopedPath, content);
+    return db.writeFile(scopedPath, content);
   }
   if (isDataPath(relativePath)) return writeDataFile(relativePath, content);
   return fm.writeFile(relativePath, content);
@@ -161,12 +161,12 @@ async function writeFile(relativePath, content, { userId } = {}) {
 
 /**
  * Append to a file. Options:
- *   userId — namespace config/data paths per-user in blob
+ *   userId — namespace config/data paths per-user in database
  */
 async function appendFile(relativePath, content, { userId } = {}) {
-  if (usesBlob(relativePath)) {
+  if (usesDb(relativePath)) {
     const scopedPath = userScopedPath(relativePath, userId);
-    return blob.appendFile(scopedPath, content);
+    return db.appendFile(scopedPath, content);
   }
   if (isDataPath(relativePath)) return appendDataFile(relativePath, content);
   return fm.appendFile(relativePath, content);
@@ -174,13 +174,13 @@ async function appendFile(relativePath, content, { userId } = {}) {
 
 function invalidateCache(relativePath) {
   fm.invalidateCache(relativePath);
-  if (blob) blob.invalidateCache(relativePath);
+  if (db) db.invalidateCache(relativePath);
 }
 
 const { PROJECT_ROOT, resolveSafePath } = fm;
 
 async function listReportDates() {
-  if (IS_VERCEL) return blob.listReportDates();
+  if (IS_VERCEL) return db.listReportDates();
   return fm.listReportDates();
 }
 
