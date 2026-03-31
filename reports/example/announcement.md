@@ -5,7 +5,7 @@ author: Hurleveur
 date: 2026-03-19
 ---
 
-https://github.com/Hurleveur/cyberspace
+https://www.github.com/Hurleveur/cyberspace
 
 ```
 ██████╗██╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗  █████╗  ██████╗███████╗
@@ -59,14 +59,14 @@ In Claude Cowork, first copy paste the docs/claude-cowork.md file, customize you
 
 The dashboard you're reading this on works fully **when self-hosted**. The online/Vercel version is a preview only — several features are currently non-functional in that environment:
 
-- **Write operations don't persist** — Vercel's file system is read-only and ephemeral, so config changes, feedback submissions, and new reports won't survive between requests. A proper persistent backend (e.g. GitHub Contents API for reports, Vercel KV for cache) is needed.
+- **Write operations don't fully persist** — Vercel's file system is read-only and ephemeral. RSS feed preferences and user config are now stored in Turso (libSQL), so those survive between requests. New reports still need a persistent delivery path (e.g. GitHub Contents API) — that part remains outstanding.
 - **Live updates are broken** — the real-time feed relies on WebSockets and a file watcher, neither of which work in a serverless environment. Needs replacing with a polling approach.
 - **Feed refresh dies on cold start** — the RSS refresh interval resets with every function invocation. Needs a Vercel Cron Job.
 - **No Auth** - no session yet, the same for everyone, no subscription to a feed yet
 
 If any of this sounds like your kind of problem, the source is on GitHub — contributions are very welcome. The roadmap has the full breakdown of what's needed.
 
-https://github.com/Hurleveur/cyberspace
+https://www.github.com/Hurleveur/cyberspace
 
 ---
 

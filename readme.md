@@ -238,11 +238,21 @@ Open the terminal with `/`. Use `>` prefix for commands:
 
 ### Environment variables (`dashboard/.env`)
 
+None of these are required for local / offline use. The dashboard runs fully without
+any configuration — leave everything blank and it uses local file storage with no
+authentication. The variables below are only needed for Vercel / cloud deployments.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HTTP_PORT` | `3000` | HTTP port (redirects to HTTPS if certs are present) |
 | `HTTPS_PORT` | `4444` | HTTPS port (active only when certs are present) |
 | `MAP_CENTER` | `20,0` | Initial map centre as `lat,lng` |
+| `TURSO_DATABASE_URL` | _(none)_ | Turso database URL — Vercel only; omit for local use |
+| `TURSO_AUTH_TOKEN` | _(none)_ | Turso auth token — required when `TURSO_DATABASE_URL` is set |
+| `GITHUB_CLIENT_ID` | _(none)_ | GitHub OAuth app client ID — Vercel only |
+| `GITHUB_CLIENT_SECRET` | _(none)_ | GitHub OAuth app client secret — Vercel only |
+| `JWT_SECRET` | _(none)_ | Secret for signing session cookies — required when OAuth is configured |
+| `ADMIN_GITHUB_IDS` | _(none)_ | Comma-separated GitHub user IDs to grant admin role |
 
 ### Running as a background service
 

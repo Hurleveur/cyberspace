@@ -17,10 +17,15 @@ cloud deployment.
 ### Persistent Storage Backend
 The dashboard reads and writes local files (`config/`, `reports/`, `dashboard/data/`).
 On Vercel, the file system is read-only and ephemeral — writes don't survive between
-function invocations. A persistent backend is required for any write operation to
-work in production. Recommended approach: use the local agent to push reports to a
-private GitHub repository, and have the dashboard read from the GitHub Contents API.
-For projects/feed cache: Vercel KV (Redis) or a small Postgres (Neon/Supabase).
+function invocations.
+
+**Partially resolved:** RSS feed preferences and user config are now stored in a Turso
+(libSQL) database (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` env vars). Feed storage
+no longer needs a separate solution.
+
+**Still needed:** Report delivery. Recommended approach: use the local agent to push
+reports to a private GitHub repository, and have the dashboard read from the GitHub
+Contents API.
 
 ### Replace WebSockets with Polling
 The live-update mechanism uses `ws` + `chokidar` — both require a persistent
@@ -31,8 +36,8 @@ and remove the WebSocket and file-watcher code from the server.
 ### Vercel Cron for Feed Refresh
 The 15-minute RSS refresh `setInterval` dies with each serverless function invocation.
 Replace with a Vercel Cron Job (`"crons"` in `vercel.json`) hitting
-`POST /api/feeds/refresh` on a schedule. Requires the feed cache to be stored in
-persistent storage (see above).
+`POST /api/feeds/refresh` on a schedule. Feed preferences are already stored in Turso,
+so the storage dependency is resolved — only the cron scheduling remains.
 
 ### Self-Host Fonts and Client Dependencies
 `index.html` loads JetBrains Mono from Google Fonts (privacy leak — every visit
