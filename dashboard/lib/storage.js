@@ -130,20 +130,20 @@ async function readFile(relativePath, { userId } = {}) {
 
         // 2. Try the example file from the deployed filesystem
         if (relativePath.startsWith('config/')) {
-          const exResult = fm.readFile(examplePath(relativePath));
+          const exResult = await fm.readFile(examplePath(relativePath));
           if (!exResult.error) return exResult;
         }
 
         // 3. Last resort: try the original path from filesystem
-        return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
+        return isDataPath(relativePath) ? readDataFile(relativePath) : await fm.readFile(relativePath);
       }
       // No userId — unauthenticated or non-user path: seed from filesystem
-      return isDataPath(relativePath) ? readDataFile(relativePath) : fm.readFile(relativePath);
+      return isDataPath(relativePath) ? readDataFile(relativePath) : await fm.readFile(relativePath);
     }
     return result;
   }
   if (isDataPath(relativePath)) return readDataFile(relativePath);
-  return fm.readFile(relativePath);
+  return await fm.readFile(relativePath);
 }
 
 /**

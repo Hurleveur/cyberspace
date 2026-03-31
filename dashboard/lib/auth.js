@@ -212,7 +212,7 @@ function csrfProtection(req, res, next) {
     return res.status(403).json({ error: 'CSRF: Missing origin header' });
   }
 
-  const host = req.headers.host;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
   try {
     const originHost = new URL(origin).host;
     if (originHost !== host) {
