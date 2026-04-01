@@ -105,5 +105,19 @@
     "source_url": "https://defcon.org/html/defcon-groups/dc-groups-index.html",
     "location_label": "Your City",
     "date": "2026-03-15"
+  },
+  {
+    "id": "event-follow-the-white-rabbit",
+    "type": "event",
+    "priority": "high",
+    "category": "event",
+    "title": "Follow the White Rabbit",
+    "summary": "Matrix-themed screening at Plaine ULB. Find where and when.",
+    "source_url": "https://urlab.be",
+    "lat": 50.819834401796925,
+    "lng": 4.398809209414423,
+    "location_label": "Plaine ULB, Brussels",
+    "date": "2026-04-09",
+    "hint": "the gpx knows more"
   }
 ]

@@ -41,6 +41,27 @@
 **Relevance:** ★★★★☆ (8/10) — One of Europe's strongest technical security conferences
 **Why this matters:** Practitioner research presentations, no vendor pitches. Covers offensive security, infrastructure, and emerging threats. Strong community atmosphere.
 
+# Event Radar — Monday, April 6, 2026
+
+> A signal was detected.
+
+---
+
+## ⏰ Don't Miss
+
+### [Follow the White Rabbit](https://urlab.be)
+**When:** April 9, 2026 — the exact time is not listed here. Find it.
+**Where:** Plaine ULB, Brussels — the exact location is yours to discover
+**Cost:** Free — entry requires knowing when and where
+**Calendar:** ✅ Available
+**Relevance:** ★★★★★ (10/10) — follow the white rabbit
+**Why this matters:** A Matrix-themed screening hosted by URlab somewhere on Plaine ULB campus. Grilled ham & cheese and popcorn provided. Finding this listing was step one. The time and room: find them.
+
+---
+
+*Generated 2026-04-06 — Cyberspace Intelligence System*
+
+
 ---
 
 ## Conference Calendar
