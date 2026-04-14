@@ -1,5 +1,7 @@
 # Cyberspace Intelligence System
 
+![image](docs/showcase.png)
+
 A self-configuring personal intelligence agent that wakes up every morning, searches the
 web for cybersecurity and AI news, and delivers a curated daily briefing and weekly event
 radar — rendered on a local hacker-aesthetic dashboard.
@@ -11,6 +13,12 @@ Node.js server. Configured entirely through plain markdown files.
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 ---
+
+## Online preview
+
+The online preview gives you access to RSS feeds selection once you log in to follow the sites you care about, and also includes preview briefings I generated. I plan to add events to it.
+
+![image2](docs/showcase2.png)
 
 ## What it does
 
