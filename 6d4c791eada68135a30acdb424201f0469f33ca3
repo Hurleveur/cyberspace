@@ -1,0 +1,23 @@
+dashboard/public/js/events.js
+  55e992b905224a5d 551-552,624-626,628-629,694
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "6d4c791eada68135a30acdb424201f0469f33ca3",
+  "prompts": {
+    "55e992b905224a5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "700180c8-8c1f-4ded-af89-6e01666ae7af",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "hurleveur",
+      "messages": [],
+      "total_additions": 716,
+      "total_deletions": 710,
+      "accepted_lines": 8,
+      "overriden_lines": 2
+    }
+  }
+}
