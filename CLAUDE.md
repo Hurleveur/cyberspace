@@ -29,7 +29,7 @@ Read these at the start of every run (Phase 0):
 | `config/news.md` | News categories, source tiers, priority rules, tech stack monitor list |
 | `config/feedback.md` | Pending feedback to apply this run |
 | `config/seen-events.md` | Events already surfaced — deduplication log |
-| `config/previous-news.md` | Stories already reported — deduplication log (21-day window) |
+| `config/previous-news.md` | Stories already reported — deduplication log (kept indefinitely) |
 
 Writable files (Phase 1 + Phase 4):
 
@@ -160,8 +160,8 @@ Check whether `reports/` contains any date subfolders (matching `reports/20*/`).
 4. On Monday runs only: write `events.md` (use Python binary-mode write for LF-only line endings — see Dashboard Compatibility).
 5. On first run only: write `announcement.md` using the format below.
 6. Write `markers.json`.
-7. Append to `config/previous-news.md` (one bullet per story, one line max). Prune entries older than 21 days.
-8. On Monday runs: append to `config/seen-events.md`, remove entries whose event date has passed.
+7. Append to `config/previous-news.md` (one bullet per story, one line max). Never prune — all entries are kept indefinitely.
+8. On Monday runs: append to `config/seen-events.md`. Never prune — all entries are kept indefinitely.
 
 **Announcement format** (first run or major version change):
 ```markdown
@@ -238,6 +238,11 @@ Omit entirely if none.}
 
 - [ ] {concrete action tied to a specific story above}
 
+{Only include action items when the story requires a concrete response from Alex personally.
+Do NOT generate action items for vulnerabilities in technology Alex doesn't use or isn't
+affected by. For example: iOS-specific issues are not relevant — Alex uses Android.
+Generic "stay informed" or "monitor" items are not action items — omit them.}
+
 ---
 
 ## Further Reading
@@ -259,7 +264,11 @@ Omit entirely if none.}
 CVEs: ID, CVSS, affected product, patch status.
 Breaches: who, scale, attack vector.
 Threat actors: name, attribution, TTPs.
+
+*Sources used: [Source1](url1), [Source2](url2)*
 ```
+
+Note: Every story must end with a `*Sources used:*` line listing all URLs consulted for that story.
 
 ---
 

@@ -548,6 +548,8 @@ const Events = {
     }
 
     // 2. Clean non-date tokens
+    // Strip em dash and everything after — used as description separator (e.g. "April 9, 2026 — details here")
+    text = text.replace(/\s*—.*$/, '');
     text = text
       .replace(/·/g, ' ')
       .replace(/\b(?:CET|CEST|GMT|UTC|BST|EST|PST|CST|MST|EDT|PDT|EET|EEST)\b/gi, ' ')
@@ -619,13 +621,12 @@ const Events = {
       return this._buildIcs(event, [`DTSTART:${toIcsDt(parsed.start)}`, `DTEND:${toIcsDt(parsed.end)}`], stamp);
     }
 
-    // Fallback: all-day event for today (not a fake future date)
-    const today = new Date(now);
-    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
-    const pad2 = pad;
+    // Fallback: use marker date field if available, otherwise today
+    const fallbackDate = event.date ? new Date(event.date + 'T00:00:00') : new Date(now);
+    const fallbackEnd = new Date(fallbackDate); fallbackEnd.setDate(fallbackDate.getDate() + 1);
     const dtLines = [
-      `DTSTART;VALUE=DATE:${today.getFullYear()}${pad2(today.getMonth()+1)}${pad2(today.getDate())}`,
-      `DTEND;VALUE=DATE:${tomorrow.getFullYear()}${pad2(tomorrow.getMonth()+1)}${pad2(tomorrow.getDate())}`,
+      `DTSTART;VALUE=DATE:${fallbackDate.getFullYear()}${pad(fallbackDate.getMonth()+1)}${pad(fallbackDate.getDate())}`,
+      `DTEND;VALUE=DATE:${fallbackEnd.getFullYear()}${pad(fallbackEnd.getMonth()+1)}${pad(fallbackEnd.getDate())}`,
     ];
     return this._buildIcs(event, dtLines, stamp);
   },
@@ -690,6 +691,11 @@ const Events = {
       dates = parsed.allDay
         ? `${toGcalDate(parsed.start)}/${toGcalDate(parsed.end)}`
         : `${toGcalDt(parsed.start)}/${toGcalDt(parsed.end)}`;
+    } else if (event.date) {
+      // Fallback to marker date field (ISO YYYY-MM-DD) when when field can't be parsed
+      const d = new Date(event.date + 'T00:00:00');
+      const next = new Date(d); next.setDate(d.getDate() + 1);
+      dates = `${toGcalDate(d)}/${toGcalDate(next)}`;
     }
 
     const description = [
