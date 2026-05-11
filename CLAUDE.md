@@ -93,9 +93,11 @@ Then:
 
 ### Phase 3 — Event Discovery
 
-**Only on Mondays.** On non-Monday runs: skip. Exception — if a 9+/10 event or imminent deadline is found incidentally during Phase 2, add a brief `⚡ Urgent Event Alert` section to the briefing only.
+**Run on Mondays, OR as a catch-up on any other weekday if no `events.md` exists in the most recent Monday's `reports/YYYY-MM-DD/` folder.** On non-Monday runs where the most recent Monday DOES have an `events.md`: skip. Exception — if a 9+/10 event or imminent deadline is found incidentally during Phase 2, add a brief `⚡ Urgent Event Alert` section to the briefing only.
 
-On Mondays:
+To determine the most recent Monday: take today's date and walk back to the nearest Monday on or before today (if today is Monday, that's today). Check whether `reports/<that-monday>/events.md` exists. If it does not exist, run the full Monday flow below on this run and write `events.md` for today's date.
+
+On Mondays (or catch-up runs):
 1. Run up to 5 searches using sources from `config/events.md`.
 2. Score each event using the relevance matrix in `config/events.md`.
 3. Filter against `config/seen-events.md` — seen once = done. Re-include only if:

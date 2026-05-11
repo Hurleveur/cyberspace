@@ -7,13 +7,6 @@ date: 2026-03-19
 
 https://www.github.com/Hurleveur/cyberspace
 
----
-
-## 🐇 Follow the White Rabbit
-
-Something is happening on April 9th. Somewhere on Plaine ULB. Find the source to find where.
-
-
 ```
 ██████╗██╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗  █████╗  ██████╗███████╗
 ██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝
