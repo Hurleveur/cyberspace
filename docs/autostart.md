@@ -91,11 +91,57 @@ Logs rotate automatically and are written to the `daemon/` folder.
 
 ---
 
-## Linux — PM2
+## Linux — systemd (recommended)
 
-[PM2](https://pm2.keymetrics.io/) is a production process manager for Node.js. It handles
-autostart via systemd or init scripts and provides log rotation, crash recovery, and a
-monitoring interface.
+Native to every systemd-based distro (Ubuntu, Fedora, Debian, Arch, ...) — no extra
+package to install. The repo ships a script that generates and installs a `systemd --user`
+unit for you.
+
+### Install
+
+```bash
+cd /path/to/cyberspace/dashboard
+npm install                        # first time only
+./install-service-linux.sh
+```
+
+The script will:
+1. Write `~/.config/systemd/user/cyberspace-dashboard.service` pointing at this
+   checkout's `server.js` and the `node` binary on your `PATH`
+2. `daemon-reload`, then `enable --now` the service (starts immediately + on every boot)
+3. Run `loginctl enable-linger $USER` so the service starts at boot even before you log in,
+   and keeps running after you log out
+
+### Verify
+
+```bash
+systemctl --user status cyberspace-dashboard
+journalctl --user -u cyberspace-dashboard -f   # tail logs
+curl -I http://localhost:3000
+```
+
+### Manage
+
+| Action | Command |
+|--------|---------|
+| Stop | `systemctl --user stop cyberspace-dashboard` |
+| Start | `systemctl --user start cyberspace-dashboard` |
+| Restart | `systemctl --user restart cyberspace-dashboard` |
+| Status | `systemctl --user status cyberspace-dashboard` |
+| Logs | `journalctl --user -u cyberspace-dashboard -f` |
+| Uninstall | `./uninstall-service-linux.sh` |
+
+### Env changes
+
+Edit `dashboard/.env`, then `systemctl --user restart cyberspace-dashboard`.
+
+---
+
+## Linux — PM2 (alternative)
+
+Prefer this only if you already manage other Node apps with [PM2](https://pm2.keymetrics.io/)
+and want them all under one tool. Otherwise the systemd option above is simpler — no
+extra global package.
 
 ### 1. Install PM2
 

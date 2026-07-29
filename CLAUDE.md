@@ -1,6 +1,6 @@
 # CLAUDE.md — Cyberspace Intelligence System
 
-> Agent instructions for the daily intelligence briefing. Read this file first on every run.
+> Agent instructions for the intelligence briefing. Runs weekly, Mondays only. Read this file first on every run.
 > Human documentation → `readme.md`. Dashboard technical plan → `docs/DASHBOARD-PLAN.md`.
 
 ---
@@ -39,10 +39,10 @@ Writable files (Phase 1 + Phase 4):
 | `config/events.md` | Feedback processing only |
 | `config/news.md` | Feedback processing only |
 | `config/feedback.md` | Cleared after processing (overwrite with blank template) |
-| `config/seen-events.md` | Appended + pruned on Monday runs |
+| `config/seen-events.md` | Appended + pruned every run |
 | `config/previous-news.md` | Appended + pruned (21-day window) on every run |
 | `reports/YYYY-MM-DD/briefing.md` | Created each run |
-| `reports/YYYY-MM-DD/events.md` | Created on Monday runs only |
+| `reports/YYYY-MM-DD/events.md` | Created every run |
 | `reports/YYYY-MM-DD/markers.json` | Created each run |
 | `reports/YYYY-MM-DD/announcement.md` | First run only (or major version changes) |
 
@@ -76,15 +76,16 @@ If feedback.md is empty or contains only its template headers: skip this phase e
 
 **Web budget:** exactly 5 searches. Max 1 WebFetch, only for a 🔴 CRITICAL story where the headline is genuinely ambiguous and the snippet is insufficient. Default: do not fetch.
 
-Run these 5 searches, replacing `{date}` with yesterday's date (e.g. "March 13 2026"):
+This runs once a week — replace `{range}` with the past 7 days since the last run (e.g.
+"March 7-13 2026" or "this week"), not just yesterday, so nothing in the gap is missed:
 
 | # | Query | Categories covered |
 |---|-------|--------------------|
-| 1 | `cybersecurity ransomware malware breach incident {date}` | Active Threats + Breaches |
-| 2 | `CVE vulnerability exploit patch CISA KEV {date}` | Vulnerability Intel |
-| 3 | `APT threat actor campaign nation state cyber {date}` | Threat Actors |
-| 4 | `AI security LLM artificial intelligence attack {date}` | AI & Security |
-| 5 | Build from `config/news.md` tech stack list: `{key tools from stack} vulnerability {date}` | Stack monitoring |
+| 1 | `cybersecurity ransomware malware breach incident {range}` | Active Threats + Breaches |
+| 2 | `CVE vulnerability exploit patch CISA KEV {range}` | Vulnerability Intel |
+| 3 | `APT threat actor campaign nation state cyber {range}` | Threat Actors |
+| 4 | `AI security LLM artificial intelligence attack {range}` | AI & Security |
+| 5 | Build from `config/news.md` tech stack list: `{key tools from stack} vulnerability {range}` | Stack monitoring |
 
 Then:
 - Filter and score every story against `config/interests.md` and `config/news.md`.
@@ -93,11 +94,8 @@ Then:
 
 ### Phase 3 — Event Discovery
 
-**Run on Mondays, OR as a catch-up on any other weekday if no `events.md` exists in the most recent Monday's `reports/YYYY-MM-DD/` folder.** On non-Monday runs where the most recent Monday DOES have an `events.md`: skip. Exception — if a 9+/10 event or imminent deadline is found incidentally during Phase 2, add a brief `⚡ Urgent Event Alert` section to the briefing only.
+Runs every time (the agent now only executes on Mondays):
 
-To determine the most recent Monday: take today's date and walk back to the nearest Monday on or before today (if today is Monday, that's today). Check whether `reports/<that-monday>/events.md` exists. If it does not exist, run the full Monday flow below on this run and write `events.md` for today's date.
-
-On Mondays (or catch-up runs):
 1. Run up to 5 searches using sources from `config/events.md`.
 2. Score each event using the relevance matrix in `config/events.md`.
 3. Filter against `config/seen-events.md` — seen once = done. Re-include only if:
@@ -159,11 +157,11 @@ Check whether `reports/` contains any date subfolders (matching `reports/20*/`).
 1. Count date subfolders in `reports/` to determine the streak number (folder count + 1 for this run).
 2. Create `reports/YYYY-MM-DD/`.
 3. Write `briefing.md`.
-4. On Monday runs only: write `events.md` (use Python binary-mode write for LF-only line endings — see Dashboard Compatibility).
+4. Write `events.md` every run (use Python binary-mode write for LF-only line endings — see Dashboard Compatibility).
 5. On first run only: write `announcement.md` using the format below.
 6. Write `markers.json`.
 7. Append to `config/previous-news.md` (one bullet per story, one line max). Never prune — all entries are kept indefinitely.
-8. On Monday runs: append to `config/seen-events.md`. Never prune — all entries are kept indefinitely.
+8. Append to `config/seen-events.md`. Never prune — all entries are kept indefinitely.
 
 **Announcement format** (first run or major version change):
 ```markdown
@@ -178,10 +176,10 @@ Content — plain markdown, voice of the system.
 
 ---
 
-## Output Format — Daily Briefing
+## Output Format — Weekly Briefing
 
 ```markdown
-# Daily Briefing — {Weekday}, {Date}
+# Weekly Briefing — {Weekday}, {Date}
 
 > Briefing #{streak} · {emoji} {THREAT LEVEL}
 
@@ -204,7 +202,7 @@ operator-specific context from config/interests.md}
 
 **Key themes:** {comma-separated}
 **Most affected regions:** {list}
-**Forward look:** {1 sentence on what to watch in 24–48h}
+**Forward look:** {1 sentence on what to watch over the coming week}
 
 ---
 
@@ -279,9 +277,6 @@ Note: Every story must end with a `*Sources used:*` line listing all URLs consul
 ```markdown
 # Event Radar — {Date}
 
-## ⚡ Urgent Event Alert
-{Non-Monday only, score 9+/10 or deadline within 48h. Otherwise omit.}
-
 ## ⏰ Don't Miss (deadline or event within 48h)
 
 ## This Month
@@ -291,7 +286,7 @@ Note: Every story must end with a `*Sources used:*` line listing all URLs consul
 ## Conference Calendar
 {Major annual events: dates, early-bird deadlines, CFP windows.}
 
-*Generated {datetime} — next full scan: Monday*
+*Generated {datetime} — next full scan: next Monday*
 ```
 
 **Per-event format:**
@@ -376,12 +371,11 @@ If a field is unknown, omit the event entirely until confirmed.
 - **No filler.** Empty sections are worse than omitted sections.
 - **Own words.** Summarize — never copy-paste article text.
 - **Honest about gaps.** If searches returned little, say so.
-- **Balance.** Mix stack-specific alerts with the biggest global stories of the day.
+- **Balance.** Mix stack-specific alerts with the biggest global stories of the past week.
 
 ---
 
 ## Streak & Milestones
 
 - Streak = number of date subfolders in `reports/`.
-- **Fridays:** add a **Week in Review** section at the bottom of the briefing comparing threat levels and recurring themes across the week.
 - Real numbers only. No invented statistics.

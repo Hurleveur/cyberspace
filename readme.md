@@ -3,7 +3,7 @@
 ![image](docs/showcase.png)
 
 A self-configuring personal intelligence agent that wakes up every morning, searches the
-web for cybersecurity and AI news, and delivers a curated daily briefing and weekly event
+web for cybersecurity and AI news, and delivers a curated weekly briefing and event
 radar — rendered on a local hacker-aesthetic dashboard.
 
 Built on [Claude Cowork](https://claude.ai/download) (Anthropic) and a lightweight
@@ -22,14 +22,14 @@ The online preview gives you access to RSS feeds selection once you log in to fo
 
 ## What it does
 
-Every morning at a scheduled time, the system:
+Every Monday morning, the system:
 
 1. Reads your profile (`config/interests.md`) and configuration files
 2. Applies any feedback you've written since the last run
-3. Runs 5 targeted web searches across cybersecurity and AI categories
+3. Runs 5 targeted web searches covering the past week across cybersecurity and AI categories
 4. Filters and scores every story against your interests, tech stack, and geographic focus
-5. Writes a **Daily Briefing** (`reports/YYYY-MM-DD/briefing.md`) with threat analysis, action items, and categorised stories
-6. On Mondays: runs a full **Event Radar** and writes `reports/YYYY-MM-DD/events.md`
+5. Writes a **Weekly Briefing** (`reports/YYYY-MM-DD/briefing.md`) with threat analysis, action items, and categorised stories
+6. Runs a full **Event Radar** and writes `reports/YYYY-MM-DD/events.md`
 7. Saves `markers.json` for the dashboard map
 
 The dashboard auto-updates when a new report lands. See `reports/example/` for sample output.
@@ -53,7 +53,7 @@ Cyberspace has two independent components that work together:
 
 **The agent** — runs inside [Claude Cowork](https://claude.ai/download) as a scheduled
 task. It reads your profile and config files, runs targeted web searches, and writes a
-daily briefing to `reports/`. It runs once a day — it does not need to stay running.
+briefing to `reports/`. It runs once a week (Mondays) — it does not need to stay running.
 
 **The dashboard** — a local Node.js server at `http://localhost:3000`. It watches the
 `reports/` folder and auto-refreshes when a new briefing lands. This is what you look at
@@ -154,7 +154,7 @@ Config files are in the config/ subfolder.
 Reports are written to reports/YYYY-MM-DD/ (create today's folder).
 ```
 
-Set the schedule to run daily at your preferred time (e.g. 08:00 or 10:00 local time).
+Set the schedule to run weekly, Mondays, at your preferred time (e.g. `0 7 * * 1`).
 
 > **Note:** `CLAUDE.md` contains the agent's operational instructions — it is read by the
 > Claude Cowork scheduled task, not by Claude.ai chat or the Claude Code CLI.
@@ -166,7 +166,7 @@ Set the schedule to run daily at your preferred time (e.g. 08:00 or 10:00 local 
 Trigger the scheduled task manually from Cowork. On first run, the system will:
 - Detect that `reports/` is empty and display the system initialization banner
 - Write `reports/YYYY-MM-DD/briefing.md` and `announcement.md`
-- Produce a Monday event radar if today is Monday
+- Produce the event radar
 
 Open `http://localhost:3000` and you'll see your first briefing.
 
@@ -283,9 +283,9 @@ Full instructions for both platforms: **[docs/autostart.md](docs/autostart.md)**
 
 Each run produces a folder at `reports/YYYY-MM-DD/` containing up to four files:
 
-**`briefing.md`** — the daily intelligence report. Contains the threat landscape summary, categorised stories with source citations and priority levels, action items, and further reading links. The Briefing panel renders this directly.
+**`briefing.md`** — the weekly intelligence report. Contains the threat landscape summary, categorised stories with source citations and priority levels, action items, and further reading links. The Briefing panel renders this directly.
 
-**`events.md`** — the weekly event radar. Written on Monday runs only; persists in the dashboard across the whole week until the next Monday scan overwrites it. The Events panel parses this file with a strict field-name regex — field names like `**When:**`, `**Where:**`, `**Relevance:**`, and `**Why this matters:**` must be exact. See `CLAUDE.md` → Dashboard Compatibility for the full rules.
+**`events.md`** — the weekly event radar, written every run; persists in the dashboard until the next Monday scan overwrites it. The Events panel parses this file with a strict field-name regex — field names like `**When:**`, `**Where:**`, `**Relevance:**`, and `**Why this matters:**` must be exact. See `CLAUDE.md` → Dashboard Compatibility for the full rules.
 
 **`markers.json`** — geocoded map markers for every story and event in that day's briefing. The map plots pins coloured by priority (red → critical, orange → high, yellow → medium, green → low). Clicking a marker highlights the corresponding story in the Briefing panel.
 
@@ -294,10 +294,6 @@ Each run produces a folder at `reports/YYYY-MM-DD/` containing up to four files:
 ### The streak
 
 The briefing footer shows `Briefing #N` where N is the count of date subfolders in `reports/`. Increments automatically — no manual counter.
-
-### Friday week in review
-
-On Friday runs, the system appends a **Week in Review** section comparing threat levels and recurring themes across the week — useful for spotting escalating campaigns that only become visible over several days.
 
 ### Deduplication
 
@@ -341,7 +337,7 @@ cyberspace/
 │   │   └── markers.json
 │   └── YYYY-MM-DD/            ← Your daily reports (gitignored)
 │       ├── briefing.md
-│       ├── events.md          ← Monday runs only
+│       ├── events.md          ← every run
 │       ├── markers.json
 │       └── announcement.md    ← First run or major version changes only
 │
