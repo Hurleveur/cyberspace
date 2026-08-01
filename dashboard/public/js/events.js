@@ -528,10 +528,18 @@ const Events = {
 
     // 1. Extract time info
     let startH = null, startM = null, endH = null, endM = null;
-    const range24 = text.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})(\s*(?:AM|PM))?/i);
+    // AM/PM can land on either side of the dash ("5:00 PM – 10:00 PM" or "17:30–20:30")
+    const range24 = text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?\s*[-–]\s*(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
     if (range24) {
       startH = parseInt(range24[1]); startM = parseInt(range24[2]);
-      endH = parseInt(range24[3]); endM = parseInt(range24[4]);
+      endH = parseInt(range24[4]); endM = parseInt(range24[5]);
+      const endAmpm = range24[6] ? range24[6].toUpperCase() : null;
+      // start's own AM/PM if given, else inherit the end's (covers "5:00 – 10:00 PM")
+      const startAmpm = range24[3] ? range24[3].toUpperCase() : endAmpm;
+      if (startAmpm === 'PM' && startH !== 12) startH += 12;
+      if (startAmpm === 'AM' && startH === 12) startH = 0;
+      if (endAmpm === 'PM' && endH !== 12) endH += 12;
+      if (endAmpm === 'AM' && endH === 12) endH = 0;
       text = text.replace(range24[0], ' ');
     } else {
       const single = text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
@@ -579,11 +587,11 @@ const Events = {
     // 4. Final cleanup
     text = text.replace(/^[\s,–-]+/, '').replace(/[\s,–-]+$/, '').replace(/\s+/g, ' ').trim();
 
-    // 5. Parse the date string
-    let baseDate = new Date(text);
-    if (isNaN(baseDate.getTime()) && !/\d{4}/.test(text)) {
-      baseDate = new Date(text + ' ' + new Date().getFullYear());
-    }
+    // 5. Parse the date string. No explicit year → append the current one;
+    // `new Date("March 11")` doesn't fail, it silently defaults to 2001.
+    const baseDate = /\d{4}/.test(text)
+      ? new Date(text)
+      : new Date(`${text} ${new Date().getFullYear()}`);
     if (isNaN(baseDate.getTime())) return null;
 
     // 6. Build result
