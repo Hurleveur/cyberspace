@@ -94,15 +94,22 @@ Then:
 
 ### Phase 3 — Event Discovery
 
-Runs every time (the agent now only executes on Mondays):
+Runs every time (the agent now only executes on Mondays). **Weekly cadence = deep scan.**
 
-1. Run up to 5 searches using sources from `config/events.md`.
-2. Score each event using the relevance matrix in `config/events.md`.
+1. Run **10–14 searches** using the search budget table in `config/events.md`. Cover the
+   next 3 months, not just the coming week. Any category that file marks a **standing
+   priority** gets its reserved searches every run — never skipped, never traded away
+   for more tech events.
+2. Score each event using the relevance matrix in `config/events.md`, including any
+   per-category scoring override that file defines.
 3. Filter against `config/seen-events.md` — seen once = done. Re-include only if:
    - Status is `—` (undecided) AND deadline within 48h, OR
    - An explicit re-include trigger is set in the trigger column.
 4. Check Google Calendar: skip events already in the calendar. Flag conflicts as `⚠️ Conflict`.
-5. Keep only events scoring 6/10 or above. Cap at 10 events — soonest first.
+5. Keep events scoring 6/10 or above, or above the lower threshold `config/events.md`
+   sets for a priority category. Target 15–20 events, hard cap 25 — soonest first,
+   with that file's reserved slots honoured before anything is cut.
+6. If fewer than 15 events survive, spend the remaining search budget before writing.
 
 ### Phase 3.5 — First Run Detection
 
@@ -278,6 +285,9 @@ Note: Every story must end with a `*Sources used:*` line listing all URLs consul
 # Event Radar — {Date}
 
 ## ⏰ Don't Miss (deadline or event within 48h)
+
+{Any priority-category section defined in `config/events.md` goes here — always present,
+and when nothing was found, say so and list the sources checked.}
 
 ## This Month
 

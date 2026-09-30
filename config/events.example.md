@@ -7,13 +7,36 @@
 
 ## Cadence
 
-**Events are checked once per week (Mondays).**
-On non-Monday runs, skip the event scan entirely — UNLESS:
-- A score 9+/10 event is found incidentally during the daily scan
-- An event has a registration deadline within 48h
+**The system runs once per week, on Mondays. Every run does a full event scan.**
+Cover the next 3 months, not just the coming week — one run per week means anything
+missed waits 7 days.
 
-When the exception fires on a non-Monday, include only that specific event at the
-top of the briefing under "⚡ Urgent Event Alert" — do not run a full event scan.
+---
+
+## Search Budget — go deep
+
+**Run 10–14 searches per event scan.** A thin scan is a failed scan.
+
+| # | Searches | Focus |
+|---|----------|-------|
+| 1–4 | 4 | Core topic events — your city, country, region (rotate platforms) |
+| 5–7 | 3 | Reserved for your **standing priority** category, if you set one below |
+| 8–9 | 2 | Adjacent community events in your city |
+| 10 | 1 | Conference calendar + CFP deadlines |
+| 11–14 | up to 4 | Follow-ups: thin categories, specific venue/organiser agendas, second pages |
+
+If a category returns fewer than 3 usable results, spend a follow-up search on it
+before moving on.
+
+---
+
+## Standing Priority Category (optional)
+
+Define a category here that gets reserved searches, its own scoring override, its own
+report section, and reserved output slots every run — for something that matters right
+now and would otherwise lose to the main topic on relevance. Give it: sources to search,
+search terms (in every language your city uses), a score threshold, and how many slots
+it reserves. Delete this block if you don't need one.
 
 ---
 
@@ -47,10 +70,16 @@ actually attended — this reveals real-world preferences beyond what is written
 
 ## Output Limit
 
-**Maximum 10 events per report.** Priority order when cutting:
+**Target 15–20 events per report, hard maximum 25.** One report covers a whole week —
+a short list is a failure, not restraint.
+
+Reserved slots, never cut for space: your standing priority category's slots, and
+anything with a deadline inside 7 days.
+
+Priority order when cutting the rest:
 1. Events happening soonest come first
 2. Higher relevance scores take priority at the same time horizon
-3. Cut from "On the Radar" first, never from "This Week"
+3. Cut from "On the Radar" first, never from "Don't Miss"
 
 ---
 
@@ -95,9 +124,11 @@ Rate each event on these criteria. **Minimum to include: 6/10.**
 | **Cost** | 1x | Free (3) / low cost (2) / moderate (1) / expensive (0) — unless exceptional |
 | **Timeliness** | 1x | <2 weeks (3) / <1 month (2) / <3 months (1) / further (0) |
 
-**Score 9–10:** Include even outside the weekly Monday run (urgent alert).
-**Score 6–8:** Include in the weekly Monday report.
-**Score <6:** Discard.
+**Score 6–10:** Include in the weekly report.
+**Score <6:** Discard — unless a standing priority category sets a lower threshold.
+
+> A standing priority category usually needs its own scoring matrix: the one above rates
+> topic match against interests.md, so anything off-topic scores 0 there by design.
 
 ---
 
@@ -124,10 +155,10 @@ Rate each event on these criteria. **Minimum to include: 6/10.**
 ```
 # Event Radar — {Date}
 
-## ⚡ Urgent Event Alert
-{Only on non-Monday runs, only if an exceptional 9+/10 event was found. Otherwise omit.}
-
 ## ⏰ Don't Miss (happening this week or deadline within 48h)
+
+## {Your standing priority category, if you set one}
+{Always present. If nothing was found, say so and list the sources checked.}
 
 ## This Month
 
