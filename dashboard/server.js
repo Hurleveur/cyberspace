@@ -662,6 +662,38 @@ app.post('/api/feedback', writeLimiter, requireAuth, async (req, res) => {
   }
 });
 
+// --- Radio Proxy ---
+// SomaFM's Icecast mounts 403 on the Range request that <audio crossorigin> sends
+// automatically. Proxying strips it: we never forward Range upstream and always
+// answer 200, so the browser falls back to non-seekable streaming (fine for live radio).
+const RADIO_STATIONS = {
+  defcon:         'https://ice1.somafm.com/defcon-256-mp3',
+  dronezone:      'https://ice1.somafm.com/dronezone-256-mp3',
+  deepspaceone:   'https://ice1.somafm.com/deepspaceone-128-mp3',
+  vaporwaves:     'https://ice1.somafm.com/vaporwaves-128-mp3',
+  spacestation:   'https://ice1.somafm.com/spacestation-128-mp3',
+  cliqhop:        'https://ice1.somafm.com/cliqhop-256-mp3',
+  thetrip:        'https://ice1.somafm.com/thetrip-128-mp3',
+  missioncontrol: 'https://ice1.somafm.com/missioncontrol-128-mp3',
+  sf1033:         'https://ice1.somafm.com/sf1033-128-mp3',
+};
+
+app.get('/api/radio/:station', (req, res) => {
+  const url = RADIO_STATIONS[req.params.station];
+  if (!url) return res.status(404).end();
+
+  const upstreamReq = https.get(url, (upstream) => {
+    if (upstream.statusCode !== 200) {
+      res.status(502).end();
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': upstream.headers['content-type'] || 'audio/mpeg' });
+    upstream.pipe(res);
+  });
+  upstreamReq.on('error', () => { if (!res.headersSent) res.status(502).end(); });
+  req.on('close', () => upstreamReq.destroy());
+});
+
 // --- Admin API ---
 
 // GET /api/admin/users — list all users (admin only)

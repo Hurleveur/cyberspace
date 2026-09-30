@@ -5,15 +5,15 @@
  */
 const MusicPlayer = {
   STATIONS: [
-    { id: 'defcon',         name: 'DEF CON Radio',    url: 'https://ice1.somafm.com/defcon-256-mp3',         desc: 'Hacker conference vibes' },
-    { id: 'dronezone',      name: 'Drone Zone',       url: 'https://ice1.somafm.com/dronezone-256-mp3',      desc: 'Atmospheric ambient' },
-    { id: 'deepspaceone',   name: 'Deep Space One',   url: 'https://ice1.somafm.com/deepspaceone-128-mp3',   desc: 'Deep ambient electronic' },
-    { id: 'vaporwaves',     name: 'Vaporwaves',       url: 'https://ice1.somafm.com/vaporwaves-128-mp3',     desc: 'Vaporwave & future funk' },
-    { id: 'spacestation',   name: 'Space Station',    url: 'https://ice1.somafm.com/spacestation-128-mp3',   desc: 'Ambient / mid-tempo' },
-    { id: 'cliqhop',        name: 'cliqhop idm',      url: 'https://ice1.somafm.com/cliqhop-256-mp3',        desc: 'Beats + intelligent dance' },
-    { id: 'thetrip',        name: 'The Trip',         url: 'https://ice1.somafm.com/thetrip-128-mp3',        desc: 'Progressive house / trance' },
-    { id: 'missioncontrol', name: 'Mission Control',  url: 'https://ice1.somafm.com/missioncontrol-128-mp3', desc: 'NASA comms over ambient' },
-    { id: 'sf1033',         name: 'SF 10:33',         url: 'https://ice1.somafm.com/sf1033-128-mp3',         desc: 'Ambient pirate radio' },
+    { id: 'defcon',         name: 'DEF CON Radio',    url: '/api/radio/defcon',         desc: 'Hacker conference vibes' },
+    { id: 'dronezone',      name: 'Drone Zone',       url: '/api/radio/dronezone',      desc: 'Atmospheric ambient' },
+    { id: 'deepspaceone',   name: 'Deep Space One',   url: '/api/radio/deepspaceone',   desc: 'Deep ambient electronic' },
+    { id: 'vaporwaves',     name: 'Vaporwaves',       url: '/api/radio/vaporwaves',     desc: 'Vaporwave & future funk' },
+    { id: 'spacestation',   name: 'Space Station',    url: '/api/radio/spacestation',   desc: 'Ambient / mid-tempo' },
+    { id: 'cliqhop',        name: 'cliqhop idm',      url: '/api/radio/cliqhop',        desc: 'Beats + intelligent dance' },
+    { id: 'thetrip',        name: 'The Trip',         url: '/api/radio/thetrip',        desc: 'Progressive house / trance' },
+    { id: 'missioncontrol', name: 'Mission Control',  url: '/api/radio/missioncontrol', desc: 'NASA comms over ambient' },
+    { id: 'sf1033',         name: 'SF 10:33',         url: '/api/radio/sf1033',         desc: 'Ambient pirate radio' },
   ],
 
   index: 0,
