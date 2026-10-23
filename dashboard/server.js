@@ -27,6 +27,8 @@ const { fetchAllFeeds, fetchSingleFeed } = require('./lib/rssFetcher');
 
 const HTTP_PORT  = process.env.HTTP_PORT  || process.env.PORT || 3000;
 const HTTPS_PORT = process.env.HTTPS_PORT || 4444;
+// Loopback by default: the API has no auth. HOST=0.0.0.0 opens it to every network the box is on.
+const HOST       = process.env.HOST || '127.0.0.1';
 const CERT_DIR   = path.join(__dirname, 'certs');
 const CERT_FILE  = path.join(CERT_DIR, 'cert.pem');
 const KEY_FILE   = path.join(CERT_DIR, 'key.pem');
@@ -844,7 +846,7 @@ if (tlsOptions) {
 
 if (require.main === module) {
   // Local dev: start the server directly
-  server.listen(serverPort, () => {
+  server.listen(serverPort, HOST, () => {
     const scheme = tlsOptions ? 'https' : 'http';
     console.log(`\n  Cyberspace Dashboard`);
     console.log(`  ${scheme}://localhost:${serverPort}`);
@@ -861,7 +863,7 @@ if (require.main === module) {
   });
 
   if (redirectServer) {
-    redirectServer.listen(HTTP_PORT, () => {
+    redirectServer.listen(HTTP_PORT, HOST, () => {
       console.log(`  http://localhost:${HTTP_PORT}  →  redirects to https://localhost:${HTTPS_PORT}\n`);
     });
   }
