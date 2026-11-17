@@ -12,4 +12,3 @@
 
 ## Official Advisories
 - https://www.cisa.gov/cybersecurity-advisories/all.xml [HIGH]
-- https://www.enisa.europa.eu/publications/rss.xml [MEDIUM]
