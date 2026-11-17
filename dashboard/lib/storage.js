@@ -138,7 +138,13 @@ async function readFile(relativePath, { userId } = {}) {
         return isDataPath(relativePath) ? readDataFile(relativePath) : await fm.readFile(relativePath);
       }
       // No userId — unauthenticated or non-user path: seed from filesystem
-      return isDataPath(relativePath) ? readDataFile(relativePath) : await fm.readFile(relativePath);
+      if (isDataPath(relativePath)) return readDataFile(relativePath);
+      const fsResult = await fm.readFile(relativePath);
+      // Real config/*.md is gitignored, so the deploy only carries the examples
+      if (fsResult.error && relativePath.startsWith('config/')) {
+        return fm.readFile(examplePath(relativePath));
+      }
+      return fsResult;
     }
     return result;
   }

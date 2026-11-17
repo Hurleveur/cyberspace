@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "setup-https": "node generate-cert.js"
+    "setup-https": "node generate-cert.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",
