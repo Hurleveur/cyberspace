@@ -20,6 +20,12 @@ const parser = new RssParser({
   timeout: 10000,
 });
 
+// Sites behind bot checks (BleepingComputer) 403 a browser UA that runs no JS but serve a plain feed-reader UA
+const readerParser = new RssParser({
+  headers: { 'User-Agent': 'Cyberspace-RSS/1.0 (+https://cyberspace.team)' },
+  timeout: 10000,
+});
+
 // ── Disk persistence (via storage layer) ────────────────────────────────────
 
 async function loadDiskCache(userId) {
@@ -101,7 +107,10 @@ async function parseRssConfig(userId) {
  */
 async function fetchSingleFeed(feedConfig) {
   try {
-    const feed = await parser.parseURL(feedConfig.url);
+    const feed = await parser.parseURL(feedConfig.url).catch(err => {
+      if (/Status code 403/.test(err.message)) return readerParser.parseURL(feedConfig.url);
+      throw err;
+    });
     const sourceName = feed.title || new URL(feedConfig.url).hostname;
 
     return {
